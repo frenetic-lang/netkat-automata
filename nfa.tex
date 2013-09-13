@@ -1,0 +1,180 @@
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amssymb,latexsym,amsmath,stmaryrd,dk,dkenv}
+\usepackage{tikz}
+\usepgflibrary{shapes}
+\usetikzlibrary{arrows,automata,backgrounds}
+\usepackage{bbm}
+
+\usepackage[all]{xy}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+\DeclareFontFamily{U}{mathb}{\hyphenchar\font45}
+\DeclareFontShape{U}{mathb}{m}{n}{<5> <6> <7> <8> <9> <10> gen * mathb <10.95> mathb10 <12> <14.4> <17.28> <20.74> <24.88> mathb12}{}
+\DeclareSymbolFont{mathb}{U}{mathb}{m}{n}
+\DeclareMathSymbol\fsmash\mathbin{mathb}{"0C}
+
+\newcommand\den[1]{\llbracket #1\rrbracket}
+\newcommand\rsem[1]{[#1]}
+\newcommand\lsem[1]{L\den{#1}}
+\newcommand\cset[1]{\{#1\}}
+\newcommand\Rel{\kw{Rel}}
+\newcommand\KL{\kw{Kl}}
+\newcommand\KLP{\ensuremath{\KL\,\PP}} 
+\newcommand\lam[2]{\lambda{#1}\kern1pt.\kern1pt{#2}}
+\newcommand\nf[1]{#1^{\mathrm{nf}}}
+\newcommand\CA{\ensuremath{P}}
+\newcommand\At{\ensuremath{\mathit{At}}}
+\newcommand\cseq[2]{\pseq{\pseq{#1}\cdots}{#2}}
+\renewcommand\smash{\mathrel{\diamond}}
+\newcommand\ssum{\mathop{\textstyle\sum}}
+\newcommand\sbigcup{\mathop{\textstyle\bigcup}}
+\newcommand\pdup{\mathop{\mathsf{dup}}}
+\newcommand\One{\mathbf{1}}
+\newcommand\Two{\mathbf{2}}
+\newcommand\Exp{\mathsf{Exp}}
+\newcommand\bval[1]{[#1]}
+\renewcommand\star{^{\textstyle *}}
+\newcommand\id{\mathsf{id}}
+\newcommand\NetHKC[2]{\texttt{NetKATEquiv}(#1,#2)}
+\newcommand\pair[2]{\langle #1,#2\rangle}
+\renewcommand\powerset[1]{2^{#1}}
+\newcommand\JI{\At\cdot(P\cdot\pdup)\star\cdot P}
+\newcommand\setJI{2^{\At\cdot P\cdot(\pdup\cdot P)^{\scriptstyle *}}}
+\newcommand\funJI{(2^{\At \cdot P})^{(P\cdot\pdup)^{\scriptstyle *}}}
+
+\begin{document}
+
+\subsection*{NFAs}
+
+Apply Kleene construction to get an NFA $M_e$ from a NetKAT expression $e$. Assume wlog that De Morgan has been applied to tests so that all negations are applied only to primitive tests. Thus edge labels are primitive tests or their negations $f = m$ or $f\neq m$, assignments $f := n$, or $\pdup$. Call this alphabet $\Sigma$. We have a nondet automaton $(Q,\tau,S,F)$ where:
+\begin{itemize}
+\item
+$Q$ is a finite set of states
+\item
+$\tau\subs Q\times\Sigma\times Q$ is the transition relation
+\item
+$S\subs Q$ are the start states
+\item
+$F\subs Q$ are the accept states.
+\end{itemize}
+
+\subsection*{Transducer Semantics}
+
+Can be viewed operationally or denotationally.
+
+Operationally, start with a single nonempty packet history placed on a nondeterminstically chosen start state. Now suppose we have a packet history on a state $s$. If $s\in F$, we nondeterministically decide whether to stop or keep going. If we decide to stop, we include the current packet history in the output set. If we decide to keep going, we can take any enabled edge out of $s$, chosen nondeterministically, and perhaps take an action, depending on the label of the edge.
+\begin{itemize}
+\item
+Assignment edges are always enabled. If the edge is an assignment edge $s\goesto{f_i\leftarrow m}{}t$ and the current packet history is
+\begin{align*}
+(n_1,\ldots,n_{i-1},n_i,n_{i+1},\ldots,n_k)::h,
+\end{align*}
+then we can move from $s$ to $t$, changing the $i$th field of the head packet to $m$. The new packet history is
+\begin{align*}
+(n_1,\ldots,n_{i-1},m,n_{i+1},\ldots,n_k)::h.
+\end{align*}
+\item
+Dup edges are always enabled. If the edge is a dup edge $s\goesto{\pdup}{}t$ and the current packet history is
+\begin{align*}
+(n_1,\ldots,n_k)::h,
+\end{align*}
+then we can move from $s$ to $t$, duplicating the head packet. The new packet history is
+\begin{align*}
+(n_1,\ldots,n_k)::(n_1,\ldots,n_k)::h.
+\end{align*}
+\item
+A test edge $s\goesto{f_i=m}{}t$ or $s\goesto{f_i\neq m}{}t$ is enabled if the test is true for the head packet of the current packet history. If the current packet history is
+\begin{align*}
+(n_1,\ldots,n_{i-1},n_i,n_{i+1},\ldots,n_k)::h,
+\end{align*}
+then the edge $s\goesto{f_i=m}{}t$ is enabled if $n_i=m$ and $s\goesto{f_i\neq m}{}t$ is enabled if $n_i\neq m$.
+If the edge is enabled, we can move along the edge to state $t$, but do not change the packet history.
+\end{itemize}
+Let $L(N_e)(h)$ denote the output set starting with input history $h$. This is the the set of packet histories that can ever can ever be ``output'' (can ever occupy a final state) on input $h$. Then $L(M_e):H\to\powerset H$. Note that $L(M_e)(h)$ only depends on the head packet of $h$; thus if $p$ is a single packet, then
+\begin{align*}
+L(M_e)(p::h) = \set{x::h}{x\in L(M_e)(p)}.
+\end{align*}
+
+We can represent the output set of $L(M_e)(h)$ in terms of a least fixpoint of a monotone map on state labelings of type $\ell:Q\to\powerset H$. The least fixpoint is the least labeling $\ell:Q\to\powerset H$ such that:
+\begin{enumerate}
+\item
+$h\in \ell(s)$ for all $s\in S$
+\item
+if
+\begin{align*}
+(n_1,\ldots,n_{i-1},n_i,n_{i+1},\ldots,n_k)::h \in \ell(s)
+\end{align*}
+and $s\goesto{f_i\leftarrow m}{}t\in\tau$, then
+\begin{align*}
+(n_1,\ldots,n_{i-1},m,n_{i+1},\ldots,n_k)::h \in \ell(t).
+\end{align*}
+\item
+if
+\begin{align*}
+(n_1,\ldots,n_k)::h \in \ell(s)
+\end{align*}
+and $s\goesto{\pdup}{}t\in\tau$, then
+\begin{align*}
+(n_1,\ldots,n_k)::(n_1,\ldots,n_k)::h \in \ell(t).
+\end{align*}
+\item
+if
+\begin{align*}
+(n_1,\ldots,n_{i-1},n_i,n_{i+1},\ldots,n_k)::h \in \ell(s),
+\end{align*}
+$s\goesto{f_i=m}{}t\in\tau$, and $n_i=m$, then
+\begin{align*}
+(n_1,\ldots,n_{i-1},n_i,n_{i+1},\ldots,n_k)::h \in \ell(t).
+\end{align*}
+\item
+if
+\begin{align*}
+(n_1,\ldots,n_{i-1},n_i,n_{i+1},\ldots,n_k)::h \in \ell(s),
+\end{align*}
+$s\goesto{f_i\neq m}{}t\in\tau$, and $n_i\neq m$, then
+\begin{align*}
+(n_1,\ldots,n_{i-1},n_i,n_{i+1},\ldots,n_k)::h \in \ell(t).
+\end{align*}
+\end{enumerate}
+Then $L(M_e)(h) = \bigcup_{t\in F}\ell(t)$.
+
+\begin{theorem}
+$\den e = L(M_e)$.
+\end{theorem}
+
+\subsection*{Language Recognition Semantics}
+
+Inputs to the automaton are strings in $\At\cdot(P\cdot\pdup)\star\cdot P$. Such a string $x$ is \emph{accepted} if there is a path from some $s\in S$ to some $t\in F$ with label $y$ such that the inequality $x\leq y$ follows from the axioms of NetKAT. The label of a directed path is the concatenation of the edge labels along the path in order. Let $G(M_e)$ denote the set of accepted strings.
+
+\begin{theorem}
+$G(e) = G(M_e)$.
+\end{theorem}
+
+\subsection*{Relation between Transducer and Language Semantics}
+
+There is a one-to-one correspondence between packets $(n_1,\ldots,n_k)$ and atoms (complete tests) $f_1=n_1;\cdots;f_k=n_k$, so let us identify packets with atoms. This allows us to interpret $\alpha$ as either an atom $f_1=n_1;\cdots;f_k=n_k$ or its corresponding packet $(n_1,\ldots,n_k)$.
+
+Let $\alpha_i$ be packets, $1\leq i\leq m$.
+Let $p_i$ be the corresponding complete assignments; that is, if
+$\alpha_i = f_1=n_1;\cdots;f_k=n_k$, then
+$p_i = f_1\leftarrow n_1;\cdots;f_k\leftarrow n_k$.
+
+\begin{theorem}
+The following are equivalent:
+\begin{enumerate}
+\romanize
+\item
+$\alpha_m::\cdots::\alpha_1 \in L(M_e)(\alpha_0)$
+\item
+$\alpha_m::\cdots::\alpha_1 \in \den{e}(\alpha_0)$
+\item
+$\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in G(M_e)$
+\item
+$\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in G(e)$.
+\end{enumerate}
+\end{theorem}
+
+\end{document}
