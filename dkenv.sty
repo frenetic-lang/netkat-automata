@@ -1,0 +1,56 @@
+%\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{theorem}{Theorem}[section]
+%\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{problem}[theorem]{Problem}
+%\newtheorem{fact}[theorem]{Fact}
+\newtheorem{condition}[theorem]{Condition}
+\newtheorem{property}[theorem]{Property}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{claim}[theorem]{Claim}
+%\newtheorem{definition}[theorem]{Definition}
+\newtheorem{dfntn}[theorem]{Definition}
+\newenvironment{definition}{\begin{dfntn}\em}{\qed\end{dfntn}}
+\newtheorem{exmpl}[theorem]{Example}
+\newenvironment{example}{\begin{exmpl}\em}{\qed\end{exmpl}}
+\newtheorem{lgrthm}[theorem]{Algorithm}
+%\newenvironment{algorithm}{\begin{lgrthm}\em}{\end{lgrthm}}
+%dck 7/10/97 qed after axioms
+%dck 2/18/99 Axioms -> Axiom System
+\newtheorem{xms}[theorem]{Axiom System}
+\newenvironment{axioms}{\begin{xms}\em}{\qed\end{xms}}
+\newenvironment{proof}{\begin{trivlist}\item[]\hspace{\parindent}{\em Proof.}}{\qed\end{trivlist}}
+\newenvironment{proofsketch}{\addtolength{\topsep}{1mm}\begin{trivlist}\item[]\hspace{\parindent}{\em Proof sketch.}}{\qed\end{trivlist}}
+\newenvironment{proofof}[1]{\addtolength{\topsep}{1mm}\begin{trivlist}\item[]\hspace{\parindent}{\em Proof of #1.}}{\qed\end{trivlist}}
+\newenvironment{remark}{\begin{trivlist}\item[]{\bf Remark\ \ }}{\end{trivlist}}
+\newenvironment{namedtheorem}[1]{\begin{trivlist}\item[]{\bf #1\ \ }\em}{\end{trivlist}}
+\newlength{\oldleftmargini}
+\newenvironment{exercises}{\oldleftmargini=\leftmargini\leftmargini=3ex
+%\begin{enumerate}\addtolength\itemsep{2mm}}{\end{enumerate}\leftmargini=\oldleftmargini}
+\begin{enumerate}}{\end{enumerate}\leftmargini=\oldleftmargini}
+%3/1/99 dk
+%\newenvironment{exercises}{\begin{enumerate}\def\theenumi{\thechapter.\arabic{enumi}}}{\end{enumerate}\def\theenumi{\arabic{enumi}}}
+
+% program environment.  \> for tab.  \+ to add one tab stop to all 
+% subsequent indenting, \- to subtract.  \> at the beginning of a line, 
+% \+ and \- at the end (?).  Terminate lines with \\.
+\newlength{\pgmtab}       %\pgmtab is the width of each tab in the
+\setlength{\pgmtab}{1em}  %program environment
+\newenvironment{program}{\begin{tabbing}\hspace{\pgmtab}\=\hspace{\pgmtab}\=%
+\hspace{\pgmtab}\=\hspace{\pgmtab}\=\hspace{\pgmtab}\=\hspace{\pgmtab}\=%
+\hspace{\pgmtab}\=\hspace{\pgmtab}\=\hspace{\pgmtab}\=\hspace{\pgmtab}\=%
+\hspace{\pgmtab}\=\hspace{\pgmtab}\=\hspace{\pgmtab}\=%
+\+\+\kill}{\end{tabbing}}
+
+\newenvironment{closeenumerate}{\begin{list}{\arabic{enumi}.}
+{\usecounter{enumi}\itemsep=2mm\parsep=0in}}{\end{list}}
+\newenvironment{closeenumerateii}{\begin{list}{\arabic{enumii}.}
+{\usecounter{enumii}\itemsep=2mm\parsep=0in}}{\end{list}}
+\newenvironment{closedescription}{\begin{list}{}
+{\usecounter{enumiii}\leftmargin=0in\itemsep=2mm\topsep=0in\parsep=0in}}{\end{list}}
+\newenvironment{closedescriptionii}{\begin{list}{}
+{\usecounter{enumiv}\itemsep=2mm\topsep=0in\parsep=0in}}{\end{list}}
+\newenvironment{closeitemize}{\begin{list}{\small $\bullet$}
+{\usecounter{enumiv}\itemsep=2mm\topsep=0in\parsep=0in}}{\end{list}}

@@ -1,0 +1,283 @@
+\newlength{\boxlength}
+\newcommand\header{\fboxrule=.5mm\fboxsep=1.2mm\boxlength=\textwidth
+\addtolength{\boxlength}{-4mm}
+\begin{center}\framebox{\parbox{\boxlength}{\bf
+\nw\hfill\ne\\
+\sw\hfill\se}}\end{center}\fboxrule=.2mm}
+
+\renewcommand{\(}{\begin{eqnarray*}}
+\renewcommand{\)}{\end{eqnarray*}}
+
+\newcommand\codebox[1]{
+\fboxrule=.2mm\fboxsep=2mm\boxlength=\textwidth
+\addtolength{\boxlength}{-1cm}
+\begin{center}\fbox{\begin{minipage}{\boxlength}
+#1
+\end{minipage}}\end{center}}
+
+\newcounter{tempenumi}
+\newcommand\suspend{\setcounter{tempenumi}{\value{enumi}}\end{enumerate}}
+\newcommand\resume{\begin{enumerate}\setcounter{enumi}{\value{tempenumi}}}
+
+\newcommand\romanize{\def\theenumi{\roman{enumi}}\def\labelenumi{{\rm(\theenumi)}}}
+\newcommand\romanizeii{\def\theenumii{\roman{enumii}}\def\labelenumii{{\rm(\roman{enumii})}}}
+\newcommand\romanizeiii{\def\theenumiii{\roman{enumiii}}\def\labelenumiii{{\rm(\roman{enumiii})}}}
+\newcommand\alphize{\def\theenumi{\alph{enumi}}\def\labelenumi{{\rm(\theenumi)}}}
+\newcommand\alphizeii{\def\theenumii{\alph{enumii}}\def\labelenumii{{\rm(\alph{enumii})}}}
+%\newcommand\scriptstack[2]{\shortstack{\scriptsize $#1$\\ \scriptsize $#2$}}
+%\newcommand\scriptstackthree[3]{\shortstack{\scriptsize $#1$\\ \scriptsize $#2$\\ \scriptsize $#3$}}
+%dck 7/8/97 changed commas
+%\newcommand\alt[4]{\left\{\begin{array}{ll} #1, & \mbox{if } #2,\\
+%#3, & \mbox{if } #4\end{array}\right.}
+%\newcommand\altonp[3]{\left\{\begin{array}{ll} #1, & \mbox{if } #2\\
+%#3, & \mbox{otherwise}\end{array}\right.}
+%\newcommand\alto[3]{\left\{\begin{array}{ll} #1, & \mbox{if } #2\\
+%#3, & \mbox{otherwise.}\end{array}\right.}
+%\newcommand\altoc[3]{\left\{\begin{array}{ll} #1, & \mbox{if } #2\\
+%#3, & \mbox{otherwise,}\end{array}\right.}
+%dck 7/10/97
+%\renewcommand\check[1]{\marginpar{\textbf{#1}}\typeout{CHECK: #1}}
+\newcommand\longline{\begin{flushleft}\mbox{}\hrulefill\mbox{}\end{flushleft}}
+\renewcommand\bar[1]{\overline{#1}}
+\newcommand\del{\partial}
+\newcommand\subs{\,\subseteq\,}
+\newcommand\sleq{\sqsubseteq}
+\newcommand\sups{\,\supseteq\,}
+\newcommand\eps{\varepsilon}
+\renewcommand\AA{{\cal A}}
+\newcommand\BB{\mathcal{B}}
+\newcommand\CC{\mathcal{C}}
+\newcommand\DD{{\cal D}}
+\newcommand\EE{{\cal E}}
+\newcommand\FF{{\cal F}}
+\newcommand\GG{{\cal G}}
+\newcommand\HH{{\cal H}}
+\newcommand\II{{\cal I}}
+\newcommand\JJ{{\cal J}}
+\newcommand\KK{{\cal K}}
+\newcommand\LL{{\cal L}}
+\newcommand\MM{{\cal M}}
+\newcommand\NN{{\cal N}}
+\newcommand\OO{{\cal O}}
+\newcommand\PP{{\cal P}}
+\newcommand\QQ{{\cal Q}}
+\newcommand\RR{{\cal R}}
+\def\SS{{\cal S}}
+\newcommand\TT{{\cal T}}
+\newcommand\UU{{\cal U}}
+\newcommand\VV{{\cal V}}
+\newcommand\WW{{\cal W}}
+\newcommand\XX{{\cal X}}
+\newcommand\YY{{\cal Y}}
+\newcommand\ZZ{{\cal Z}}
+\def\ifundefined#1{\expandafter\ifx\csname#1\endcsname\relax}
+\ifundefined{qed}\newcommand\qed{\mbox{}~\hfill~$\Box$}\else\relax\fi
+\renewcommand\iff{\leftrightarrow}
+\newcommand\Iff{\Leftrightarrow}
+\newcommand\imp{\rightarrow}
+\newcommand\fun{\rightarrow}
+\newcommand\Imp{\Rightarrow}
+\newcommand\join{\vee}
+\newcommand\bigjoin{\bigvee}
+\newcommand\meet{\wedge}
+\newcommand\bigmeet{\bigwedge}
+\newcommand\Iffdef{\stackrel{\rm def}{\Longleftrightarrow}}
+\newcommand\eqdef{\stackrel{\rm def}{=}}
+\renewcommand\choose[2]{\left(\begin{array}c #1\\#2\end{array}\right)}
+\newcommand\force{\mathrel{\vdash}}
+\newcommand\IO[2]{\begin{description}\item[\bf Input:] #1 \item[\bf Output:] #2\end{description}}
+\def\Bot{\makebox[2pt][l]{$\bot$}\bot}
+\newcommand\powerset[1]{\mathcal{P}(#1)}
+
+%7/7/97 dck
+
+%\renewcommand\d[1]{\mbox{\verb=<=}#1\mbox{\verb=>=}}
+%\newcommand\bx[1]{\mbox{\verb=[=}#1\mbox{\verb=]=}}
+%\renewcommand\d[1]{\langle #1\rangle}
+%\newcommand\bx[1]{[#1]}
+\renewcommand\d[1]{\text{\rm\texttt<}#1\text{\rm\texttt>}}
+\newcommand\bx[1]{\text{\rm\texttt[}#1\text{\rm\texttt]}}
+\newcommand\px[1]{\text{\rm\texttt(}#1\text{\rm\texttt)}}
+%kerning added to \dd and \bbx 8/16/98 dck
+\newcommand\dd[1]{\d{\hbox{\kern-2pt$\d{#1}$\kern-2pt}}}
+\newcommand\bbx[1]{\bx{\hbox{\kern-4pt$\bx{#1}$\kern-4pt}}}
+\newcommand\bb[1]{\bbx{#1}}
+\newcommand\Dia{\Diamond}
+\newcommand\pca[3]{\{#1\}\:#2\:\{#3\}}
+\newcommand\true{{\bf 1}}
+\newcommand\false{{\bf 0}}
+\newcommand\hyphen{\mbox{-}}
+\newcommand\oth{{\rm th}}
+\newcommand\ost{{\rm st}}
+\newcommand\ond{{\rm nd}}
+\newcommand\Ie{{\it I.e.\/}}
+\newcommand\ie{{\it i.e.\/}}
+\newcommand\Eg{{\it E.g.\/}}
+\newcommand\eg{{\it e.g.\/}}
+\newcommand\etc{{\it etc}}
+\newcommand\cf{{\it cf.\/}}
+\newcommand\vs{{\it vs.\/}}
+%\newcommand\etal{{\it et al.}}
+\newcommand\adhoc{{\it ad hoc}}
+\newcommand\seq[3]{#1_{#2},\ldots,#1_{#3}}
+\newlength\reasonwidth
+\setlength\reasonwidth{3cm}
+\newcommand\reasoning[1]{\def\longest{#1}\settowidth{\reasonwidth}{$\displaystyle\longest$}\addtolength{\reasonwidth}{5mm}} %dck 2/12/98
+\newcommand\reason[2]{\makebox[\reasonwidth][l]{$\displaystyle{#1}$}\mbox{#2}}
+\renewcommand\star{\mathchoice{^{\textstyle *}}{^{\textstyle *}}{^{\scriptstyle *}}{^{\scriptstyle *}}}
+\newcommand\starstar{^{\textstyle **}}
+%\renewcommand\star{^{\raisebox{1pt}{\fontsize{8}{8}\upshape\selectfont*}}}
+%\newcommand\starstar{{\raisebox{1pt}{\fontsize{8}{8}\upshape\selectfont**}}}
+\newcommand\substar{_{\textstyle *}}
+\renewcommand\ast[1]{#1\relax{}^{\textstyle *}}
+\newcommand\rev[1]{#1\relax{}^-}
+\newcommand\plus[1]{#1\relax{}^+}
+\newcommand\cir{\circle*{4}}
+\renewcommand\hat{\widehat}
+\renewcommand\tilde{\widetilde}
+\renewcommand\phi{\varphi}
+\newcommand\bottom{\bot}
+\newcommand\sat{\vDash}
+\newcommand\onein{1\leq i\leq n}
+
+\newcommand\draft{\special{!userdict begin /bop-hook{gsave 150 80 translate 50 rotate
+         /Times-Roman findfont 216 scalefont setfont 0 0 moveto
+         0.99 setgray (DRAFT) show grestore}def end}}
+%to use: \documentstyle[amssymbols,12pt]{article}
+\newcommand\reals{{\mathbb R}}
+\newcommand\complexes{{\mathbb C}}
+\newcommand\naturals{{\mathbb N}}
+\newcommand\integers{{\mathbb Z}}
+\newcommand\rationals{{\mathbb Q}}
+
+%requires amsmath
+\newcommand\goesto[2]{\underset{#2}{\overset{#1}\longrightarrow}}
+%\newcommand\goesto[2]{
+%\rule[-3mm]{0mm}{7mm}
+%\begin{picture}(22,10)
+%\put(10,2){\makebox(0,0){$\ \longrightarrow\ $}}
+%\put(10,5){\makebox(0,0)[b]{\scriptsize{$#1$}}}
+%\put(10,-1){\makebox(0,0)[t]{\scriptsize{$#2$}}}
+%\end{picture}}
+
+\newlength\overlapleng      % new variable
+\newcommand\overlap[3]{     % overlapping curlybrace macro
+\settowidth\overlapleng{#2}
+$\overbrace{\mbox{#1\ #2}}
+\hspace*{-1\overlapleng}
+\underbrace{\phantom{\mbox{#2}}\ #3}$}
+\newcommand\eqnref[1]{{\rm (\ref{#1})}}
+\newcommand\set[2]{\{#1 \mid #2\}}
+\newcommand\dom[1]{{\rm dom\;}#1}
+\renewcommand\ker[1]{{\rm ker\;}#1}
+\newcommand\backup{{\!\!}}
+\renewcommand\sec[1]{Section \ref{#1}}
+\newcommand\len[1]{|#1|}
+\newcommand {\diverges}	{\mbox{$\Uparrow$}}
+\newcommand {\converges} {\mbox{$\Downarrow$}}
+
+%\newcommand\card[1]{\mbox{$\parallel\! #1 \!\parallel$}}
+\newcommand\card[1]{\# #1}
+\newcommand\ceil[1]{\lceil #1 \rceil}
+\newcommand\floor[1]{\lfloor #1 \rfloor}
+
+\newcommand\app{\approx\hspace{-3.3mm}\sim}
+%\newcommand\bnot{\sim\!}
+\newcommand\ldot{\ .\ }
+
+%complexity
+
+\newcommand {\pT} [1]
+	{\mbox{${#1}_{\mbox{\scriptsize\nm T}}^{\mbox{\scriptsize\nm p}}$}}
+\newcommand {\pM} [1]
+	{\mbox{${#1}_{\mbox{\scriptsize\nm m}}^{\mbox{\scriptsize\nm p}}$}}
+\newcommand {\logT} [1]
+	{\mbox{$#1_{\mbox{\scriptsize\nm T}}^{\mbox{\scriptsize\nm log}}$}}
+\newcommand {\logM} [1]
+	{\mbox{$#1_{\mbox{\scriptsize\nm m}}^{\mbox{\scriptsize\nm log}}$}}
+\newcommand {\sharpP}{\mbox{\#\P}}
+\newcommand {\Ppoly}{\mbox{P/Poly}}
+\newcommand {\NPpoly}{\mbox{NP/Poly}}
+\newcommand {\SigmaP}[1]{\mbox{$\Sigma^{\mbox{\scriptsize\nm p}_{#1}}$}}
+\newcommand {\PiP}[1]{\mbox{$\Pi^{\mbox{\scriptsize\nm p}_{#1}}$}}
+\newcommand {\DeltaP}[1]{\mbox{$\Delta^{\mbox{\scriptsize\nm p}_{#1}}$}}
+\newcommand\PF{{\it PF\/}}
+\newcommand\DP{\mbox{$D^P$}}
+\newcommand\coNP{\mbox{co-\NP}}
+\newcommand\coDP{\mbox{co-$D^P$}}
+\newcommand\CFL{{\sf CFL\/}}
+\newcommand\DTIME{{\it DTIME\/}}
+\newcommand\NTIME{{\it NTIME\/}}
+\newcommand\ATIME{{\it ATIME\/}}
+\newcommand\DSPACE{{\it DSPACE\/}}
+\newcommand\NSPACE{{\it NSPACE\/}}
+\newcommand\ASPACE{{\it ASPACE\/}}
+\newcommand\LOGSPACE{\ensuremath{\mathit{LOGSPACE}}}
+\newcommand\NLOGSPACE{\ensuremath{\mathit{NLOGSPACE}}}
+\newcommand\ALOGSPACE{\ensuremath{\mathit{ALOGSPACE}}}
+\renewcommand\P{{\it P\/}}
+\newcommand\NC{{\it NC\/}}
+\newcommand\RNC{{\it RNC\/}}
+\newcommand\NP{{\it NP\/}}
+\newcommand\AP{{\it AP}}
+\newcommand\PH{{\it PH\/}}
+\newcommand\IP{{\it IP\/}}
+\newcommand\PTIME{{\it PTIME\/}}
+\newcommand\NPTIME{{\it NPTIME}}
+\newcommand\APTIME{{\it APTIME}}
+\newcommand\PSPACE{{\it PSPACE\/}}
+\newcommand\NPSPACE{{\it NPSPACE}}
+\newcommand\APSPACE{{\it APSPACE}}
+\newcommand\RPSPACE{{\it RPSPACE}}
+\newcommand\EXPTIME{{\it EXPTIME\/}}
+\newcommand\NEXPTIME{{\it NEXPTIME\/}}
+\newcommand\AEXPTIME{{\it AEXPTIME\/}}
+\newcommand\EXPSPACE{{\it EXPSPACE\/}}
+\newcommand\NEXPSPACE{{\it NEXPSPACE\/}}
+\newcommand\AEXPSPACE{{\it AEXPSPACE\/}}
+\newcommand\STA[3]{{\it STA\/}(#1,#2,#3)}
+
+%programs
+
+\newcommand\assg[2]{#1\mathrel{:=}#2}
+\newcommand\while{{\bf while}}
+\newcommand\While{{\bf While}}
+\newcommand\for{{\bf for}}
+\newcommand\For{{\bf For}}
+\newcommand\skp{{\bf skip}} %don't use skip!
+\newcommand\fail{{\bf fail}}
+%\newcommand\comp[2]{#1\mathrel{;}#2}
+\newcommand\comp[2]{#1\hspace{.2em}{;}\hspace{.2em}#2}
+\newcommand\ite[3]{\mbox{\bf if }#1\mbox{ \bf then }#2\mbox{ \bf else }{#3}}
+\newcommand\iffi[3]{\mbox{\bf if }#1\mbox{ \bf then }#2\mbox{ \bf else }#3\mbox{ \bf fi}}
+\newcommand\fd[2]{\mbox{\bf for }#1\mbox{ \bf do }{#2}}
+\newcommand\whd[2]{\mbox{\bf while }#1\mbox{ \bf do }{#2}}
+\newcommand\ru[2]{\mbox{\bf repeat }#1\mbox{ \bf until }#2\mbox{}}
+\newcommand\nd[2]{[#1\mbox{ \bf or }#2]}
+\newcommand\begend[1]{\mbox{\bf begin }#1\mbox{ \bf end }}
+
+%dck 7/97
+\newcommand\ifthen[2]{\mbox{\bf if }#1\mbox{ \bf then }#2}
+
+\newcommand\wildcard[1]{\assg{#1}{\:?}}
+\newcommand\oneone{one-to-one}
+\renewcommand\emptyset{\varnothing}
+%\newcommand\code[1]{\ulcorner #1\urcorner}
+
+%dck 2/98 moved from dldefs
+%\newcommand\setcompl{\sim}
+\newcommand\setcompl[1]{\mbox{$\sim$}\kern1pt{#1}}
+\newcommand\blank{{\llcorner\hspace{-5pt}\lrcorner}}
+\newcommand\subblank{{\llcorner\hspace{-4pt}\lrcorner}} %dck 3/4/00
+
+%dck 12/10/98
+\newcommand\lhs{left-hand side}
+\newcommand\rhs{right-hand side}
+
+\newcommand\subst[2]{[#1/#2]}
+\newcommand\union{\mathrel{\cup}}
+\newcommand\intersect{\mathrel{\cap}}
+
+\newcommand\barnone{\bar{\rule{0mm}{1ex}\hspace{1ex}}}
+
+
