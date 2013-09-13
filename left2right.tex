@@ -1,0 +1,414 @@
+\documentclass{article}
+
+\usepackage{amssymb,latexsym,amsmath,dk,dkenv}
+
+\newcommand\rsem[1]{[#1]}
+\newcommand\lsem[1]{L\den{#1}}
+\newcommand\cset[1]{\{#1\}}
+\newcommand\Rel{\kw{Rel}}
+\newcommand\KL{\kw{Kl}}
+\newcommand\KLP{\ensuremath{\KL\,\PP}} 
+\newcommand\lam[2]{\lambda{#1}\kern1pt.\kern1pt{#2}}
+\newcommand\nf[1]{#1^{\mathrm{nf}}}
+\newcommand\JI{\ensuremath{I}}
+\newcommand\CA{\ensuremath{P}}
+\newcommand\At{\ensuremath{\mathit{At}}}
+\newcommand\cseq[2]{\pseq{\pseq{#1}\cdots}{#2}}
+\renewcommand\smash{\mathrel{\diamond}}
+\newcommand\ssum{\mathop{\textstyle\sum}}
+\newcommand\pdup{\mathop{\mathsf{dup}}}
+\newcommand\Two{\mathbf{2}}
+\newcommand\Exp{\mathsf{Exp}}
+\newcommand\bval[1]{[#1]}
+\renewcommand\star{^{\textstyle *}}
+\newcommand\id{\mathsf{id}}
+\newcommand\sbigcup{\mathop{\textstyle\bigcup}}
+
+\begin{document}
+
+\subsection*{Types}
+
+\begin{gather*}
+G: \Exp \fun \powerset I\\
+\delta_{\alpha p\pdup} : \powerset I \fun \powerset I
+\qquad
+\eps_{\alpha p} : \powerset I \fun \Two\\
+D_{\alpha p\pdup} : \Exp \fun \Exp
+\qquad
+E_{\alpha p} : \Exp \fun \Two
+\end{gather*}
+
+\subsection*{Language Semantics}
+
+\begin{gather*}
+I = \At\cdot (P\cdot\pdup)\star\cdot P\\
+G(p) = \set{\alpha p}{\alpha\in\At} \qquad
+G(b) = \set{\alpha p_\alpha}{\alpha\leq b} \qquad
+G(\pdup) = \set{\alpha p_\alpha\pdup p_\alpha}{\alpha\in\At}\\
+G(e_1+e_2) = G(e_1)\cup G(e_2) \qquad
+G(e_1e_2) = G(e_1)\smash G(e_2) \qquad
+G(e\star) = \sbigcup_n G(e^n)
+\end{gather*}
+
+\subsection*{Defs}
+
+\begin{gather*}
+\bval\phi = \begin{cases}
+1, & \phi\\
+0, & \neg\phi
+\end{cases}
+\qquad
+\id = G(1) = \set{\alpha p_\alpha}{\alpha\in\At}\\
+A\smash B = \set{xy}{\exists q\ xq\in A,\ \alpha_qy\in B}
+\end{gather*}
+
+\subsection*{Final Coalgebra}
+
+\begin{align*}
+\delta_{\alpha p\pdup}(A) &= \set{\alpha_p x}{\alpha p\pdup x\in A}
+&
+\eps_{\alpha p}(A) &= \bval{\alpha p\in A}
+\end{align*}
+
+\begin{lemma}\ 
+\begin{enumerate}
+\romanize
+\item
+$\eps_{\alpha p}(\id) = \bval{\alpha=\alpha_p}$
+\item
+$\eps_{\alpha p}(A\cup B) = \eps_{\alpha p}(A) + \eps_{\alpha p}(B)$
+\item
+$\eps_{\alpha p}(A\smash B) = \ssum_q\eps_{\alpha q}(A)\cdot\eps_{\alpha_q p}(B)$
+\item
+$\eps_{\alpha p}(A\star) = \bval{\alpha = \alpha_p} + \ssum_q\eps_{\alpha q}(A)\cdot\eps_{\alpha_q p}(A\star)$
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+(i) $\eps_{\alpha p}(\id) = \bval{\alpha p\in\id} = \bval{\alpha=\alpha_p}$.
+
+(ii)
+\begin{align*}
+\eps_{\alpha p}(A\cup B)
+&= \bval{\alpha p\in A\cup B}
+= \bval{\alpha p\in A}
++ \bval{\alpha p\in B}
+= \eps_{\alpha p}(A)
++ \eps_{\alpha p}(B)
+\end{align*}
+
+(iii)
+\begin{align*}
+\eps_{\alpha p}(A\smash B)
+&= \bval{\alpha p\in A\smash B}
+= \bval{\exists q\ \alpha q\in A\meet \alpha_q p\in B}\\
+&= \ssum_q \bval{\alpha q\in A}
+\cdot
+\bval{\alpha_q p\in B}
+= \ssum_q\eps_{\alpha q}(A)\cdot\eps_{\alpha_q p}(B)
+\end{align*}
+
+(iv)
+\begin{align*}
+\eps_{\alpha p}(A\star)
+&= \eps_{\alpha p}(\id\cup A\smash A\star)\\
+&= \eps_{\alpha p}(\id) + \ssum_q\eps_{\alpha q}(A)\cdot\eps_{\alpha_q p}(A\star)\\
+&= \bval{\alpha = \alpha_p}
++ \ssum_q\eps_{\alpha q}(A)\cdot\eps_{\alpha_q p}(A\star)
+\end{align*}
+\end{proof}
+
+\begin{lemma}\ 
+\begin{enumerate}
+\romanize
+\item
+$\delta_{\alpha p\pdup}(\sbigcup_n A_n) = \sbigcup_n \delta_{\alpha p\pdup}(A_n)$
+\item
+$\delta_{\alpha p\pdup}(A\smash B) = \delta_{\alpha p\pdup}(A)\smash B \cup \sbigcup \set{\delta_{\alpha_q p\pdup}(B)}{\alpha q\in A}$
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+(i)
+\begin{align*}
+\delta_{\alpha p\pdup}(\sbigcup_n A_n)
+&= \set{\alpha_p x}{\alpha p\pdup x\in\sbigcup_n A_n}\\
+&= \sbigcup_n \set{\alpha_p x}{\alpha p\pdup x\in A_n}\\
+&= \sbigcup_n \delta_{\alpha p\pdup}(A_n)
+\end{align*}
+
+(ii)
+\begin{align*}
+\delta_{\alpha p\pdup}(A\smash B)
+&= \delta_{\alpha p\pdup}(\set{yz}{\exists q\ yq\in A,\ \alpha_qz\in B})\\
+&= \delta_{\alpha p\pdup}(\set{yz}{\exists q\ yq\in A,\ \alpha_qz\in B,\ y\in\At})\\
+&\qquad \cup\delta_{\alpha p\pdup}(\set{yz}{\exists q\ yq\in A,\ \alpha_qz\in B,\ y\not\in\At})\\
+&= \delta_{\alpha p\pdup}(\set{\beta z}{\exists q\ \beta q\in A,\ \alpha_qz\in B})\\
+&\qquad \cup\delta_{\alpha p\pdup}(\set{\beta r\pdup wz}{\exists q\ \beta r\pdup wq\in A,\ \alpha_qz\in B})
+\end{align*}
+and
+\begin{align*}
+& \delta_{\alpha p\pdup}(\set{\beta z}{\exists q\ \beta q\in A,\ \alpha_qz\in B})\\
+&= \set{\alpha_p x}{\alpha p\pdup x\in\set{\beta z}{\exists q\ \beta q\in A,\ \alpha_qz\in B}}\\
+&= \set{\alpha_p x}{\alpha p\pdup x\in\set{\alpha p\pdup x}{\exists q\ \alpha q\in A,\ \alpha_qp\pdup x\in B}}\\
+&= \set{\alpha_p x}{\exists q\ \alpha q\in A,\ \alpha_qp\pdup x\in B}\\
+&= \sbigcup \set{\set{\alpha_p x}{\alpha_q p\pdup x\in B}}{\alpha q\in A}\\
+&= \sbigcup \set{\delta_{\alpha_q p\pdup}(B)}{\alpha q\in A}
+\end{align*}
+
+\begin{align*}
+& \delta_{\alpha p\pdup}(\set{\beta r\pdup wz}{\exists q\ \beta r\pdup wq\in A,\ \alpha_qz\in B})\\
+&= \set{\alpha_p x}{\alpha p\pdup x\in\set{\beta r\pdup wz}{\exists q\ \beta r\pdup wq\in A,\ \alpha_qz\in B}}\\
+&= \set{\alpha_p wz}{\alpha p\pdup wz\in\set{\alpha p\pdup wz}{\exists q\ \alpha p\pdup wq\in A,\ \alpha_qz\in B}}\\
+&= \set{\alpha_p wz}{\exists q\ \alpha p\pdup wq\in A,\ \alpha_qz\in B}\\
+&= \set{\alpha_p wz}{\exists q\ \alpha_p wq\in\set{\alpha_p x}{\alpha p\pdup x\in A},\ \alpha_qz\in B}\\
+&= \set{\alpha_p wz}{\exists q\ \alpha_p wq\in\set{\alpha_p wq}{\alpha p\pdup wq\in A},\ \alpha_qz\in B}\\
+&= \set{yz}{\exists q\ yq\in\set{\alpha_p x}{\alpha p\pdup x\in A},\ \alpha_qz\in B}\\
+&= \set{\alpha_p x}{\alpha p\pdup x\in A}\smash B\\
+&= \delta_{\alpha p\pdup}(A)\smash B
+\end{align*}
+\end{proof}
+
+\subsection*{Syntactic Coalgebra}
+
+\begin{gather*}
+E_{\alpha p}(q) = \bval{q = p} \qquad
+E_{\alpha p}(b) = \bval{\alpha_p=\alpha\leq b} \qquad
+E_{\alpha p}(\pdup) = 0\\
+E_{\alpha p}(e_1+e_2) = E_{\alpha p}(e_1)+E_{\alpha p}(e_2) \qquad
+E_{\alpha p}(e_1e_2) = \ssum_{q} E_{\alpha q}(e_1)\cdot E_{\alpha_q p}(e_2)\\
+E_{\alpha p}(e\star) = \bval{\alpha=\alpha_p} + \ssum_{q} E_{\alpha q}(e)\cdot E_{\alpha_q p}(e\star)
+\end{gather*}
+
+\begin{gather*}
+D_{\alpha p\pdup}(q) = 0 \qquad
+D_{\alpha p\pdup}(b) = 0 \qquad
+D_{\alpha p\pdup}(\pdup) = \alpha\cdot\bval{\alpha=\alpha_p}\\
+D_{\alpha p\pdup}(e_1+e_2) = D_{\alpha p\pdup}(e_1)+D_{\alpha p\pdup}(e_2)\\
+D_{\alpha p\pdup}(e_1e_2) = D_{\alpha p\pdup}(e_1)\cdot e_2 + \ssum_{q} E_{\alpha q}(e_1)\cdot D_{\alpha_qp\pdup}(e_2)\\
+D_{\alpha p\pdup}(e\star) = D_{\alpha p\pdup}(e)\cdot e\star + \ssum_{q} E_{\alpha q}(e)\cdot D_{\alpha_qp\pdup}(e\star)
+\end{gather*}
+
+\subsection*{Main Result}
+
+\begin{lemma}\ 
+\begin{enumerate}
+\romanize
+\item
+$G(D_{\alpha p\pdup}(e)) = \delta_{\alpha p\pdup}(G(e))$
+\item
+$E_{\alpha p}(e) = \eps_{\alpha p}(G(e))$
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+By induction on $e$.
+
+(i)
+\begin{align*}
+G(D_{\alpha p\pdup}(q))
+&= G(0)
+= \emptyset\\
+&= \set{\alpha_p x}{\alpha p\pdup x\in\set{\beta q}{\beta\in\At}}\\
+&= \delta_{\alpha p\pdup}(\set{\beta q}{\beta\in\At})
+= \delta_{\alpha p\pdup}(G(q))
+\end{align*}
+
+\begin{align*}
+G(D_{\alpha p\pdup}(b))
+&= G(0)
+= \emptyset\\
+&= \set{\alpha_p x}{\alpha p\pdup x\in\set{\beta p_\beta}{\beta\leq b}}\\
+&= \delta_{\alpha p\pdup}(\set{\beta p_\beta}{\beta\leq b})
+= \delta_{\alpha p\pdup}(G(b))
+\end{align*}
+
+\begin{align*}
+G(D_{\alpha p\pdup}(\pdup))
+&= G(\alpha\cdot\bval{\alpha=\alpha_p})\\
+&= \cset{\alpha p_\alpha}\\
+&= \set{\alpha_p p_\alpha}{p=p_\alpha}\\
+&= \set{\alpha_p x}{\alpha p\pdup x\in\set{\beta p_\beta\pdup p_\beta}{\beta\in\At}}\\
+&= \delta_{\alpha p\pdup}(\set{\beta p_\beta\pdup p_\beta}{\beta\in\At})\\
+&= \delta_{\alpha p\pdup}(G(\pdup))
+\end{align*}
+
+\begin{align*}
+G(D_{\alpha p\pdup}(e_1+e_2))
+&= G(D_{\alpha p\pdup}(e_1)+D_{\alpha p\pdup}(e_2))\\
+&= G(D_{\alpha p\pdup}(e_1))\cup G(D_{\alpha p\pdup}(e_2))\\
+&= \delta_{\alpha p\pdup}(G(e_1))\cup\delta_{\alpha p\pdup}(G(e_2))\\
+&= \delta_{\alpha p\pdup}(G(e_1)\cup G(e_2))\\
+&= \delta_{\alpha p\pdup}(G(e_1+e_2))
+\end{align*}
+
+\begin{align*}
+G(D_{\alpha p\pdup}(e_1e_2))
+&= G(D_{\alpha p\pdup}(e_1)\cdot e_2 + \ssum_{q} E_{\alpha q}(e_1)\cdot D_{\alpha_q p\pdup}(e_2))\\
+&= G(D_{\alpha p\pdup}(e_1)\cdot e_2) \cup \sbigcup \set{G(D_{\alpha_q p\pdup}(e_2))}{\eps_{\alpha q}(G(e_1))=1}\\
+&= G(D_{\alpha p\pdup}(e_1))\smash G(e_2) \cup \sbigcup \set{\delta_{\alpha_q p\pdup}(G(e_2))}{\alpha q\in G(e_1)}\\
+&= \delta_{\alpha p\pdup}(G(e_1))\smash G(e_2) \cup \sbigcup \set{\delta_{\alpha_q p\pdup}(G(e_2))}{\alpha q\in G(e_1)}\\
+&= \delta_{\alpha p\pdup}(G(e_1)\smash G(e_2))\\
+&= \delta_{\alpha p\pdup}(G(e_1e_2))
+\end{align*}
+
+System defining $D_{\alpha p\pdup}(e\star)$ is
+
+\begin{align*}
+D_{\alpha p\pdup}(e\star) = D_{\alpha p\pdup}(e)\cdot e\star + \ssum_{q} E_{\alpha q}(e)\cdot D_{\alpha_qp\pdup}(e\star)
+\end{align*}
+thus
+\begin{align*}
+G(D_{\alpha p\pdup}(e\star))
+&= G(D_{\alpha p\pdup}(e)\cdot e\star) \cup G(\ssum_{q}E_{\alpha q}(e)\cdot D_{\alpha_q p\pdup}(e\star))\\
+&= G(D_{\alpha p\pdup}(e))\smash G(e\star) \cup \sbigcup_q G(E_{\alpha q}(e)\cdot D_{\alpha_q p\pdup}(e\star))\\
+&= \delta_{\alpha p\pdup}(G(e))\smash G(e\star) \cup \sbigcup \set{G(D_{\alpha_q p\pdup}(e\star))}{\alpha q\in G(e)}\\
+\end{align*}
+
+Want to show that
+\begin{align*}
+\delta_{\alpha p\pdup}(G(e\star))
+&= \delta_{\alpha p\pdup}(G(e))\smash G(e\star) \cup \sbigcup \set{\delta_{\alpha_q p\pdup}(G(e\star))}{\alpha q\in G(e)}
+\end{align*}
+and if
+\begin{align*}
+A_{\alpha p\pdup}
+&= \delta_{\alpha p\pdup}(G(e))\smash G(e\star) \cup \sbigcup \set{A_{\alpha_q p\pdup}}{\alpha q\in G(e)}
+\end{align*}
+then
+\begin{align*}
+\delta_{\alpha p\pdup}(G(e\star)) \subs A_{\alpha p\pdup}
+\end{align*}
+
+\begin{align*}
+\delta_{\alpha p\pdup}(G(e\star))
+&= \delta_{\alpha p\pdup}(G(1+ee\star))\\
+&= \delta_{\alpha p\pdup}(\id) \cup \delta_{\alpha p\pdup}(G(e)\smash G(e\star))\\
+&= \delta_{\alpha p\pdup}(G(e))\smash G(e\star) \cup \sbigcup \set{\delta_{\alpha_q p\pdup}(G(e\star))}{\alpha q\in G(e)},
+\end{align*}
+since $\delta_{\alpha p\pdup}(\id) = \emptyset$.
+
+Suppose
+\begin{align*}
+A_{\alpha p\pdup}
+&= \delta_{\alpha p\pdup}(G(e))\smash G(e\star) \cup \sbigcup \set{A_{\alpha_q p\pdup}}{\alpha q\in G(e)}
+\end{align*}
+Proceeding by induction on $n$,
+\begin{align*}
+\delta_{\alpha p\pdup}(G(e^0))
+&= \delta_{\alpha p\pdup}(\id)
+= \emptyset
+\subs A_{\alpha p\pdup}
+\end{align*}
+\begin{align*}
+\delta_{\alpha p\pdup}(G(e^{n+1}))
+&= \delta_{\alpha p\pdup}(G(e)\smash G(e^n))\\
+&= \delta_{\alpha p\pdup}(G(e))\smash G(e^n) \cup \sbigcup \set{\delta_{\alpha_q p\pdup}(G(e^n))}{\alpha q\in G(e)}\\
+&\subs \delta_{\alpha p\pdup}(G(e))\smash G(e\star) \cup \sbigcup \set{X_{\alpha_q p\pdup}}{\alpha q\in G(e)}\\
+&= A_{\alpha p\pdup}
+\end{align*}
+therefore
+\begin{align*}
+\delta_{\alpha p\pdup}(G(e\star))
+&= \delta_{\alpha p\pdup}(\sbigcup_n G(e^n))
+= \sbigcup_n\delta_{\alpha p\pdup}(G(e^n))
+\subs A_{\alpha p\pdup}
+\end{align*}
+
+(ii)
+\begin{align*}
+E_{\alpha p}(q)
+&= \bval{q = p}
+= \bval{\alpha p\in\set{\beta q}{\beta\in\At}}
+= \eps_{\alpha p}(G(q))
+\end{align*}
+
+\begin{align*}
+E_{\alpha p}(b)
+&= \bval{\alpha=\alpha_p\leq b}
+= \bval{\alpha p\in\set{\beta p_\beta}{\beta\leq b}}
+= \eps_{\alpha p}(G(b))
+\end{align*}
+
+\begin{align*}
+E_{\alpha p}(\pdup)
+&= 0
+= \bval{\alpha p\in\set{\alpha p_\alpha\pdup p_\alpha}{\alpha\in\At}}
+= \eps_{\alpha p}(G(\pdup))
+\end{align*}
+
+\begin{align*}
+E_{\alpha p}(e_1+e_2)
+&= E_{\alpha p}(e_1)+E_{\alpha p}(e_2)\\
+&= \eps_{\alpha p}(G(e_1)) + \eps_{\alpha p}(G(e_2))\\
+&= \eps_{\alpha p}(G(e_1)\cup G(e_2))\\
+&= \eps_{\alpha p}(G(e_1+e_2))
+\end{align*}
+
+\begin{align*}
+E_{\alpha p}(e_1e_2)
+&= \ssum_{q} E_{\alpha q}(e_1)\cdot E_{\alpha_q p}(e_2)\\
+&= \ssum_{q} \eps_{\alpha q}(G(e_1))\cdot \eps_{\alpha_q p}(G(e_2))\\
+&= \eps_{\alpha p}(G(e_1)\smash G(e_2))\\
+&= \eps_{\alpha p}(G(e_1e_2))
+\end{align*}
+
+System defining $E_{\alpha p}(e\star)$ is
+\begin{align*}
+E_{\alpha p}(e\star)
+&= \bval{\alpha=\alpha_p} + \ssum_{q} E_{\alpha q}(e)\cdot E_{\alpha_q p}(e\star)\\
+&= \bval{\alpha=\alpha_p} + \ssum_{q} \eps_{\alpha q}(G(e))\cdot E_{\alpha_q p}(e\star)
+\end{align*}
+
+Want to show that
+\begin{align*}
+\eps_{\alpha p}(G(e\star))
+&= \bval{\alpha=\alpha_p} + \ssum_{q} \eps_{\alpha q}(G(e))\cdot \eps_{\alpha_q p}(G(e\star))
+\end{align*}
+and if
+\begin{align*}
+X_{\alpha p}
+&= \bval{\alpha=\alpha_p} + \ssum_{q} \eps_{\alpha q}(G(e))\cdot X_{\alpha_q p}
+\end{align*}
+then
+\begin{align*}
+\eps_{\alpha p}(G(e\star)) \leq X_{\alpha p}
+\end{align*}
+
+\begin{align*}
+\eps_{\alpha p}(G(e\star))
+&= \eps_{\alpha p}(G(1 + ee\star))\\
+&= \eps_{\alpha p}(G(1)\cup G(e)\smash G(e\star))\\
+&= \eps_{\alpha p}(\id) + \eps_{\alpha p}(G(e)\smash G(e\star))\\
+&= \bval{\alpha=\alpha_p} + \ssum_{q} \eps_{\alpha q}(G(e))\cdot \eps_{\alpha_q p}(G(e\star))
+\end{align*}
+
+Suppose
+\begin{align*}
+X_{\alpha p}
+&= \bval{\alpha=\alpha_p} + \ssum_{q} \eps_{\alpha q}(G(e))\cdot X_{\alpha_q p}
+\end{align*}
+Proceeding by induction on $n$,
+\begin{align*}
+\eps_{\alpha p}(G(e^0))
+&= \eps_{\alpha p}(\id)
+= \bval{\alpha=\alpha_p}
+\leq X_{\alpha p}
+\end{align*}
+\begin{align*}
+\eps_{\alpha p}(G(e^{n+1}))
+&= \eps_{\alpha p}(G(e)\smash G(e^n))\\
+&= \ssum_q \eps_{\alpha q}(G(e))\cdot\eps_{\alpha_q p}(G(e^n))\\
+&\leq \ssum_q \eps_{\alpha q}(G(e))\cdot X_{\alpha_q p}\\
+&\leq X_{\alpha p}
+\end{align*}
+therefore
+\begin{align*}
+\eps_{\alpha p}(G(e\star))
+&= \eps_{\alpha p}(\sbigcup_n G(e^n))
+= \ssum_n\eps_{\alpha p}(G(e^n))
+\leq X_{\alpha p}
+\end{align*}
+\end{proof}
+
+\end{document}
