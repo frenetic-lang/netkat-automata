@@ -63,7 +63,7 @@ A \emph{packet history} is a nonnull list of packets $\alpha_1::\cdots::\alpha_n
 
 \subsection*{NFAs}
 
-Apply the Kleene construction to get an NFA $M_e$ from a NetKAT expression $e$. Assume wlog that De Morgan has been applied to tests so that all negations are applied only to primitive tests. Thus edge labels are either assignments $f\leftarrow n$, primitive tests or their negations $f = m$ or $f\neq m$, or $\pdup$. Call this alphabet $\Sigma$. We have a nondeterministic automaton $(Q,\tau,S,F)$ where:
+Apply the Kleene construction to get an NFA $M_e$ from a NetKAT expression $e$. Assume wlog that De Morgan has been applied to tests so that all negations are applied only to primitive tests. Thus edge labels are either assignments $f\leftarrow n$, primitive tests $f = m$ or their negations $f\neq m$, or $\pdup$. Call this alphabet $\Sigma$. We have a nondeterministic automaton $(Q,\tau,S,F)$ where:
 \begin{itemize}
 \item
 $Q$ is a finite set of states
