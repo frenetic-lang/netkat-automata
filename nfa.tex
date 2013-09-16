@@ -79,7 +79,9 @@ $F\subs Q$ are the accept states.
 
 Can be viewed operationally or denotationally.
 
-Operationally, start with a single nonempty packet history placed on a nondeterminstically chosen start state. Now suppose we have a packet history on a state $s$. If $s\in F$, we can nondeterministically decide to stop, in which case we include the current packet history in the output set. Otherwise, we can move along any nondeterministically chosen enabled edge out of $s$, modifying the packet history as determined by the label of the edge. Whether an edge is enabled depends on the label and the current head packet.
+\subsubsection*{Operational View}
+
+Start with a single nonempty packet history placed on a nondeterminstically chosen start state. Now suppose we have a packet history on a state $s$. If $s\in F$, we can nondeterministically decide to stop, in which case we include the current packet history in the output set. Otherwise, we can move along any nondeterministically chosen enabled edge out of $s$, modifying the packet history as determined by the label of the edge. Whether an edge is enabled depends on the label and the current head packet.
 \begin{itemize}
 \item
 Assignment edges are always enabled. If the edge is an assignment edge $s\goesto{f\leftarrow m}{}t$ and the current packet history is $\alpha::h$, then we can move from $s$ to $t$, rebinding the field $f$ of the head packet to the value $m$. The new packet history is $\alpha\subst mf::h$.
@@ -94,6 +96,8 @@ Let $L(N_e)(h)$ denote the output set starting with input history $h$. This is t
 L(M_e)(\alpha::h) = \set{x::h}{x\in L(M_e)(\alpha)},
 \end{align*}
 or in other words, $x::h\in L(M_e)(\alpha::h)$ if and only if $x\in L(M_e)(\alpha)$.
+
+\subsubsection*{Denotational View}
 
 We can represent the output set of $L(M_e)(h)$ in terms of a least fixpoint of a monotone map on state labelings of type $\ell:Q\to\powerset H$, ordered by pointwise set inclusion; that is, $\ell\leq\ell'$ if $\ell(s)\subs\ell'(s)$ for all $s\in Q$. The labeling we are interested in is the least labeling $\ell:Q\to\powerset H$ such that:
 \begin{itemize}
@@ -114,7 +118,7 @@ Then $L(M_e)(h) = \bigcup_{t\in F}\ell(t)$.
 $\den e = L(M_e)$.
 \end{theorem}
 
-\subsection*{Language Recognition Semantics}
+\subsection*{Language Recognition Semantics for NFAs}
 
 Inputs to the automaton are strings in $\At\cdot(P\cdot\pdup)\star\cdot P$. Such a string $x$ is \emph{accepted} if there is a path from some $s\in S$ to some $t\in F$ with label $y$ such that the inequality $x\leq y$ follows from the axioms of NetKAT. The label of a directed path is the concatenation of the edge labels along the path in order. Let $G(M_e)$ denote the set of accepted strings.
 
@@ -142,5 +146,17 @@ $\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in G(M_e)$
 $\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in G(e)$.
 \end{enumerate}
 \end{theorem}
+
+\section*{DFAs}
+
+\subsection*{Left-to-Right}
+
+The input to the automaton is a string of the form
+\begin{align*}
+\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in \At\cdot(P\cdot\pdup)\star\cdot P.
+\end{align*}
+The automaton starts with its read head pointing to $\alpha_0$.
+
+\subsubsection*{Right-to-Left}
 
 \end{document}
