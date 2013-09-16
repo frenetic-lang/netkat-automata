@@ -44,6 +44,7 @@
 \newcommand\JI{\At\cdot(P\cdot\pdup)\star\cdot P}
 \newcommand\setJI{2^{\At\cdot P\cdot(\pdup\cdot P)^{\scriptstyle *}}}
 \newcommand\funJI{(2^{\At \cdot P})^{(P\cdot\pdup)^{\scriptstyle *}}}
+\newcommand\acc{\mathsf{Accept}}
 
 \begin{document}
 
@@ -151,12 +152,46 @@ $\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in G(e)$.
 
 \subsection*{Left-to-Right}
 
-The input to the automaton is a string of the form
+A left-to-right DFA is a coalgebra for the functor $FS = S^{\At\times P}\times 2^{\At\times P}$ with distinguished start state $s\in S$. The structure map is pair of functions
 \begin{align*}
-\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in \At\cdot(P\cdot\pdup)\star\cdot P.
+\delta &: S\to S^{\At\times P} & \eps &: S\to 2^{\At\times P}.
 \end{align*}
-The automaton starts with its read head pointing to $\alpha_0$.
+We write $\delta_{\alpha p\pdup}(q)$ for $\delta(q)(\alpha,p)$ and $\eps_{\alpha p}(q)$ for $\eps(q)(\alpha,p)$, so
+\begin{align*}
+\delta_{\alpha p\pdup} &: S\to S & \eps_{\alpha p} &: S\to 2.
+\end{align*}
+Inputs to the automaton are strings of the form
+\begin{align*}
+\alpha p_1\pdup p_2\pdup\cdots\pdup p_m
+\end{align*}
+in $\At\cdot(P\cdot\pdup)\star\cdot P$. Acceptance is defined in terms of a coinductively defined predicate $\acc:S\times\At\cdot(P\cdot\pdup)\star\cdot P\to 2$.
+\begin{align*}
+\acc(q,\alpha p\pdup x) &= \acc(\delta_{\alpha p\pdup}(q),\alpha_p x)\\
+\acc(q,\alpha p) &= \eps_{\alpha p}(q).
+\end{align*}
+A string $x\in\At\cdot(P\cdot\pdup)\star\cdot P$ is \emph{accepted} by the automaton if $\acc(s,x)$.
 
-\subsubsection*{Right-to-Left}
+\subsection*{Right-to-Left}
+
+A right-to-left DFA is a coalgebra for the functor $FS = S^{P}\times 2^{\At\times P}$ with distinguished start state $s\in S$. The structure map is a pair of functions
+\begin{align*}
+\delta &: S\to S^{P} & \eps &: S\to 2^{\At\times P}.
+\end{align*}
+We write $\delta_{\pdup p}(q)$ for $\delta(q)(p)$ and $\eps_{\alpha p}(q)$ for $\eps(q)(\alpha,p)$, so
+\begin{align*}
+\delta_{\pdup p} &: S\to S & \eps_{\alpha p} &: S\to 2.
+\end{align*}
+Inputs to the automaton are strings of the form
+\begin{align*}
+\alpha p_1\pdup p_2\pdup\cdots\pdup p_m
+\end{align*}
+in $\At\cdot P\cdot(\pdup\cdot P)\star$. Acceptance is defined in terms of a coinductively defined predicate $\acc:S\times\At\cdot P\cdot(\pdup\cdot P)\star\to 2$.
+\begin{align*}
+\acc(q,x\pdup p) &= \acc(\delta_{\pdup p}(q),x)\\
+\acc(q,\alpha p) &= \eps_{\alpha p}(q).
+\end{align*}
+A string $x\in\At\cdot P\cdot(\pdup\cdot P)\star$ is \emph{accepted} by the automaton if $\acc(s,x)$.
+
+\section*{Conversion of NFAs to DFAs?}
 
 \end{document}
