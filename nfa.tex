@@ -192,6 +192,89 @@ in $\At\cdot P\cdot(\pdup\cdot P)\star$. Acceptance is defined in terms of a coi
 \end{align*}
 A string $x\in\At\cdot P\cdot(\pdup\cdot P)\star$ is \emph{accepted} by the automaton if $\acc(s,x)$.
 
-\section*{Conversion of NFAs to DFAs?}
+\section*{Conversion of NetKAT Expressions to DFAs}
+
+\subsection*{Antimirov Derivative}
+
+\newcommand\cl[1]{\mathrm{cl}(#1)}
+
+There is an analog of the set-theoretic derivative for KA \cite{} and KAT \cite{}
+that applies to NetKAT. This is often called the \emph{Antimirov derivative} or
+\emph{partial derivative}. This set-theoretic derivative can be used to show that
+up to ACI, there are at most $2^n$ NetKAT derivatives accessible from $e$, where $n$ is the
+number of subterms of $e$.
+For NetKAT expression $e$, we define the \emph{closure} of $e$, denoted $\cl e$, to be the smallest setof terms containing $e$ and closed under the following rules:
+\begin{equation}
+\begin{array}{c@{\qquad}c@{\qquad}c}
+\dfrac{e\in\cl{e_1}}{e\in\cl{e_1+e_2}} & \dfrac{e\in\cl{e_1}}{ee_2\in\cl{e_1e_2}} & \dfrac{e\in\cl{e_1}}{ee_1\star\in\cl{e_1\star}}\\[1em]\dfrac{e\in\cl{e_2}}{e\in\cl{e_1+e_2}} & \dfrac{e\in\cl{e_2}}{e\in\cl{e_1e_2}} & \dfrac{e\in\cl{b}}{e\in\cl{\bar b}}\end{array}
+\label{eq:cldef}
+\end{equation}
+For $A$ a set of expressions, define $\cl A = \bigcup_{e\in A} \cl e$.
+
+\begin{lemma}
+The operator $\mathrm{cl}$ applied to sets is monotone; that is, if $A\subs B$, then $\cl A\subs\cl B$.
+\end{lemma}
+\begin{proof}
+Obvious from the definition.
+\end{proof}
+
+\begin{lemma}
+\label{eq:closure}
+The operator $\mathrm{cl}$ is a closure operator; that is, $\cl{\cl e} = \cl e$.
+\end{lemma}
+\begin{proof}
+Clearly $\cl e\subs\cl{\cl e}$. For the opposite inclusion,
+it follows from the inductive definitions \eqref{eq:cldef} that
+\begin{equation}
+\begin{array}{r@{\ }lr@{\ }l}
+\cl{e_1+e_2} &= \{e_1+e_2\} \cup \cl{e_1} \cup \cl{e_2} & \cl{e_1\star} &= \{e_1\star\} \cup \cl{e_1}e_1\star\\[1ex]
+\cl{e_1e_2} &= \{e_1e_2\} \cup \cl{e_1}e_2 \cup \cl{e_2} & \cl{\bar b} &= \{\bar b\} \cup \cl{b}.
+\end{array}
+\label{eq:clprop}
+\end{equation}
+Proceeding by induction,
+\begin{align*}
+\cl{\cl{e_1+e_2}} &= \cl{\{e_1+e_2\} \cup \cl{e_1} \cup \cl{e_2}} = \cl{\{e_1+e_2\}} \cup \cl{\cl{e_1}} \cup \cl{\cl{e_2}}\\
+&= \cl{e_1+e_2} \cup \cl{e_1} \cup \cl{e_2} = \cl{e_1+e_2}\\
+\cl{\cl{e_1e_2}} &= \cl{\{e_1e_2\} \cup \cl{e_1}e_2 \cup \cl{e_2}} = \cl{\{e_1e_2\}} \cup \cl{\cl{e_1}e_2} \cup \cl{\cl{e_2}}\\
+&= \cl{e_1e_2} \cup \cl{\cl{e_1}}e_2 \cup \cl{e_2} \cup \cl{e_2} = \cl{e_1e_2} \cup \cl{e_1}e_2 \cup \cl{e_2}\\
+&= \cl{e_1e_2}\\
+\cl{\cl{e_1\star}} &= \cl{\{e_1\star\} \cup \cl{e_1}e_1\star} = \cl{\{e_1\star\}} \cup \cl{\cl{e_1}}e_1\star \cup \cl{e_1\star}\\
+&= \cl{e_1\star} \cup \cl{e_1}e_1\star \cup \cl{e_1\star} = \cl{e_1\star}\\
+\cl{\cl{\bar b}} &= \cl{\{\bar b\} \cup \cl{b}} = \cl{\{\bar b\}} \cup \cl{\cl{b}} = \cl{\bar b} \cup \cl{b} = \cl{\bar b}.
+\end{align*}
+\end{proof}
+
+\begin{lemma}
+\label{eq:derivlinear}
+The set $\cl e$ contains at most $\len e$ elements, where $\len e$ is thenumber of subterms of $e$.
+\end{lemma}
+\begin{proof}
+Immediate from \eqref{eq:clprop}.
+\end{proof}
+
+Now we define an Antimirov derivative $(\Delta,E)$ for NetKAT and relate it to the syntactic Brzozowski derivative $(D,E)$. The Antimirov derivative is of type
+\begin{align*}
+\Delta_{\alpha p\pdup} &: \Exp\to\powerset\Exp & E_{\alpha p} &: \Exp\to 2.
+\end{align*}
+The component $E$ is the same as in the Brzozowski derivative. It will turn out that $\Delta_{\alpha p\pdup}(e)\subs\cl e$, which will give the desired bound of $2^n$.
+
+\begin{align*}
+\Delta_{\alpha p\pdup}(e_1+e_2) &= \Delta_{\alpha p\pdup}(e_1) \cup \Delta_{\alpha p\pdup}(e_2)\\
+\Delta_{\alpha p\pdup}(e_1e_2) &= \Delta_{\alpha p\pdup}(e_1)e_2 \cup \bigcup_{E_{\alpha q}(e_1)=1}\Delta_{\alpha_q p\pdup}(e_2)\\
+\Delta_{\alpha p\pdup}(e\star) &= \Delta_{\alpha p\pdup}(e)e\star \cup \bigcup_{E_{\alpha q}(e)=1}\Delta_{\alpha_q p\pdup}(e\star)\\
+\Delta_{\alpha p\pdup}(b) &= 0.
+\end{align*}
+
+\begin{lemma}
+\label{eq:Deltacl}
+$\Delta_{\alpha p\pdup}(e) \subs \cl e$.
+\end{lemma}
+
+\begin{lemma}
+\label{eq:DDelta}
+$D_{\alpha p\pdup}(e) \equiv \ssum\Delta_{\alpha p\pdup}(e)$,
+where $\equiv$ denotes equivalence modulo ACI, $(e_1+e_2)e = e_1e + e_2e$, $0e = 0$, and $1e = e$.
+\end{lemma}
 
 \end{document}
