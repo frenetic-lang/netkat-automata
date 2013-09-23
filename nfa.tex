@@ -45,6 +45,8 @@
 \newcommand\setJI{2^{\At\cdot P\cdot(\pdup\cdot P)^{\scriptstyle *}}}
 \newcommand\funJI{(2^{\At \cdot P})^{(P\cdot\pdup)^{\scriptstyle *}}}
 \newcommand\acc{\mathsf{Accept}}
+\newcommand\clname{\mathrm{cl}}
+\newcommand\cl[1]{\clname(#1)}
 
 \begin{document}
 
@@ -131,7 +133,7 @@ $G(e) = G(M_e)$.
 
 \subsection*{Relation between Transducer and Language Semantics}
 
-Let $\alpha_i$ be packets, $1\leq i\leq m$. Let $p_i$ be the corresponding complete assignments; that is, if $\alpha_i.f = n_f$ for all fields $f$, then $p_i$ is the complete assignment that assigns $f\leftarrow n_f$ for all fields $f$.
+Let $\alpha_i$ be packets, $1\leq i\leq m$. Let $p_i$ be the corresponding complete assignments; that is, $p_i$ is the complete assignment that assigns $f\leftarrow\alpha_i.f$ for all fields $f$.
 
 \begin{theorem}
 The following are equivalent:
@@ -152,57 +154,51 @@ $\alpha_0 p_1 \pdup p_2 \pdup \cdots \pdup p_m \in G(e)$.
 
 \subsection*{Left-to-Right}
 
-A left-to-right DFA is a coalgebra for the functor $FS = S^{\At\times P}\times 2^{\At\times P}$ with distinguished start state $s\in S$. The structure map is pair of functions
+A left-to-right DFA is a coalgebra for the functor $FX = X^{\At\times P}\times 2^{\At\times P}$ with distinguished start state $s\in X$. The structure map is pair of functions
 \begin{align*}
-\delta &: S\to S^{\At\times P} & \eps &: S\to 2^{\At\times P}.
+\delta &: X\to X^{\At\times P} & \eps &: X\to 2^{\At\times P}.
 \end{align*}
-We write $\delta_{\alpha p\pdup}(q)$ for $\delta(q)(\alpha,p)$ and $\eps_{\alpha p}(q)$ for $\eps(q)(\alpha,p)$, so
+We write $\delta_{\alpha p\pdup}(t)$ for $\delta(t)(\alpha,p)$ and $\eps_{\alpha p}(t)$ for $\eps(t)(\alpha,p)$, so
 \begin{align*}
-\delta_{\alpha p\pdup} &: S\to S & \eps_{\alpha p} &: S\to 2.
+\delta_{\alpha p\pdup} &: X\to X & \eps_{\alpha p} &: X\to 2.
 \end{align*}
 Inputs to the automaton are strings of the form
 \begin{align*}
 \alpha p_1\pdup p_2\pdup\cdots\pdup p_m
 \end{align*}
-in $\At\cdot(P\cdot\pdup)\star\cdot P$. Acceptance is defined in terms of a coinductively defined predicate $\acc:S\times\At\cdot(P\cdot\pdup)\star\cdot P\to 2$.
+in $\At\cdot(P\cdot\pdup)\star\cdot P$. Acceptance is defined in terms of a coinductively defined predicate $\acc:X\times\At\cdot(P\cdot\pdup)\star\cdot P\to 2$.
 \begin{align*}
-\acc(q,\alpha p\pdup x) &= \acc(\delta_{\alpha p\pdup}(q),\alpha_p x)\\
-\acc(q,\alpha p) &= \eps_{\alpha p}(q).
+\acc(t,\alpha p\pdup x) &= \acc(\delta_{\alpha p\pdup}(t),\alpha_p x)\\
+\acc(t,\alpha p) &= \eps_{\alpha p}(t).
 \end{align*}
 A string $x\in\At\cdot(P\cdot\pdup)\star\cdot P$ is \emph{accepted} by the automaton if $\acc(s,x)$.
 
 \subsection*{Right-to-Left}
 
-A right-to-left DFA is a coalgebra for the functor $FS = S^{P}\times 2^{\At\times P}$ with distinguished start state $s\in S$. The structure map is a pair of functions
+A right-to-left DFA is a coalgebra for the functor $FX = X^{P}\times 2^{\At\times P}$ with distinguished start state $s\in X$. The structure map is a pair of functions
 \begin{align*}
-\delta &: S\to S^{P} & \eps &: S\to 2^{\At\times P}.
+\delta &: X\to X^{P} & \eps &: X\to 2^{\At\times P}.
 \end{align*}
-We write $\delta_{\pdup p}(q)$ for $\delta(q)(p)$ and $\eps_{\alpha p}(q)$ for $\eps(q)(\alpha,p)$, so
+We write $\delta_{\pdup p}(t)$ for $\delta(t)(p)$ and $\eps_{\alpha p}(t)$ for $\eps(t)(\alpha,p)$, so
 \begin{align*}
-\delta_{\pdup p} &: S\to S & \eps_{\alpha p} &: S\to 2.
+\delta_{\pdup p} &: X\to X & \eps_{\alpha p} &: X\to 2.
 \end{align*}
 Inputs to the automaton are strings of the form
 \begin{align*}
 \alpha p_1\pdup p_2\pdup\cdots\pdup p_m
 \end{align*}
-in $\At\cdot P\cdot(\pdup\cdot P)\star$. Acceptance is defined in terms of a coinductively defined predicate $\acc:S\times\At\cdot P\cdot(\pdup\cdot P)\star\to 2$.
+in $\At\cdot P\cdot(\pdup\cdot P)\star$. Acceptance is defined in terms of a coinductively defined predicate $\acc:X\times\At\cdot P\cdot(\pdup\cdot P)\star\to 2$.
 \begin{align*}
-\acc(q,x\pdup p) &= \acc(\delta_{\pdup p}(q),x)\\
-\acc(q,\alpha p) &= \eps_{\alpha p}(q).
+\acc(t,x\pdup p) &= \acc(\delta_{\pdup p}(t),x)\\
+\acc(t,\alpha p) &= \eps_{\alpha p}(t).
 \end{align*}
 A string $x\in\At\cdot P\cdot(\pdup\cdot P)\star$ is \emph{accepted} by the automaton if $\acc(s,x)$.
 
-\section*{Conversion of NetKAT Expressions to DFAs}
-
-\subsection*{Antimirov Derivative (L2R)}
-
-\newcommand\cl[1]{\mathrm{cl}(#1)}
+\section*{Conversion of NetKAT Expressions to DFAs (L2R)}
 
 There is an analog of the set-theoretic derivative for KA \cite{} and KAT \cite{}
 that applies to NetKAT. This is often called the \emph{Antimirov derivative} or
-\emph{partial derivative}. This set-theoretic derivative can be used to show that
-up to ACI, there are at most exponentially many NetKAT derivatives accessible from $e$, where $n$ is the
-number of subterms of $e$.
+\emph{partial derivative}.
 
 For NetKAT expression $e$, we define the \emph{closure} of $e$, denoted $\cl e$, to be the smallest set
 of terms containing $e$ and closed under the following rules:
@@ -224,10 +220,10 @@ Obvious from the definition.
 
 \begin{lemma}
 \label{eq:closure}
-The operator $\mathrm{cl}$ is a closure operator; that is, $\cl{\cl e} = \cl e$.
+The operator $\clname$ is a closure operator; that is, $\cl{\cl e} = \cl e$.
 \end{lemma}
 \begin{proof}
-Clearly $\cl e\subs\cl{\cl e}$. For the opposite inclusion,
+We have $\cl e\subs\cl{\cl e}$, since $e\in\cl e$ and $\clname$ is monotone. For the opposite inclusion,
 it follows from the inductive definitions \eqref{eq:cldef} that
 \begin{equation}
 \begin{array}{r@{\ }lr@{\ }l}
@@ -259,6 +255,37 @@ number of subterms of $e$.
 Immediate from \eqref{eq:clprop}.
 \end{proof}
 
+\subsection*{Representation of $\cl e$}
+
+\newcommand\repname{R}
+\newcommand\rep[2]{\repname(#1,#2)}
+
+We now define a map from occurrences of subterms of $e$ to elements of $\cl e$. This lets us use the occurrences of subterms of $e$ as representative of the elements of $\cl e$. They are not the subterms themselves, but related. To define the correspondence, we view terms as labeled trees; that is, as partial functions
+\begin{align*}
+e:\omega\star\ &\imp\ P\cup B\cup\{+,\,\cdot,\,\star,\,\barnone,\,0,\,1,\pdup\}
+\end{align*}
+with domain of definition $\dom e\subs\omega\star$ such that
+\begin{itemize}
+\item 
+$\dom e$ is finite, nonempty, and prefix-closed;
+\item
+if $\sigma\in\dom e$ and $e(\sigma)$ is of arity $n$, then $\sigma i\in\dom e$ iff $i < n$.  The arities of $\pdup$ and the elements of $P$ and $B$ are $0$ and those of $+,\,\cdot,\,\star,\,\barnone,\,0,\,1$ are $2,\,2,\,1,\,1,\,0,\,0$, respectively.
+\end{itemize}
+An occurrence of a subterm of $e$ is identified by its position $\sigma\in\dom e$.  The subterm at position $\sigma$ is $\lambda\tau.e(\sigma\tau)$, and its domain is $\set\tau{\sigma\tau\in\dom e}$.
+
+The representation is given by the partial function $\repname:\omega\star\times\Exp\imp\Exp$ defined inductively by
+\begin{align*}
+\rep{0\sigma}{e_1+e_2} &= \rep\sigma{e_1} & \rep{0\sigma}{e_1e_2} &= \rep\sigma{e_1}\cdot e_2\\
+\rep{1\sigma}{e_1+e_2} &= \rep\sigma{e_2} & \rep{1\sigma}{e_1e_2} &= \rep\sigma{e_2}\\
+\rep{0\sigma}{e\star} &= \rep\sigma e\cdot e\star & \rep\eps e &= e.
+\end{align*}
+One reads ``$\rep\sigma e$'' as ``the term represented by the occurrence $\sigma$ in $e$.''
+Notice the definitions of $\rep{0\sigma}{e_1e_2}$ and $\rep{0\sigma}{e\star}$, where a term is included multiplicatively on the right.
+
+One can show by induction that $\rep\sigma e$ is defined iff $\sigma\in\dom e$, and that a term is in $\cl e$ iff it is either 1 or $\rep\sigma e$ for some $\sigma\in\dom e$.
+
+\subsection*{Antimirov Derivative}
+
 Now we define an Antimirov derivative $(\Delta,E)$ for NetKAT and relate it to the syntactic Brzozowski derivative $(D,E)$. The Antimirov derivative is of type
 \begin{align*}
 \Delta_{\alpha p\pdup} &: \Exp\to\powerset\Exp & E_{\alpha p} &: \Exp\to 2.
@@ -266,8 +293,8 @@ Now we define an Antimirov derivative $(\Delta,E)$ for NetKAT and relate it to t
 The component $E$ is the same as in the Brzozowski derivative.
 \begin{align*}
 \Delta_{\alpha p\pdup}(e_1+e_2) &= \Delta_{\alpha p\pdup}(e_1) \cup \Delta_{\alpha p\pdup}(e_2)\\
-\Delta_{\alpha p\pdup}(e_1e_2) &= \Delta_{\alpha p\pdup}(e_1)e_2 \cup \bigcup_{E_{\alpha q}(e_1)=1}\Delta_{\alpha_q p\pdup}(e_2)\\
-\Delta_{\alpha p\pdup}(e\star) &= \Delta_{\alpha p\pdup}(e)e\star \cup \bigcup_{E_{\alpha q}(e)=1}\Delta_{\alpha_q p\pdup}(e\star)\\
+\Delta_{\alpha p\pdup}(e_1e_2) &= \Delta_{\alpha p\pdup}(e_1)\cdot e_2 \cup \bigcup_{E_{\alpha q}(e_1)=1}\Delta_{\alpha_q p\pdup}(e_2)\\
+\Delta_{\alpha p\pdup}(e\star) &= \Delta_{\alpha p\pdup}(e)\cdot e\star \cup \bigcup_{E_{\alpha q}(e)=1}\Delta_{\alpha_q p\pdup}(e\star)\\
 \Delta_{\alpha p\pdup}(b) &= \Delta_{\alpha p\pdup}(q) = \emptyset\\
 \Delta_{\alpha p\pdup}(\pdup) &= \begin{cases}
 \{\alpha\} & \text{if $\alpha=\alpha_p$}\\
@@ -277,13 +304,40 @@ The component $E$ is the same as in the Brzozowski derivative.
 
 \begin{lemma}
 \label{eq:Deltacl}
-$\Delta_{\alpha p\pdup}(e) \subs \cl e$. (Not quite right)
+$\Delta_{\alpha p\pdup}(e) \subs \cl e$. (Not quite right--it has some $\alpha$'s in there)
 \end{lemma}
 
 \begin{lemma}
 \label{eq:DDelta}
 $D_{\alpha p\pdup}(e) \equiv \ssum\Delta_{\alpha p\pdup}(e)$,
 where $\equiv$ denotes equivalence modulo ACI, $(e_1+e_2)e = e_1e + e_2e$, $0e = 0$, and $1e = e$.
+\end{lemma}
+
+\subsection*{Alternative Representation}
+
+\begin{align*}
+\Delta'_{\alpha p\pdup} &: e\mapsto\powerset{\dom e}
+\end{align*}
+\begin{align*}
+\Delta'_{\alpha p\pdup}(e_1+e_2) &= \set{0x}{x\in\Delta'_{\alpha p\pdup}(e_1)} \cup \set{1x}{x\in\Delta'_{\alpha p\pdup}(e_2)}\\
+\Delta'_{\alpha p\pdup}(e_1e_2) &= \set{0x}{x\in\Delta'_{\alpha p\pdup}(e_1)} \cup \set{1x}{x\in\Delta'_{\alpha p\pdup}(e_2)}\\
+\Delta'_{\alpha p\pdup}(e\star) &= \set{0x}{x\in\Delta'_{\alpha p\pdup}(e)} \cup \bigcup_{E_{\alpha q}(e)=1}\Delta'_{\alpha_qp\pdup}(e\star)\\
+&= \bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} \set{0x}{x\in\Delta'_{\alpha_qp\pdup}(e)}\ ???\\
+\Delta'_{\alpha p\pdup}(b) &= \Delta'_{\alpha p\pdup}(q) = \emptyset\\
+\Delta'_{\alpha p\pdup}(\pdup) &= \begin{cases}
+\{\eps\} & \text{if $\alpha=\alpha_p$}\\
+\emptyset & \text{if $\alpha\neq\alpha_p$.}
+\end{cases}
+\end{align*}
+
+\begin{lemma}
+\label{eq:Deltacl}
+$\Delta'_{\alpha p\pdup}(e) \subs \dom e$, and in fact each element of $\Delta'_{\alpha p\pdup}(e)$ is a leaf.
+\end{lemma}
+
+\begin{lemma}
+\label{eq:DDelta}
+$\Delta_{\alpha p\pdup}(e) = \set{R(\sigma,e)\subst\alpha\sigma}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
 \end{lemma}
 
 \end{document}
