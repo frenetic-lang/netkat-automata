@@ -200,7 +200,7 @@ A string $x\in\At\cdot P\cdot(\pdup\cdot P)\star$ is \emph{accepted} by the auto
 \newcommand\repone[1]{\repname(#1)}
 \newcommand\rep[2]{\repname(#2)(#1)}
 \newcommand\pfun\rightharpoonup
-\newcommand\arity[1]{\mathrm{arity}\,#1}
+\newcommand\arity[1]{\mathrm{arity}(#1)}
 
 \subsection*{Closure}
 
@@ -259,9 +259,8 @@ number of subterms of $e$.
 %Immediate from \eqref{eq:clprop}.
 %\end{proof}
 %
-\subsection*{Set-Theoretic Derivative}
+\subsection*{Coterms}
 
-Now we define a set-theoretic derivative $(\Delta',E)$ for NetKAT and relate it to the syntactic Brzozowski and Antimirov derivatives.
 To define the set-theoretic derivative, it is helpful to view terms coalgebraically as \emph{coterms} (labeled trees) for the signature of abstract NetKAT expressions. The signature of abstract NetKAT expressions is
 \begin{align*}
 P\cup B\cup\{+,\,\cdot,\,\star,\,\barnone,\,0,\,1,\pdup\},
@@ -275,25 +274,42 @@ $\dom e$ is nonempty and prefix-closed;
 \item
 if $\sigma\in\dom e$, then $\sigma i\in\dom e$ iff $i < \arity{e(\sigma)}$.
 \end{itemize}
-An occurrence of a subcoterm of $e$ is identified by its position $\sigma\in\dom e$.  The subcoterm at position $\sigma$ is $\lambda\tau.e(\sigma\tau)$, and its domain is $\set\tau{\sigma\tau\in\dom e}$.
+An occurrence of a subterm of $e$ is identified by its position $\sigma\in\dom e$.  The subterm at position $\sigma$ is the coterm $\lambda\tau.e(\sigma\tau)$ with domain $\set\tau{\sigma\tau\in\dom e}$.
 
 There is a one-to-one correspondence between terms in the usual sense and coterms with finite domain. Formally, the coterm corresponding to the term $e$ is the image of $e$ under the unique map from the initial algebra for the signature $\Sigma$ to the final coalgebra for the same signature. Henceforth, we will identify terms with their corresponding coterms under this map, and consider only finite coterms.
 
 A position $\sigma\in\dom e$ is a \emph{leaf} of $e$ if $\sigma$ is a maximal element of $\dom e$ with respect to the prefix relation. The position $\sigma$ is a leaf of $e$ iff $e(\sigma)$ is of arity 0. Let $\ell(e)$ denote the set of leaves of $e$.
 
-Let $X$ be a variable. The representation is given in terms of a dependent function
+\subsection*{Substitution}
+
+We define a substitution operator on coterms as follows. For $\sigma\in\dom e$, the coterm $e\subst d\sigma$ is intuitively the term obtained by substituting $d$ for the subterm of $e$ at position $\sigma$, whatever it may be. Formally, for $\sigma\in\dom e$,
 \begin{align*}
-\repname &: \prod_{e\in\Exp}\Exp^{\ell(e)} & \repone e &: \ell(e)\to\Exp
+\dom{(e\subst d\sigma)} &= (\dom e - \set{\sigma\rho}{\rho\in\omega\star})\cup\set{\sigma\rho}{\rho\in\dom d}\\
+e\subst d\sigma(\tau) &= \begin{cases}
+d(\rho) & \tau = \sigma\rho\\
+e(\tau) & \text{$\sigma$ is not a prefix of $\tau$.}
+\end{cases}
+\end{align*}
+Substitution can also be defined inductively: $e\subst d\eps = d$ for all $e$, $(e_1+e_2)\subst d{0\sigma}=e_1\subst d\sigma + e_2$, $(e_1+e_2)\subst d{1\sigma}=e_1 + e_2\subst d\sigma$, etc.
+
+\subsection*{Representation Map}
+
+The representation is given in terms of a dependent function
+\begin{align*}
+\repname &: \prod_{e\in\Exp}\Exp^{\dom e} & \repone e &: \dom e\to\Exp
 \end{align*}
 defined inductively by
 \begin{align*}
 \rep{0\sigma}{e_1+e_2} &= \rep\sigma{e_1} & \rep{0\sigma}{e_1e_2} &= \rep\sigma{e_1}\cdot e_2\\
 \rep{1\sigma}{e_1+e_2} &= \rep\sigma{e_2} & \rep{1\sigma}{e_1e_2} &= \rep\sigma{e_2}\\
-\rep{0\sigma}{e\star} &= \rep\sigma e\cdot e\star & \rep\eps e &= X,\ \text{$\arity{e(\eps)}=0$.}
+\rep{0\sigma}{e\star} &= \rep\sigma e\cdot e\star & \rep\eps e &= e.
 \end{align*}
 Notice that a term is included multiplicatively on the right in the definitions of $\rep{0\sigma}{e_1e_2}$ and $\rep{0\sigma}{e\star}$.
-One can show by induction that $\dom{\repone e}=\ell(e)$, and that there is exactly one occurrence of $X$ in $\rep\sigma e$.
+One can show by induction that $\dom{\repone e}=\dom e$, and that for any $\sigma\in\dom e$, $\rep\sigma e\in\cl e$.
 
+\subsection*{Set-Theoretic Derivative}
+
+Now we define a set-theoretic derivative $(\Delta',E)$ for NetKAT and relate it to the syntactic Brzozowski and Antimirov derivatives.
 The set-theoretic derivative $(\Delta',E)$ is of type
 \begin{align*}
 \Delta'_{\alpha p\pdup} &: \prod_{e\in\Exp}2^{\ell(e)} & \Delta'_{\alpha p\pdup}(e) &\subs \ell(e)
@@ -316,38 +332,41 @@ The component $E$ is the same as in the Brzozowski derivative.
 $\Delta'_{\alpha p\pdup}(e) \subs \ell(e)$.
 \end{lemma}
 
-ACI+ denotes the axioms of associativity, commutativity, and idempotence, plus the axioms $(e_1+e_2)e = e_1e + e_2e$, $0e = 0$, and $1e = e$.
-
 The Brzozowski derivative can be defined in terms of $\Delta'$.
+Let ACI+ denote the axioms of associativity, commutativity, and idempotence, plus the axioms $(e_1+e_2)e = e_1e + e_2e$, $0e = 0$, and $1e = e$.
 
 \begin{lemma}
 \label{eq:ABDelta}
-Modulo ACI+, $D_{\alpha p\pdup}(e) = \sum\set{\rep\sigma e\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
+Modulo ACI+, $D_{\alpha p\pdup}(e) = \sum\set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
 \end{lemma}
 \begin{proof}
 By induction. Reasoning modulo ACI+,
 \begin{align*}
 D_{\alpha p\pdup}(e_1+e_2) &= D_{\alpha p\pdup}(e_1) + D_{\alpha p\pdup}(e_2)\\
-&= \sum\set{\rep\sigma{e_1}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{e_1+e_2}\subst{\alpha_p}X}{0\sigma\in\Delta'_{\alpha p\pdup}(e_1+e_2)}\\
-& \qquad + \sum\set{\rep{1\sigma}{e_1+e_2}\subst{\alpha_p}X}{1\sigma\in\Delta'_{\alpha p\pdup}(e_1+e_2)}\\
-&= \sum\set{\rep{\sigma}{e_1+e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1+e_2)}.
+&= \sum\set{\rep\sigma{e_1\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep\sigma{e_2\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{e_1\subst{\alpha_p}\sigma+e_2}}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{e_1+e_2\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{0\sigma\in 0\cdot\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{1\sigma\in 1\cdot\Delta'_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{\tau}{(e_1+e_2)\subst{\alpha_p}{\tau}}}{\tau\in\Delta'_{\alpha p\pdup}(e_1+e_2)}.
 \end{align*}
-\begin{align*}
-D_{\alpha p\pdup}(e_1e_2) &= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_q E_{\alpha q}(e_1)\cdot D_{\alpha_qp\pdup}(e_2)\\
-&= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_{E_{\alpha q}(e_1)=1} D_{\alpha_qp\pdup}(e_2)\\
-&= \left(\sum\set{\rep\sigma{e_1}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\right)\cdot e_2\\
-& \qquad + \sum_{E_{\alpha q}(e_1)=1}\sum\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
-&= \sum\set{(\rep\sigma{e_1}\cdot e_2)\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{1\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
-&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 0\cdot\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 1\cdot\Delta'_{\alpha_qp\pdup}(e_2)}\\
-&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in (0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} 1\cdot\Delta'_{\alpha_qp\pdup}(e_2))}\\
-&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1e_2)}
-\end{align*}
+%\begin{align*}
+%D_{\alpha p\pdup}(e_1e_2) &= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_q E_{\alpha q}(e_1)\cdot D_{\alpha_qp\pdup}(e_2)\\
+%&= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_{E_{\alpha q}(e_1)=1} D_{\alpha_qp\pdup}(e_2)\\
+%&= \left(\sum\set{\rep\sigma{e_1}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\right)\cdot e_2\\
+%& \qquad + \sum_{E_{\alpha q}(e_1)=1}\sum\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{(\rep\sigma{e_1}\cdot e_2)\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{\rep{0\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{1\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 0\cdot\Delta'_{\alpha p\pdup}(e_1)}\\
+%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 1\cdot\Delta'_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in (0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} 1\cdot\Delta'_{\alpha_qp\pdup}(e_2))}\\
+%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1e_2)}
+%\end{align*}
 %For $\star$, we would like to show
 %\begin{align*}
 %D_{\alpha p\pdup}(e\star) &= \sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e\star)}\\
@@ -390,7 +409,7 @@ The Antimirov derivative can also be defined in terms of $\Delta'$.
 \label{eq:DDelta}\ 
 \begin{enumerate}[{\upshape (i)}]
 \item
-$\Delta_{\alpha p\pdup}(e) = \set{\rep\sigma e\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
+$\Delta_{\alpha p\pdup}(e) = \set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
 \item
 Modulo ACI+, $D_{\alpha p\pdup}(e) = \ssum\Delta_{\alpha p\pdup}(e)$.
 \end{enumerate}
