@@ -258,11 +258,13 @@ Immediate from \eqref{eq:clprop}.
 \subsection*{Representation of $\cl e$}
 
 \newcommand\repname{R}
-\newcommand\rep[2]{\repname(#1,#2)}
+\newcommand\repone[1]{\repname(#1)}
+\newcommand\rep[2]{\repname(#2)(#1)}
+\newcommand\pfun\rightharpoonup
 
 We now define a map from occurrences of subterms of $e$ to elements of $\cl e$. This lets us use the occurrences of subterms of $e$ as representative of the elements of $\cl e$. They are not the subterms themselves, but related. To define the correspondence, we view terms as labeled trees; that is, as partial functions
 \begin{align*}
-e:\omega\star\ &\imp\ P\cup B\cup\{+,\,\cdot,\,\star,\,\barnone,\,0,\,1,\pdup\}
+e:\omega\star\ &\pfun\ P\cup B\cup\{+,\,\cdot,\,\star,\,\barnone,\,0,\,1,\pdup\}
 \end{align*}
 with domain of definition $\dom e\subs\omega\star$ such that
 \begin{itemize}
@@ -273,16 +275,93 @@ if $\sigma\in\dom e$ and $e(\sigma)$ is of arity $n$, then $\sigma i\in\dom e$ i
 \end{itemize}
 An occurrence of a subterm of $e$ is identified by its position $\sigma\in\dom e$.  The subterm at position $\sigma$ is $\lambda\tau.e(\sigma\tau)$, and its domain is $\set\tau{\sigma\tau\in\dom e}$.
 
-The representation is given by the partial function $\repname:\omega\star\times\Exp\imp\Exp$ defined inductively by
+A position $\sigma\in\dom e$ is a \emph{leaf} of $e$ if $\sigma$ is a maximal element of $\dom e$ with respect to the prefix relation. The position $\sigma$ is a leaf of $e$ iff $e(\sigma)$ is of arity 0. Let $\ell(e)$ denote the set of leaves of $e$.
+
+Let $X$ be a variable. The representation is given in terms of a dependent product
+\begin{align*}
+\repname &: \prod_{e\in\Exp}\Exp^{\ell(e)} & \repone e &: \ell(e)\to\Exp
+\end{align*}
+defined inductively by
 \begin{align*}
 \rep{0\sigma}{e_1+e_2} &= \rep\sigma{e_1} & \rep{0\sigma}{e_1e_2} &= \rep\sigma{e_1}\cdot e_2\\
 \rep{1\sigma}{e_1+e_2} &= \rep\sigma{e_2} & \rep{1\sigma}{e_1e_2} &= \rep\sigma{e_2}\\
-\rep{0\sigma}{e\star} &= \rep\sigma e\cdot e\star & \rep\eps e &= e.
+\rep{0\sigma}{e\star} &= \rep\sigma e\cdot e\star & \rep\eps e &= X,
 \end{align*}
-One reads ``$\rep\sigma e$'' as ``the term represented by the occurrence $\sigma$ in $e$.''
-Notice the definitions of $\rep{0\sigma}{e_1e_2}$ and $\rep{0\sigma}{e\star}$, where a term is included multiplicatively on the right.
+where in $\rep\eps e$, $e(\eps)$ must be of arity 0.
+Notice that a term is included multiplicatively on the right in the definitions of $\rep{0\sigma}{e_1e_2}$ and $\rep{0\sigma}{e\star}$.
 
 One can show by induction that $\rep\sigma e$ is defined iff $\sigma\in\dom e$, and that a term is in $\cl e$ iff it is either 1 or $\rep\sigma e$ for some $\sigma\in\dom e$.
+
+\subsection*{Set-Theoretic Representation}
+
+\begin{align*}
+\Delta'_{\alpha p\pdup} &: \prod_{e\in\Exp}2^{\ell(e)} & \Delta'_{\alpha p\pdup}(e) &\subs \ell(e)
+\end{align*}
+\begin{align*}
+\Delta'_{\alpha p\pdup}(e_1+e_2) &= 0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup 1\cdot\Delta'_{\alpha p\pdup}(e_2)\\
+\Delta'_{\alpha p\pdup}(e_1e_2) &= 0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} 1\cdot\Delta'_{\alpha_qp\pdup}(e_2)\\
+\Delta'_{\alpha p\pdup}(e\star) &= 0\cdot\Delta'_{\alpha p\pdup}(e) \cup \bigcup_{E_{\alpha q}(e)=1}\Delta'_{\alpha_qp\pdup}(e\star)\\
+&= \bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} 0\cdot\Delta'_{\alpha_qp\pdup}(e)\\
+\Delta'_{\alpha p\pdup}(b) &= \Delta'_{\alpha p\pdup}(q) = \emptyset\\
+\Delta'_{\alpha p\pdup}(\pdup) &= \begin{cases}
+\{\eps\} & \text{if $\alpha=\alpha_p$}\\
+\emptyset & \text{if $\alpha\neq\alpha_p$.}
+\end{cases}
+\end{align*}
+
+\begin{lemma}
+\label{eq:Deltacl}
+$\Delta'_{\alpha p\pdup}(e) \subs \ell(e)$.
+\end{lemma}
+
+\begin{lemma}
+\label{eq:DDelta}
+$\Delta_{\alpha p\pdup}(e) = \set{\rep\sigma e\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
+\end{lemma}
+
+\begin{lemma}
+\label{eq:BDelta}
+\begin{align*}
+D_{\alpha p\pdup}(e) = \sum\set{\rep\sigma e\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e)}
+\end{align*}
+modulo ACI+.
+\end{lemma}
+\begin{proof}
+By induction. Reasoning modulo ACI+,
+\begin{align*}
+D_{\alpha p\pdup}(e_1+e_2) &= D_{\alpha p\pdup}(e_1) + D_{\alpha p\pdup}(e_2)\\
+&= \sum\set{\rep\sigma{e_1}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{e_1+e_2}\subst{\alpha_p}X}{0\sigma\in\Delta'_{\alpha p\pdup}(e_1+e_2)}\\
+& \qquad + \sum\set{\rep{1\sigma}{e_1+e_2}\subst{\alpha_p}X}{1\sigma\in\Delta'_{\alpha p\pdup}(e_1+e_2)}\\
+&= \sum\set{\rep{\sigma}{e_1+e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1+e_2)}.
+\end{align*}
+\begin{align*}
+D_{\alpha p\pdup}(e_1e_2) &= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_q E_{\alpha q}(e_1)\cdot D_{\alpha_qp\pdup}(e_2)\\
+&= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_{E_{\alpha q}(e_1)=1} D_{\alpha_qp\pdup}(e_2)\\
+&= \left(\sum\set{\rep\sigma{e_1}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\right)\cdot e_2\\
+& \qquad + \sum_{E_{\alpha q}(e_1)=1}\sum\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
+&= \sum\set{(\rep\sigma{e_1}\cdot e_2)\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{1\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
+&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 0\cdot\Delta'_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 1\cdot\Delta'_{\alpha_qp\pdup}(e_2)}\\
+&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in (0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} 1\cdot\Delta'_{\alpha_qp\pdup}(e_2))}\\
+&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1e_2)}
+\end{align*}
+For $\star$, we would like to show
+\begin{align*}
+D_{\alpha p\pdup}(e\star) &= \sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e\star)}\\
+&= \sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in\bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} 0\cdot\Delta'_{\alpha_qp\pdup}(e)}\\
+&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in 0\cdot\Delta'_{\alpha_qp\pdup}(e)}\\
+&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep{0\sigma}{e\star}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\\
+&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep{\sigma}{e}\cdot e\star\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\\
+&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\left(\sum\set{\rep{\sigma}{e}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\right)\cdot e\star\\
+&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\left(\sum\set{\rep{\sigma}{e}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\right)\cdot e\star\\
+&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}D_{\alpha_qp\pdup}(e)\cdot e\star\\
+\end{align*}
+\end{proof}
 
 \subsection*{Antimirov Derivative}
 
@@ -311,33 +390,6 @@ $\Delta_{\alpha p\pdup}(e) \subs \cl e$. (Not quite right--it has some $\alpha$'
 \label{eq:DDelta}
 $D_{\alpha p\pdup}(e) \equiv \ssum\Delta_{\alpha p\pdup}(e)$,
 where $\equiv$ denotes equivalence modulo ACI, $(e_1+e_2)e = e_1e + e_2e$, $0e = 0$, and $1e = e$.
-\end{lemma}
-
-\subsection*{Alternative Representation}
-
-\begin{align*}
-\Delta'_{\alpha p\pdup} &: e\mapsto\powerset{\dom e}
-\end{align*}
-\begin{align*}
-\Delta'_{\alpha p\pdup}(e_1+e_2) &= \set{0x}{x\in\Delta'_{\alpha p\pdup}(e_1)} \cup \set{1x}{x\in\Delta'_{\alpha p\pdup}(e_2)}\\
-\Delta'_{\alpha p\pdup}(e_1e_2) &= \set{0x}{x\in\Delta'_{\alpha p\pdup}(e_1)} \cup \set{1x}{x\in\Delta'_{\alpha p\pdup}(e_2)}\\
-\Delta'_{\alpha p\pdup}(e\star) &= \set{0x}{x\in\Delta'_{\alpha p\pdup}(e)} \cup \bigcup_{E_{\alpha q}(e)=1}\Delta'_{\alpha_qp\pdup}(e\star)\\
-&= \bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} \set{0x}{x\in\Delta'_{\alpha_qp\pdup}(e)}\ ???\\
-\Delta'_{\alpha p\pdup}(b) &= \Delta'_{\alpha p\pdup}(q) = \emptyset\\
-\Delta'_{\alpha p\pdup}(\pdup) &= \begin{cases}
-\{\eps\} & \text{if $\alpha=\alpha_p$}\\
-\emptyset & \text{if $\alpha\neq\alpha_p$.}
-\end{cases}
-\end{align*}
-
-\begin{lemma}
-\label{eq:Deltacl}
-$\Delta'_{\alpha p\pdup}(e) \subs \dom e$, and in fact each element of $\Delta'_{\alpha p\pdup}(e)$ is a leaf.
-\end{lemma}
-
-\begin{lemma}
-\label{eq:DDelta}
-$\Delta_{\alpha p\pdup}(e) = \set{R(\sigma,e)\subst\alpha\sigma}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
 \end{lemma}
 
 \end{document}
