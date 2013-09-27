@@ -67,12 +67,13 @@ following the recursive definition of NetKAT$_{\text{DM}}$.
 \begin{description}
 
 \item[Idea.] All expressions in NetKAT$_{\text{DM}}$ can be obtained from 
-$f=n$, $f \neq n$, $f \gets n$ by using union ($+$), concatenation ($;$), and 
+$f=n$, $f \neq n$, $f \gets n$, and $\pdup$ by using union ($+$), concatenation ($;$), and 
 Kleene star ($\star$) operations. So it will suffice to show that:
 \begin{itemize}
   \item $\den{f=n} = L(M_f=n)$
   \item $\den{f \neq n} = L(M_f \neq n)$
   \item $\den{f \gets n} = L(M_{f \gets n})$
+  \item $\den{\pdup} = L(M_{\pdup})$
   \item For any NetKAT$_{\textnormal{DM}}$ expressions $e_1$ and $e_2$: if
   $\den{e_1} = L(M_{e_1})$ and $\den{e_2} = L(M_{e_2})$, then 
   $\den{e_1+e_2} = L(M_{e_1+e_2})$, $\den{e_1;e_2} = L(M_{e_1;e_2})$, and
@@ -139,6 +140,24 @@ Kleene star ($\star$) operations. So it will suffice to show that:
   $s \in S_{M_{f \gets n}}$, $\ell(s) = \{pk::h\}$. So, 
   $\ell(f) = \alpha\subst nf$. Hence, 
   $L(M_{f \gets n})(pk::h) = \den{f \gets n}(pk::h)$.
+  
+  \item $\pdup$:
+  \begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[shorten >=1pt, auto]
+      \node[state, initial]   (s)           {$s$};
+      \node[state, accepting] (f) at (3,0)  {$f$};
+  
+      \path[->] (s) edge node {$\pdup$} (f);
+    \end{tikzpicture}
+    \caption{$M_{\pdup}$}
+  \end{figure}
+  
+  From the denotational view of $L(M_e)(h)$,
+  $L(M_{\pdup})(pk::h) = \bigcup_{t\in F}\ell(t) = \ell(f)$. Since 
+  $s \in S_{M_{\pdup}}$, $\ell(s) = \{pk::h\}$. So, 
+  $\ell(f) = \{pk::pk::h\}$. Hence, 
+  $L(M_{\pdup})(pk::h) = \den{\pdup}(pk::h)$.
 \end{itemize}
   
 \item[Inductive Step.] For any NetKAT$_{\textnormal{DM}}$ expressions $p$ and 
