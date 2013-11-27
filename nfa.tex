@@ -48,6 +48,10 @@
 \newcommand\clname{\mathrm{cl}}
 \newcommand\cl[1]{\clname(#1)}
 
+\newcommand\STD{\Delta}
+\newcommand\Anti{A}
+\newcommand\STDM{S}
+
 \begin{document}
 
 A \emph{packet} is a map $\alpha:\{\text{fields}\}\to\{\text{values}\}$. There are a fixed finite number of fields in a packet. Fields are denoted $f,g,\ldots$~. The value of the field $f$ in packet $\alpha$ is denoted $\alpha.f$.
@@ -309,73 +313,123 @@ One can show by induction that $\dom{\repone e}=\dom e$, and that for any $\sigm
 
 \subsection*{Set-Theoretic Derivative}
 
-Now we define a set-theoretic derivative $(\Delta',E)$ for NetKAT and relate it to the syntactic Brzozowski and Antimirov derivatives.
-The set-theoretic derivative $(\Delta',E)$ is of type
+Now we define a set-theoretic derivative for NetKAT and relate it to the syntactic Brzozowski and Antimirov derivatives. Recall the definition of the homomorphism $E:\Exp\to\Two$:
+
+\begin{gather}
+E_{\alpha p}(q) = \bval{q = p} \qquad
+E_{\alpha p}(b) = \bval{\alpha_p=\alpha\leq b} \qquad
+E_{\alpha p}(\pdup) = 0\nonumber\\
+E_{\alpha p}(e_1+e_2) = E_{\alpha p}(e_1)+E_{\alpha p}(e_2) \qquad
+E_{\alpha p}(e_1e_2) = \ssum_{q} E_{\alpha q}(e_1)\cdot E_{\alpha_q p}(e_2)\nonumber\\
+E_{\alpha p}(e\star) = \bval{\alpha=\alpha_p} + \ssum_{q} E_{\alpha q}(e)\cdot E_{\alpha_q p}(e\star)\label{def:estar}
+\end{gather}
+
+The clause \eqref{def:estar} may appear circular, but it is not. It represents a system of $\len\At^2$ equations in $\len\At^2$ unknowns $E_{\alpha p}(e\star)$, one for each choice of $\alpha$ and $p$, for which we seek the least solution. Expressed another way, let $M(e)$ be the $\At\times\At$ Boolean matrix with 
+\begin{gather}
+M(e)_{\alpha\beta} = E_{\alpha p_\beta}(e).\label{eq:estar3}
+\end{gather}
+The equations \eqref{def:estar} say that $M(e\star)$ is a solution of
+\begin{gather}
+M(e\star) = I + M(e)\cdot M(e\star),\label{def:estar2} 
+\end{gather}
+where $I$ is the $\At\times\At$ identity matrix. The least solution of \eqref{def:estar2} is $M(e)\star$, thus $M(e\star)=M(e)\star$. These are Boolean matrices, so $M(e)\star$ can be calculated efficiently from $M(e)$ using the Floyd--Warshall algorithm.
+
+The other clauses in the definition of $E$ can also be conveniently expressed in terms of $M$:
+\begin{gather*}
+M(q)_{\alpha\beta} = \bval{q = p_\beta} \qquad
+M(b)_{\alpha\beta} = \bval{\beta=\alpha\leq b} \qquad
+M(\pdup) = 0\\
+M(e_1+e_2) = M(e_1)+M(e_2) \qquad
+M(e_1e_2) = M(e_1)\cdot M(e_2).
+\end{gather*}
+Note that $M(q)$ is the matrix with 1's in column $\beta$ and 0's elsewhere, and $M(b)$ is the diagonal matrix with 1's on the main diagonal in locations corresponding to atoms $\alpha\leq b$ and 0's elsewhere.
+
+Now we define a set-theoretic derivative $\STD$ of type
 \begin{align*}
-\Delta'_{\alpha p\pdup} &: \prod_{e\in\Exp}2^{\ell(e)} & \Delta'_{\alpha p\pdup}(e) &\subs \ell(e)
+\STD_{\alpha p\pdup} &: \prod_{e\in\Exp}2^{\ell(e)} & \STD_{\alpha p\pdup}(e) &\subs \ell(e).
 \end{align*}
-The component $E$ is the same as in the Brzozowski derivative.
-\begin{align*}
-\Delta'_{\alpha p\pdup}(e_1+e_2) &= 0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup 1\cdot\Delta'_{\alpha p\pdup}(e_2)\\
-\Delta'_{\alpha p\pdup}(e_1e_2) &= 0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} 1\cdot\Delta'_{\alpha_qp\pdup}(e_2)\\
-\Delta'_{\alpha p\pdup}(e\star) &= 0\cdot\Delta'_{\alpha p\pdup}(e) \cup \bigcup_{E_{\alpha q}(e)=1}\Delta'_{\alpha_qp\pdup}(e\star)\\
-&= \bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} 0\cdot\Delta'_{\alpha_qp\pdup}(e)\\
-\Delta'_{\alpha p\pdup}(b) &= \Delta'_{\alpha p\pdup}(q) = \emptyset\\
-\Delta'_{\alpha p\pdup}(\pdup) &= \begin{cases}
+It is defined inductively by
+\begin{align}
+\STD_{\alpha p\pdup}(e_1+e_2) &= \{0\}\cdot\STD_{\alpha p\pdup}(e_1) \cup \{1\}\cdot\STD_{\alpha p\pdup}(e_2)\nonumber\\
+\STD_{\alpha p\pdup}(e_1e_2) &= \{0\}\cdot\STD_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} \{1\}\cdot\STD_{\alpha_qp\pdup}(e_2)\nonumber\\
+\STD_{\alpha p\pdup}(e\star) &= \{0\}\cdot\STD_{\alpha p\pdup}(e) \cup \bigcup_{E_{\alpha q}(e)=1}\STD_{\alpha_qp\pdup}(e\star)\label{def:estardiv1}\\
+&= \bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} \{0\}\cdot\STD_{\alpha_qp\pdup}(e)\label{def:estardiv2}\\
+\STD_{\alpha p\pdup}(b) &= \STD_{\alpha p\pdup}(q) = \emptyset\nonumber\\
+\STD_{\alpha p\pdup}(\pdup) &= \begin{cases}
 \{\eps\} & \text{if $\alpha=\alpha_p$}\\
-\emptyset & \text{if $\alpha\neq\alpha_p$.}
+\emptyset & \text{if $\alpha\neq\alpha_p$.}\nonumber
 \end{cases}
+\end{align}
+Again, the clause \eqref{def:estardiv1} may appear circular, but as above with $E$, it is just a specification of a system of $\len\At^2$ equations in $\len\At^2$ unknowns $\STD_{\alpha p\pdup}(e\star)$, one for each choice of $\alpha$ and $p$. These represent subsets of $\ell(e\star)$. We claim that the least solution of this system is given by \eqref{def:estardiv2}. To see this, let $\STDM$ be the $\At\times\At$ matrix with
+\begin{gather*}
+\STDM(e)_{\alpha\beta} = \STD_{\alpha p_\beta\pdup}(e).
+\end{gather*}
+Then \eqref{def:estardiv1} says just that $\STDM(e\star)$ is a solution of
+\begin{align}
+\STDM(e\star) &= I_0\cdot\STDM(e) + M(e)\cdot\STDM(e\star)\label{eq:estardiv3}
+\end{align}
+where $+$ is interpreted as componentwise union and $I_0$ is the diagonal matrix with diagonal elements $\{0\}$ and off-diagonal elements $\emptyset$. We have also reused the symbol $M$ to refer to the matrix \eqref{eq:estar3} with 1 replaced by $\{\eps\}$ and $0$ replaced by $\emptyset$. The least solution of \eqref{eq:estardiv3} is 
+\begin{align*}
+\STDM(e\star) &= M(e)\star\cdot I_0\cdot\STDM(e) = M(e\star)\cdot I_0\cdot\STDM(e),
 \end{align*}
+which is just a succinct expression of \eqref{def:estardiv2}.
+
+As with $E$, the other clauses in the definition of $\STD$ can also be conveniently expressed in terms of $\STDM$:
+\begin{align*}
+& \STDM(e_1+e_2) = I_0\cdot\STDM(e_1) + I_1\cdot\STDM(e_2) && \STDM(b) = \STDM(q) = 0\\
+& \STDM(e_1e_2) = I_0\cdot\STDM(e_1) + M(e_1)\cdot I_1\cdot\STDM(e_2) && \STDM(\pdup) = I_\eps,
+\end{align*}
+where $0$ is the zero matrix with all entries $\emptyset$ and $I_a$ is the diagonal matrix with diagonal elements $\{a\}$ and off-diagonal elements $\emptyset$.
 
 \begin{lemma}
 \label{eq:Deltacl}
-$\Delta'_{\alpha p\pdup}(e) \subs \ell(e)$.
+$\STD_{\alpha p\pdup}(e) \subs \ell(e)$.
 \end{lemma}
 
-The Brzozowski derivative can be defined in terms of $\Delta'$.
+The Brzozowski derivative can be defined in terms of $\STD$.
 Let ACI+ denote the axioms of associativity, commutativity, and idempotence, plus the axioms $(e_1+e_2)e = e_1e + e_2e$, $0e = 0$, and $1e = e$.
 
 \begin{lemma}
 \label{eq:ABDelta}
-Modulo ACI+, $D_{\alpha p\pdup}(e) = \sum\set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
+Modulo ACI+, $D_{\alpha p\pdup}(e) = \sum\set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e)}$.
 \end{lemma}
 \begin{proof}
 By induction. Reasoning modulo ACI+,
 \begin{align*}
 D_{\alpha p\pdup}(e_1+e_2) &= D_{\alpha p\pdup}(e_1) + D_{\alpha p\pdup}(e_2)\\
-&= \sum\set{\rep\sigma{e_1\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep\sigma{e_2\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{e_1\subst{\alpha_p}\sigma+e_2}}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep{1\sigma}{e_1+e_2\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{\sigma\in\Delta'_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{0\sigma\in 0\cdot\Delta'_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{1\sigma\in 1\cdot\Delta'_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{\tau}{(e_1+e_2)\subst{\alpha_p}{\tau}}}{\tau\in\Delta'_{\alpha p\pdup}(e_1+e_2)}.
+&= \sum\set{\rep\sigma{e_1\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep\sigma{e_2\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{e_1\subst{\alpha_p}\sigma+e_2}}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{e_1+e_2\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{\sigma\in\STD_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{0\sigma\in 0\cdot\STD_{\alpha p\pdup}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{1\sigma\in 1\cdot\STD_{\alpha p\pdup}(e_2)}\\
+&= \sum\set{\rep{\tau}{(e_1+e_2)\subst{\alpha_p}{\tau}}}{\tau\in\STD_{\alpha p\pdup}(e_1+e_2)}.
 \end{align*}
 %\begin{align*}
 %D_{\alpha p\pdup}(e_1e_2) &= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_q E_{\alpha q}(e_1)\cdot D_{\alpha_qp\pdup}(e_2)\\
 %&= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_{E_{\alpha q}(e_1)=1} D_{\alpha_qp\pdup}(e_2)\\
-%&= \left(\sum\set{\rep\sigma{e_1}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\right)\cdot e_2\\
-%& \qquad + \sum_{E_{\alpha q}(e_1)=1}\sum\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
-%&= \sum\set{(\rep\sigma{e_1}\cdot e_2)\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
-%&= \sum\set{\rep{0\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1)}\\
-%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{1\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e_2)}\\
-%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 0\cdot\Delta'_{\alpha p\pdup}(e_1)}\\
-%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 1\cdot\Delta'_{\alpha_qp\pdup}(e_2)}\\
-%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in (0\cdot\Delta'_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} 1\cdot\Delta'_{\alpha_qp\pdup}(e_2))}\\
-%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e_1e_2)}
+%&= \left(\sum\set{\rep\sigma{e_1}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\right)\cdot e_2\\
+%& \qquad + \sum_{E_{\alpha q}(e_1)=1}\sum\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{(\rep\sigma{e_1}\cdot e_2)\subst{\alpha_p}X}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
+%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep\sigma{e_2}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{\rep{0\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
+%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{1\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 0\cdot\STD_{\alpha p\pdup}(e_1)}\\
+%& \qquad + \sum\bigcup_{E_{\alpha q}(e_1)=1}\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in 1\cdot\STD_{\alpha_qp\pdup}(e_2)}\\
+%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in (0\cdot\STD_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} 1\cdot\STD_{\alpha_qp\pdup}(e_2))}\\
+%&= \sum\set{\rep{\sigma}{e_1e_2}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha p\pdup}(e_1e_2)}
 %\end{align*}
 %For $\star$, we would like to show
 %\begin{align*}
-%D_{\alpha p\pdup}(e\star) &= \sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha p\pdup}(e\star)}\\
-%&= \sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in\bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} 0\cdot\Delta'_{\alpha_qp\pdup}(e)}\\
-%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in 0\cdot\Delta'_{\alpha_qp\pdup}(e)}\\
-%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep{0\sigma}{e\star}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\\
-%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep{\sigma}{e}\cdot e\star\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\\
-%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\left(\sum\set{\rep{\sigma}{e}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\right)\cdot e\star\\
-%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\left(\sum\set{\rep{\sigma}{e}\subst{\alpha_p}X}{\sigma\in\Delta'_{\alpha_qp\pdup}(e)}\right)\cdot e\star\\
+%D_{\alpha p\pdup}(e\star) &= \sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha p\pdup}(e\star)}\\
+%&= \sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in\bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} 0\cdot\STD_{\alpha_qp\pdup}(e)}\\
+%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep\sigma{e\star}\subst{\alpha_p}X}{\sigma\in 0\cdot\STD_{\alpha_qp\pdup}(e)}\\
+%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep{0\sigma}{e\star}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha_qp\pdup}(e)}\\
+%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\sum\set{\rep{\sigma}{e}\cdot e\star\subst{\alpha_p}X}{\sigma\in\STD_{\alpha_qp\pdup}(e)}\\
+%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\left(\sum\set{\rep{\sigma}{e}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha_qp\pdup}(e)}\right)\cdot e\star\\
+%&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}\left(\sum\set{\rep{\sigma}{e}\subst{\alpha_p}X}{\sigma\in\STD_{\alpha_qp\pdup}(e)}\right)\cdot e\star\\
 %&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}D_{\alpha_qp\pdup}(e)\cdot e\star\\
 %\end{align*}
 \end{proof}
@@ -384,34 +438,31 @@ D_{\alpha p\pdup}(e_1+e_2) &= D_{\alpha p\pdup}(e_1) + D_{\alpha p\pdup}(e_2)\\
 
 There is an analog of the Antimirov derivative for NetKAT. It is of type
 \begin{align*}
-\Delta_{\alpha p\pdup} &: \Exp\to\powerset\Exp & E_{\alpha p} &: \Exp\to 2.
+\Anti_{\alpha p\pdup} : \Exp\to\powerset\Exp
 \end{align*}
-The component $E$ is the same as in the Brzozowski derivative.
-\begin{align*}
-\Delta_{\alpha p\pdup}(e_1+e_2) &= \Delta_{\alpha p\pdup}(e_1) \cup \Delta_{\alpha p\pdup}(e_2)\\
-\Delta_{\alpha p\pdup}(e_1e_2) &= \Delta_{\alpha p\pdup}(e_1)\cdot e_2 \cup \bigcup_{E_{\alpha q}(e_1)=1}\Delta_{\alpha_q p\pdup}(e_2)\\
-\Delta_{\alpha p\pdup}(e\star) &= \Delta_{\alpha p\pdup}(e)\cdot e\star \cup \bigcup_{E_{\alpha q}(e)=1}\Delta_{\alpha_q p\pdup}(e\star)\\
-\Delta_{\alpha p\pdup}(b) &= \Delta_{\alpha p\pdup}(q) = \emptyset\\
-\Delta_{\alpha p\pdup}(\pdup) &= \begin{cases}
+It is defined inductively as follows:
+\begin{align}
+\Anti_{\alpha p\pdup}(e_1+e_2) &= \Anti_{\alpha p\pdup}(e_1) \cup \Anti_{\alpha p\pdup}(e_2)\nonumber\\
+\Anti_{\alpha p\pdup}(e_1e_2) &= \Anti_{\alpha p\pdup}(e_1)\cdot\{e_2\} \cup \bigcup_{E_{\alpha q}(e_1)=1}\Anti_{\alpha_q p\pdup}(e_2)\nonumber\\
+\Anti_{\alpha p\pdup}(e\star) &= \Anti_{\alpha p\pdup}(e)\cdot\{e\star\} \cup \bigcup_{E_{\alpha q}(e)=1}\Anti_{\alpha_q p\pdup}(e\star)\label{def:anti}\\
+\Anti_{\alpha p\pdup}(b) &= \Anti_{\alpha p\pdup}(q) = \emptyset\nonumber\\
+\Anti_{\alpha p\pdup}(\pdup) &= \begin{cases}
 \{\alpha\} & \text{if $\alpha=\alpha_p$}\\
 \emptyset & \text{if $\alpha\neq\alpha_p$.}
-\end{cases}
-\end{align*}
+\end{cases}\nonumber
+\end{align}
+As above, for $\Anti_{\alpha p\pdup}(e\star)$, we take the least solution of the system \eqref{def:anti}.
+This is done symbolically, using the axioms of KA.
 
-The Antimirov derivative can also be defined in terms of $\Delta'$.
-
-%\begin{lemma}
-%\label{eq:Deltacl}
-%$\Delta_{\alpha p\pdup}(e) \subs \cl e$. (Not quite right--it has some $\alpha$'s in there)
-%\end{lemma}
+The Antimirov derivative can also be defined in terms of $\STD$.
 
 \begin{lemma}
 \label{eq:DDelta}\ 
 \begin{enumerate}[{\upshape (i)}]
 \item
-$\Delta_{\alpha p\pdup}(e) = \set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\Delta'_{\alpha p\pdup}(e)}$.
+$\Anti_{\alpha p\pdup}(e) = \set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e)}$.
 \item
-Modulo ACI+, $D_{\alpha p\pdup}(e) = \ssum\Delta_{\alpha p\pdup}(e)$.
+Modulo ACI+, $D_{\alpha p\pdup}(e) = \ssum\Anti_{\alpha p\pdup}(e)$.
 \end{enumerate}
 \end{lemma}
 
