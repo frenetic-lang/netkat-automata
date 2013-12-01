@@ -26,7 +26,7 @@
 \newcommand\lam[2]{\lambda{#1}\kern1pt.\kern1pt{#2}}
 \newcommand\nf[1]{#1^{\mathrm{nf}}}
 \newcommand\CA{\ensuremath{P}}
-\newcommand\At{\ensuremath{\mathit{At}}}
+\newcommand\At{\ensuremath{\mathsf{At}}}
 \newcommand\cseq[2]{\pseq{\pseq{#1}\cdots}{#2}}
 \renewcommand\smash{\mathrel{\diamond}}
 \newcommand\ssum{\mathop{\textstyle\sum}}
@@ -48,9 +48,16 @@
 \newcommand\clname{\mathrm{cl}}
 \newcommand\cl[1]{\clname(#1)}
 
+\newcommand\repname{R}
+\newcommand\repone[1]{\repname(#1)}
+\newcommand\rep[2]{\repname(#2)(#1)}
+\newcommand\pfun\rightharpoonup
+\newcommand\arity[1]{\mathrm{arity}(#1)}
+
 \newcommand\STD{\Delta}
 \newcommand\Anti{A}
-\newcommand\STDM{S}
+\newcommand\STDM{\Delta}
+\newcommand\Mat[2]{\mathsf{Mat}(#1,#2)}
 
 \begin{document}
 
@@ -162,17 +169,19 @@ A left-to-right DFA is a coalgebra for the functor $FX = X^{\At\times P}\times 2
 \begin{align*}
 \delta &: X\to X^{\At\times P} & \eps &: X\to 2^{\At\times P}.
 \end{align*}
-We write $\delta_{\alpha p\pdup}(t)$ for $\delta(t)(\alpha,p)$ and $\eps_{\alpha p}(t)$ for $\eps(t)(\alpha,p)$, so
+We write $\delta_{\alpha p}(t)$ for $\delta(t)(\alpha,p)$ and $\eps_{\alpha p}(t)$ for $\eps(t)(\alpha,p)$, so
 \begin{align*}
-\delta_{\alpha p\pdup} &: X\to X & \eps_{\alpha p} &: X\to 2.
+\delta_{\alpha p} &: X\to X & \eps_{\alpha p} &: X\to 2.
 \end{align*}
 Inputs to the automaton are strings of the form
 \begin{align*}
 \alpha p_1\pdup p_2\pdup\cdots\pdup p_m
 \end{align*}
-in $\At\cdot(P\cdot\pdup)\star\cdot P$. Acceptance is defined in terms of a coinductively defined predicate $\acc:X\times\At\cdot(P\cdot\pdup)\star\cdot P\to 2$.
+in $\At\cdot(P\cdot\pdup)\star\cdot P$.
+
+Intuitively, $\delta_{\alpha p}$ reads $\alpha p\pdup$ from the front of the input string and moves to a new state, and $\eps_{\alpha p}$ accepts if the string ends with $\alpha p$. Formally, acceptance is defined in terms of a predicate $\acc:X\times\At\cdot(P\cdot\pdup)\star\cdot P\to\Two$ coinductively defined by
 \begin{align*}
-\acc(t,\alpha p\pdup x) &= \acc(\delta_{\alpha p\pdup}(t),\alpha_p x)\\
+\acc(t,\alpha p\pdup x) &= \acc(\delta_{\alpha p}(t),\alpha_p x)\\
 \acc(t,\alpha p) &= \eps_{\alpha p}(t).
 \end{align*}
 A string $x\in\At\cdot(P\cdot\pdup)\star\cdot P$ is \emph{accepted} by the automaton if $\acc(s,x)$.
@@ -199,12 +208,6 @@ in $\At\cdot P\cdot(\pdup\cdot P)\star$. Acceptance is defined in terms of a coi
 A string $x\in\At\cdot P\cdot(\pdup\cdot P)\star$ is \emph{accepted} by the automaton if $\acc(s,x)$.
 
 \section*{Conversion to DFAs (L2R)}
-
-\newcommand\repname{R}
-\newcommand\repone[1]{\repname(#1)}
-\newcommand\rep[2]{\repname(#2)(#1)}
-\newcommand\pfun\rightharpoonup
-\newcommand\arity[1]{\mathrm{arity}(#1)}
 
 \subsection*{Closure}
 
@@ -302,7 +305,7 @@ The representation is given in terms of a dependent function
 \begin{align*}
 \repname &: \prod_{e\in\Exp}\Exp^{\dom e} & \repone e &: \dom e\to\Exp
 \end{align*}
-defined inductively by
+defined coinductively by
 \begin{align*}
 \rep{0\sigma}{e_1+e_2} &= \rep\sigma{e_1} & \rep{0\sigma}{e_1e_2} &= \rep\sigma{e_1}\cdot e_2\\
 \rep{1\sigma}{e_1+e_2} &= \rep\sigma{e_2} & \rep{1\sigma}{e_1e_2} &= \rep\sigma{e_2}\\
@@ -313,7 +316,7 @@ One can show by induction that $\dom{\repone e}=\dom e$, and that for any $\sigm
 
 \subsection*{Set-Theoretic Derivative}
 
-Now we define a set-theoretic derivative for NetKAT and relate it to the syntactic Brzozowski and Antimirov derivatives. Recall the definition of the homomorphism $E:\Exp\to\Two$:
+Now we define a set-theoretic derivative for NetKAT and relate it to the syntactic Brzozowski and Antimirov derivatives. Recall the definition of the map $E:\Exp\to\Two^{\At\times P}$:
 
 \begin{gather}
 E_{\alpha p}(q) = \bval{q = p} \qquad
@@ -324,88 +327,151 @@ E_{\alpha p}(e_1e_2) = \ssum_{q} E_{\alpha q}(e_1)\cdot E_{\alpha_q p}(e_2)\nonu
 E_{\alpha p}(e\star) = \bval{\alpha=\alpha_p} + \ssum_{q} E_{\alpha q}(e)\cdot E_{\alpha_q p}(e\star)\label{def:estar}
 \end{gather}
 
-The clause \eqref{def:estar} may appear circular, but it is not. It represents a system of $\len\At^2$ equations in $\len\At^2$ unknowns $E_{\alpha p}(e\star)$, one for each choice of $\alpha$ and $p$, for which we seek the least solution. Expressed another way, let $M(e)$ be the $\At\times\At$ Boolean matrix with 
-\begin{gather}
-M(e)_{\alpha\beta} = E_{\alpha p_\beta}(e).\label{eq:estar3}
-\end{gather}
-The equations \eqref{def:estar} say that $M(e\star)$ is a solution of
-\begin{gather}
-M(e\star) = I + M(e)\cdot M(e\star),\label{def:estar2} 
-\end{gather}
-where $I$ is the $\At\times\At$ identity matrix. The least solution of \eqref{def:estar2} is $M(e)\star$, thus $M(e\star)=M(e)\star$. These are Boolean matrices, so $M(e)\star$ can be calculated efficiently from $M(e)$ using the Floyd--Warshall algorithm.
+The clause \eqref{def:estar} may appear circular, but it is not. It represents a system of $\len\At^2$ equations in $\len\At^2$ unknowns $E_{\alpha p}(e\star)$, one for each choice of $\alpha$ and $p$, for which we seek the least solution.
 
-The other clauses in the definition of $E$ can also be conveniently expressed in terms of $M$:
+Because of the one-to-one correspondence between $P$ and $\At$, we can regard $E$ as a map from expressions to $\At\times\At$ Boolean matrices.
+\begin{align}
+& E:\Exp\to\Two^{\At\times\At} && 
+E(e)_{\alpha\beta} = E_{\alpha p_\beta}(e).\label{eq:estar3}
+\end{align}
+In this view, the equations \eqref{def:estar} say that the matrix $E(e\star)$ is a solution of
+\begin{gather}
+E(e\star) = I + E(e)\cdot E(e\star),\label{def:estar2} 
+\end{gather}
+where $I$ is the $\At\times\At$ identity matrix. The least solution of \eqref{def:estar2} is $E(e)\star$, thus
+\begin{align}
+E(e\star) &= E(e)\star.\label{def:estar3}
+\end{align}
+These are Boolean matrices, so $E(e)\star$ can be calculated efficiently from $E(e)$ using the Floyd--Warshall algorithm.
+
+The other clauses in the definition of $E$ can also be conveniently expressed in terms of matrix properties:
 \begin{gather*}
-M(q)_{\alpha\beta} = \bval{q = p_\beta} \qquad
-M(b)_{\alpha\beta} = \bval{\beta=\alpha\leq b} \qquad
-M(\pdup) = 0\\
-M(e_1+e_2) = M(e_1)+M(e_2) \qquad
-M(e_1e_2) = M(e_1)\cdot M(e_2).
+E(q)_{\alpha\beta} = \bval{q = p_\beta} \qquad
+E(b)_{\alpha\beta} = \bval{\beta=\alpha\leq b} \qquad
+E(\pdup) = 0\\
+E(e_1+e_2) = E(e_1)+E(e_2) \qquad
+E(e_1e_2) = E(e_1)\cdot E(e_2).
 \end{gather*}
-Note that $M(q)$ is the matrix with 1's in column $\beta$ and 0's elsewhere, and $M(b)$ is the diagonal matrix with 1's on the main diagonal in locations corresponding to atoms $\alpha\leq b$ and 0's elsewhere.
+Note that $E(q)$ is the matrix with 1's in column $\beta$ and 0's elsewhere, and $E(b)$ is the diagonal matrix with 1's on the main diagonal in locations corresponding to atoms $\alpha\leq b$ and 0's elsewhere. These properties along with \eqref{def:estar3} say that $E$ can be viewed as a KAT homomorphism $E:\Exp\to\Mat\Two\At$, where $\Mat\Two\At$ is the KAT of $\At\times\At$ Boolean matrices.
 
 Now we define a set-theoretic derivative $\STD$ of type
 \begin{align*}
-\STD_{\alpha p\pdup} &: \prod_{e\in\Exp}2^{\ell(e)} & \STD_{\alpha p\pdup}(e) &\subs \ell(e).
+\STD_{\alpha p} &: \prod_{e\in\Exp}2^{\ell(e)} & \STD_{\alpha p}(e) &\subs \ell(e).
 \end{align*}
-It is defined inductively by
+Recall that $\ell(e)\subs\dom e$ is a set of strings in $\omega\star$ specifying the leaves of the term $e$.
+The map $\STD_{\alpha p}$ is going to tell us where to apply $\repname$ to obtain the Antimirov derivative.
+The map $\STD_{\alpha p}$ is defined inductively by
 \begin{align}
-\STD_{\alpha p\pdup}(e_1+e_2) &= \{0\}\cdot\STD_{\alpha p\pdup}(e_1) \cup \{1\}\cdot\STD_{\alpha p\pdup}(e_2)\nonumber\\
-\STD_{\alpha p\pdup}(e_1e_2) &= \{0\}\cdot\STD_{\alpha p\pdup}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} \{1\}\cdot\STD_{\alpha_qp\pdup}(e_2)\nonumber\\
-\STD_{\alpha p\pdup}(e\star) &= \{0\}\cdot\STD_{\alpha p\pdup}(e) \cup \bigcup_{E_{\alpha q}(e)=1}\STD_{\alpha_qp\pdup}(e\star)\label{def:estardiv1}\\
-&= \bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} \{0\}\cdot\STD_{\alpha_qp\pdup}(e)\label{def:estardiv2}\\
-\STD_{\alpha p\pdup}(b) &= \STD_{\alpha p\pdup}(q) = \emptyset\nonumber\\
-\STD_{\alpha p\pdup}(\pdup) &= \begin{cases}
+\STD_{\alpha p}(e_1+e_2) &= \{0\}\cdot\STD_{\alpha p}(e_1) \cup \{1\}\cdot\STD_{\alpha p}(e_2)\nonumber\\
+\STD_{\alpha p}(e_1e_2) &= \{0\}\cdot\STD_{\alpha p}(e_1) \cup \bigcup_{E_{\alpha q}(e_1)=1} \{1\}\cdot\STD_{\alpha_qp}(e_2)\nonumber\\
+\STD_{\alpha p}(e\star) &= \{0\}\cdot\STD_{\alpha p}(e) \cup \bigcup_{E_{\alpha q}(e)=1}\STD_{\alpha_qp}(e\star)\label{def:estardiv1}\\
+&= \bigcup_{E_{\alpha q}(e^{\scriptstyle *})=1} \{0\}\cdot\STD_{\alpha_qp}(e)\label{def:estardiv2}\\
+\STD_{\alpha p}(b) &= \STD_{\alpha p}(q) = \emptyset\nonumber\\
+\STD_{\alpha p}(\pdup) &= \begin{cases}
 \{\eps\} & \text{if $\alpha=\alpha_p$}\\
 \emptyset & \text{if $\alpha\neq\alpha_p$.}\nonumber
 \end{cases}
 \end{align}
-Again, the clause \eqref{def:estardiv1} may appear circular, but as above with $E$, it is just a specification of a system of $\len\At^2$ equations in $\len\At^2$ unknowns $\STD_{\alpha p\pdup}(e\star)$, one for each choice of $\alpha$ and $p$. These represent subsets of $\ell(e\star)$. We claim that the least solution of this system is given by \eqref{def:estardiv2}. To see this, let $\STDM$ be the $\At\times\At$ matrix with
+It follows inductively from the definition that $\STD_{\alpha p}(e) \subs \ell(e)$.
+
+Again, the clause \eqref{def:estardiv1} may appear circular, but as above with $E$, it is just a specification of a system of $\len\At^2$ equations in $\len\At^2$ unknowns $\STD_{\alpha p}(e\star)$, one for each choice of $\alpha$ and $p$. These represent subsets of $\ell(e\star)$. We claim that the least solution of this system is given by \eqref{def:estardiv2}. To see this, note that as we did above with $E$, we can regard $\STDM(e)$ as an $\At\times\At$ matrix over $\powerset{\ell(e)}$:
 \begin{gather*}
-\STDM(e)_{\alpha\beta} = \STD_{\alpha p_\beta\pdup}(e).
+\STDM(e)_{\alpha\beta} = \STD_{\alpha p_\beta}(e).
 \end{gather*}
-Then \eqref{def:estardiv1} says just that $\STDM(e\star)$ is a solution of
+In this view, clause \eqref{def:estardiv1} of the definition just says that the matrix $\STDM(e\star)$ is a solution of
 \begin{align}
-\STDM(e\star) &= I_0\cdot\STDM(e) + M(e)\cdot\STDM(e\star)\label{eq:estardiv3}
+\STDM(e\star) &= I_0\cdot\STDM(e) + E(e)\cdot\STDM(e\star),\label{eq:estardiv3}
 \end{align}
-where $+$ is interpreted as componentwise union and $I_0$ is the diagonal matrix with diagonal elements $\{0\}$ and off-diagonal elements $\emptyset$. We have also reused the symbol $M$ to refer to the matrix \eqref{eq:estar3} with 1 replaced by $\{\eps\}$ and $0$ replaced by $\emptyset$. The least solution of \eqref{eq:estardiv3} is 
+where $+$ is interpreted as componentwise union and $I_0$ is the diagonal matrix with diagonal elements $\{0\}$ and off-diagonal elements $\emptyset$. We have also reused the symbol $E$ to refer to the matrix \eqref{eq:estar3} with 1 replaced by $\{\eps\}$ and $0$ replaced by $\emptyset$. The least solution of \eqref{eq:estardiv3} is 
 \begin{align*}
-\STDM(e\star) &= M(e)\star\cdot I_0\cdot\STDM(e) = M(e\star)\cdot I_0\cdot\STDM(e),
+\STDM(e\star) &= E(e)\star\cdot I_0\cdot\STDM(e) = E(e\star)\cdot I_0\cdot\STDM(e),
 \end{align*}
 which is just a succinct expression of \eqref{def:estardiv2}.
 
-As with $E$, the other clauses in the definition of $\STD$ can also be conveniently expressed in terms of $\STDM$:
+As with $E$, the other clauses in the definition of $\STD$ can also be conveniently expressed in terms of matrices:
 \begin{align*}
 & \STDM(e_1+e_2) = I_0\cdot\STDM(e_1) + I_1\cdot\STDM(e_2) && \STDM(b) = \STDM(q) = 0\\
-& \STDM(e_1e_2) = I_0\cdot\STDM(e_1) + M(e_1)\cdot I_1\cdot\STDM(e_2) && \STDM(\pdup) = I_\eps,
+& \STDM(e_1e_2) = I_0\cdot\STDM(e_1) + E(e_1)\cdot I_1\cdot\STDM(e_2) && \STDM(\pdup) = I_\eps,
 \end{align*}
 where $0$ is the zero matrix with all entries $\emptyset$ and $I_a$ is the diagonal matrix with diagonal elements $\{a\}$ and off-diagonal elements $\emptyset$.
 
+\subsection*{Antimirov Derivative}
+
+There is an analog of the Antimirov derivative for NetKAT. Both the Antimirov and Brzozowski derivatives can be defined in terms of $\STD$. The Antimirov derivative is of type
+\begin{align*}
+\Anti_{\alpha p} : \Exp\to\powerset\Exp
+\end{align*}
+and is defined inductively as follows:
+\begin{align}
+\Anti_{\alpha p}(e_1+e_2) &= \Anti_{\alpha p}(e_1) \cup \Anti_{\alpha p}(e_2)\nonumber\\
+\Anti_{\alpha p}(e_1e_2) &= \Anti_{\alpha p}(e_1)\cdot\{e_2\} \cup \bigcup_{E_{\alpha q}(e_1)=1}\Anti_{\alpha_q p}(e_2)\nonumber\\
+\Anti_{\alpha p}(e\star) &= \Anti_{\alpha p}(e)\cdot\{e\star\} \cup \bigcup_{E_{\alpha q}(e)=1}\Anti_{\alpha_q p}(e\star)\label{def:anti}\\
+\Anti_{\alpha p}(b) &= \Anti_{\alpha p}(q) = \emptyset\nonumber\\
+\Anti_{\alpha p}(\pdup) &= \begin{cases}
+\{\alpha\} & \text{if $\alpha=\alpha_p$}\\
+\emptyset & \text{if $\alpha\neq\alpha_p$.}\end{cases}\nonumber
+\end{align}
+As above, for $\Anti_{\alpha p}(e\star)$, we take the least solution of the system \eqref{def:anti}.
+This is done symbolically, using the axioms of KA.
+
+Again, using the one-to-one correspondence between $P$ and $\At$, we can view $A$ as a function $A:\Exp\to\Mat\At{\powerset\Exp}$
+with $A(e)_{\alpha\beta}=A_{\alpha p_\beta}(e)$. In this view, the definition takes the following succinct form:
+\begin{align*}
+\Anti(e_1+e_2) &= \Anti(e_1) + \Anti(e_2)\nonumber\\
+\Anti(e_1e_2) &= \Anti(e_1)\cdot I_{\{e_2\}} + E(e_1)\cdot\Anti(e_2)\nonumber\\
+\Anti(e\star) &= \Anti(e)\cdot I_{\{e^*\}} + E(e)\cdot\Anti(e\star)\\
+&= E(e\star)\cdot\Anti(e)\cdot I_{\{e^*\}}\\
+\Anti(b) &= \Anti(q) = 0\nonumber\\
+\Anti(\pdup)_{\alpha\beta} &= \begin{cases}
+\{\alpha\} & \text{if $\alpha=\beta$}\\
+\emptyset & \text{if $\alpha\neq\beta$.}\end{cases}\nonumber
+\end{align*}
+where $+$ indicates componentwise union.
+
 \begin{lemma}
-\label{eq:Deltacl}
-$\STD_{\alpha p\pdup}(e) \subs \ell(e)$.
+\label{eq:DDelta}\ 
+\begin{enumerate}[{\upshape (i)}]
+\item
+$\Anti_{\alpha p}(e) = \set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p}(e)}$.
+\item
+Modulo ACI+, $D_{\alpha p}(e) = \ssum\Anti_{\alpha p}(e)$.
+\end{enumerate}
 \end{lemma}
+
+
 
 The Brzozowski derivative can be defined in terms of $\STD$.
 Let ACI+ denote the axioms of associativity, commutativity, and idempotence, plus the axioms $(e_1+e_2)e = e_1e + e_2e$, $0e = 0$, and $1e = e$.
 
 \begin{lemma}
 \label{eq:ABDelta}
-Modulo ACI+, $D_{\alpha p\pdup}(e) = \sum\set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e)}$.
+Modulo ACI+, $D_{\alpha p}(e) = \sum\set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p}(e)}$.
 \end{lemma}
 \begin{proof}
+\begin{align*}
+\rep\sigma{e_1\subst{d}\sigma}
+&= \rep{0\sigma}{e_1\subst{d}\sigma+e_2} = \rep{0\sigma}{(e_1+e_2)\subst{d}{0\sigma}}
+\end{align*}
+If $A\subs\ell(e_1)$,
+\begin{align*}
+\set{\rep\sigma{e_1\subst{d}\sigma}}{\sigma\in A}
+&= \set{\rep{0\sigma}{(e_1+e_2)\subst{d}{0\sigma}}}{\sigma\in A}\\
+&= \set{\rep{0\sigma}{(e_1+e_2)\subst{d}{0\sigma}}}{0\sigma\in 0\cdot A}\\
+&= \set{\rep{\tau}{(e_1+e_2)\subst{\alpha_p}{\tau}}}{\tau\in\STD_{\alpha p}(e_1+e_2)}.
+\end{align*}
+
 By induction. Reasoning modulo ACI+,
 \begin{align*}
-D_{\alpha p\pdup}(e_1+e_2) &= D_{\alpha p\pdup}(e_1) + D_{\alpha p\pdup}(e_2)\\
-&= \sum\set{\rep\sigma{e_1\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep\sigma{e_2\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{e_1\subst{\alpha_p}\sigma+e_2}}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep{1\sigma}{e_1+e_2\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{\sigma\in\STD_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{\sigma\in\STD_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{0\sigma\in 0\cdot\STD_{\alpha p\pdup}(e_1)}\\
-& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{1\sigma\in 1\cdot\STD_{\alpha p\pdup}(e_2)}\\
-&= \sum\set{\rep{\tau}{(e_1+e_2)\subst{\alpha_p}{\tau}}}{\tau\in\STD_{\alpha p\pdup}(e_1+e_2)}.
+D_{\alpha p}(e_1+e_2) &= D_{\alpha p}(e_1) + D_{\alpha p}(e_2)\\
+&= \sum\set{\rep\sigma{e_1\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p}(e_1)}\\
+& \qquad + \sum\set{\rep\sigma{e_2\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{e_1\subst{\alpha_p}\sigma+e_2}}{\sigma\in\STD_{\alpha p}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{e_1+e_2\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{\sigma\in\STD_{\alpha p}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{\sigma\in\STD_{\alpha p}(e_2)}\\
+&= \sum\set{\rep{0\sigma}{(e_1+e_2)\subst{\alpha_p}{0\sigma}}}{0\sigma\in 0\cdot\STD_{\alpha p}(e_1)}\\
+& \qquad + \sum\set{\rep{1\sigma}{(e_1+e_2)\subst{\alpha_p}{1\sigma}}}{1\sigma\in 1\cdot\STD_{\alpha p}(e_2)}\\
+&= \sum\set{\rep{\tau}{(e_1+e_2)\subst{\alpha_p}{\tau}}}{\tau\in\STD_{\alpha p}(e_1+e_2)}.
 \end{align*}
 %\begin{align*}
 %D_{\alpha p\pdup}(e_1e_2) &= D_{\alpha p\pdup}(e_1)\cdot e_2 + \sum_q E_{\alpha q}(e_1)\cdot D_{\alpha_qp\pdup}(e_2)\\
@@ -433,37 +499,5 @@ D_{\alpha p\pdup}(e_1+e_2) &= D_{\alpha p\pdup}(e_1) + D_{\alpha p\pdup}(e_2)\\
 %&= \sum_{E_{\alpha q}(e^{\scriptstyle *})=1}D_{\alpha_qp\pdup}(e)\cdot e\star\\
 %\end{align*}
 \end{proof}
-
-\subsection*{Antimirov Derivative}
-
-There is an analog of the Antimirov derivative for NetKAT. It is of type
-\begin{align*}
-\Anti_{\alpha p\pdup} : \Exp\to\powerset\Exp
-\end{align*}
-It is defined inductively as follows:
-\begin{align}
-\Anti_{\alpha p\pdup}(e_1+e_2) &= \Anti_{\alpha p\pdup}(e_1) \cup \Anti_{\alpha p\pdup}(e_2)\nonumber\\
-\Anti_{\alpha p\pdup}(e_1e_2) &= \Anti_{\alpha p\pdup}(e_1)\cdot\{e_2\} \cup \bigcup_{E_{\alpha q}(e_1)=1}\Anti_{\alpha_q p\pdup}(e_2)\nonumber\\
-\Anti_{\alpha p\pdup}(e\star) &= \Anti_{\alpha p\pdup}(e)\cdot\{e\star\} \cup \bigcup_{E_{\alpha q}(e)=1}\Anti_{\alpha_q p\pdup}(e\star)\label{def:anti}\\
-\Anti_{\alpha p\pdup}(b) &= \Anti_{\alpha p\pdup}(q) = \emptyset\nonumber\\
-\Anti_{\alpha p\pdup}(\pdup) &= \begin{cases}
-\{\alpha\} & \text{if $\alpha=\alpha_p$}\\
-\emptyset & \text{if $\alpha\neq\alpha_p$.}
-\end{cases}\nonumber
-\end{align}
-As above, for $\Anti_{\alpha p\pdup}(e\star)$, we take the least solution of the system \eqref{def:anti}.
-This is done symbolically, using the axioms of KA.
-
-The Antimirov derivative can also be defined in terms of $\STD$.
-
-\begin{lemma}
-\label{eq:DDelta}\ 
-\begin{enumerate}[{\upshape (i)}]
-\item
-$\Anti_{\alpha p\pdup}(e) = \set{\rep\sigma{e\subst{\alpha_p}\sigma}}{\sigma\in\STD_{\alpha p\pdup}(e)}$.
-\item
-Modulo ACI+, $D_{\alpha p\pdup}(e) = \ssum\Anti_{\alpha p\pdup}(e)$.
-\end{enumerate}
-\end{lemma}
 
 \end{document}
