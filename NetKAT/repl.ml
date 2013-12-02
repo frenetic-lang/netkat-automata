@@ -3,11 +3,26 @@ open Util
 type state = int
 let init_state = 0
 
+exception ParseError of int * int * string
+                              
+let parse (s : string) : Ast.formula =
+  let lexbuf = Lexing.from_string s in
+  (try
+		Parser.formula_main Lexer.token lexbuf
+	with
+  | Lexer.LexError s -> raise (Lexer.LexError s)
+  | _ ->
+    let curr = lexbuf.Lexing.lex_curr_p in
+    let line = curr.Lexing.pos_lnum in
+    let char = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
+    let token = Lexing.lexeme lexbuf in
+    raise (ParseError (line, char, token)))
+
 let process (input : string) : unit =
-  let parsed = Parse.parseFormula input in
+  let parsed = parse input in
   let ps = Ast.simplify_formula parsed in
-  print_string (Ast.formula_to_string ps);
-  print_newline ()
+  print_endline (Ast.formula_to_string ps);
+	Test.check_vars ps
   
 (* read from a file *)
 let load (filename : string) : string list =
@@ -33,8 +48,10 @@ let rec repl (state : state) : unit =
   if input = "quit" then raise Quit;
   (try
     process input
-  with Parsing.Parse_error ->
-    print_endline "Parse error");
+  with
+  | Lexer.LexError s -> Printf.printf "Lex Error: %s\n" s
+  | ParseError (l, ch, t) ->
+		Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t);
   repl state
 
 let _ =

@@ -1,15 +1,20 @@
 {
 open Parser
+exception LexError of string
 }
-let alphanumeric = ['a'-'z' 'A'-'Z' '0'-'9']*
-let string = ['a'-'z' 'A'-'Z' '0'-'9' '.']*
+
+let id = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '_' '0'-'9']*
+let num = ['0'-'9']+
+let whitespace = ['\n' '\t' '\r' ' ']
+
 rule token = parse
-    [' ' '\t'] { token lexbuf }     (* skip blanks *)
-  | ['\n'] { EOL }
+  | whitespace { token lexbuf }
   | "drop" { ZERO }
   | "pass" { ONE }
-  | ['a'-'z'] alphanumeric as id { VAR id }
-  | string as value { STRING value }
+  | id as id { VAR id }
+  | "\""   { STRING (String.concat "" (string lexbuf)) }
+  | num as num { STRING (string_of_int (int_of_string num)) }
+	| "(*"   { comment lexbuf }
   | ":="   { ASSG }
   | '+'    { PLUS }
   | ';'    { TIMES }
@@ -20,5 +25,21 @@ rule token = parse
   | "=="   { EQUIV }
   | '='    { EQ }
   | "!="   { NEQ }
+  | "<="   { LE }
   | '<'    { LE }
   | eof    { EOL }
+	| _ as c { raise (LexError ("Unexpected character " ^ (String.make 1 c))) }
+
+and string = parse
+  | "\\\\" { "\\" :: string lexbuf }
+  | "\\\"" { "\"" :: string lexbuf }
+  | "\\n"  { "\n" :: string lexbuf }
+  | "\\t"  { "\t" :: string lexbuf }
+  | "\""   { [] }
+  | eof    { raise (LexError "Unexpected end of input stream") }
+  | _ as c { String.make 1 c :: string lexbuf }
+
+and comment = parse
+  | "*)"   { token lexbuf }
+  | eof    { raise (LexError "Unexpected end of input stream") }
+  | _      { comment lexbuf }

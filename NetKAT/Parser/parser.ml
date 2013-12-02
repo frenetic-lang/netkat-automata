@@ -17,12 +17,11 @@ type token =
   | EOL
 
 open Parsing;;
-let _ = parse_error;;
 # 1 "Parser/parser.mly"
 
 open Ast
 open Ast.Term
-# 26 "Parser/parser.ml"
+# 25 "Parser/parser.ml"
 let yytransl_const = [|
   259 (* ZERO *);
   260 (* ONE *);
@@ -144,14 +143,14 @@ let yyact = [|
     Obj.repr(
 # 27 "Parser/parser.mly"
               ( _1 )
-# 148 "Parser/parser.ml"
+# 147 "Parser/parser.ml"
                : Ast.formula))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 1 : 'term) in
     Obj.repr(
 # 31 "Parser/parser.mly"
            ( _1 )
-# 155 "Parser/parser.ml"
+# 154 "Parser/parser.ml"
                : Ast.term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : string) in
@@ -159,7 +158,7 @@ let yyact = [|
     Obj.repr(
 # 35 "Parser/parser.mly"
                     ( Assg (_1, _3) )
-# 163 "Parser/parser.ml"
+# 162 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : string) in
@@ -167,7 +166,7 @@ let yyact = [|
     Obj.repr(
 # 36 "Parser/parser.mly"
                     ( Test (_1, _3) )
-# 171 "Parser/parser.ml"
+# 170 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : string) in
@@ -175,26 +174,26 @@ let yyact = [|
     Obj.repr(
 # 37 "Parser/parser.mly"
                     ( Not (Test (_1, _3)) )
-# 179 "Parser/parser.ml"
+# 178 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     Obj.repr(
 # 38 "Parser/parser.mly"
                     ( Zero )
-# 185 "Parser/parser.ml"
+# 184 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     Obj.repr(
 # 39 "Parser/parser.mly"
                     ( One )
-# 191 "Parser/parser.ml"
+# 190 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _2 = (Parsing.peek_val __caml_parser_env 1 : 'term) in
     Obj.repr(
 # 40 "Parser/parser.mly"
                        ( _2 )
-# 198 "Parser/parser.ml"
+# 197 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'term) in
@@ -202,7 +201,7 @@ let yyact = [|
     Obj.repr(
 # 41 "Parser/parser.mly"
                     ( Plus (termset_from_list [_1; _3]) )
-# 206 "Parser/parser.ml"
+# 205 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'term) in
@@ -210,21 +209,21 @@ let yyact = [|
     Obj.repr(
 # 42 "Parser/parser.mly"
                     ( Times [_1; _3] )
-# 214 "Parser/parser.ml"
+# 213 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 1 : 'term) in
     Obj.repr(
 # 43 "Parser/parser.mly"
                     ( Star _1 )
-# 221 "Parser/parser.ml"
+# 220 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _2 = (Parsing.peek_val __caml_parser_env 0 : 'term) in
     Obj.repr(
 # 44 "Parser/parser.mly"
                     ( Not _2 )
-# 228 "Parser/parser.ml"
+# 227 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 1 : 'term) in
@@ -232,7 +231,7 @@ let yyact = [|
     Obj.repr(
 # 45 "Parser/parser.mly"
                           ( Times [_1; _2] )
-# 236 "Parser/parser.ml"
+# 235 "Parser/parser.ml"
                : 'term))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'term) in
@@ -240,7 +239,7 @@ let yyact = [|
     Obj.repr(
 # 49 "Parser/parser.mly"
                     ( Eq (_1, _3) )
-# 244 "Parser/parser.ml"
+# 243 "Parser/parser.ml"
                : 'formula))
 ; (fun __caml_parser_env ->
     let _1 = (Parsing.peek_val __caml_parser_env 2 : 'term) in
@@ -248,7 +247,7 @@ let yyact = [|
     Obj.repr(
 # 50 "Parser/parser.mly"
                     ( Le (_1, _3) )
-# 252 "Parser/parser.ml"
+# 251 "Parser/parser.ml"
                : 'formula))
 (* Entry formula_main *)
 ; (fun __caml_parser_env -> raise (Parsing.YYexit (Parsing.peek_val __caml_parser_env 0)))

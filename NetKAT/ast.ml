@@ -1,16 +1,16 @@
 
-(* open Util *)
+open Util
 
 (***********************************************
  * syntax
  ***********************************************)
 
-  type id = string
+type id = string
 
-  (* character encoding *)
-  let utf8 = ref false
+(* character encoding *)
+let utf8 = ref false
 	
-  module rec Term : sig
+module rec Term : sig
 	  type term =
 	  | Assg of id * string
 	  | Test of id * string
@@ -20,14 +20,14 @@
 	  | Star of term
 	  | Zero
 	  | One
-	end = Term
-	and Termset : (Set.S with type elt = Term.term) = Set.Make (struct
+end = Term
+and Termset : (Set.S with type elt = Term.term) = Set.Make (struct
 		type t = Term.term
 		let compare = Pervasives.compare
-	end)
+end)
 	
-	open Term
-	type term = Term.term
+open Term
+type term = Term.term
 	
 	let termset_from_list (tl : term list) : Termset.t =
 		List.fold_right Termset.add tl Termset.empty
@@ -79,7 +79,7 @@
 
   let rec is_test (t : term) : bool =
     match t with
-      Assg _ -> false
+    | Assg _ -> false
     | Test _ -> true
     | Times x -> List.for_all is_test x
     | Plus x -> Termset.for_all is_test x
@@ -95,87 +95,72 @@
     | (Not x | Star x) -> vars_in_term x
     | _ -> []
 
-  let vars_in_formula (ce : formula) : id list =
-		match ce with
-		| (Eq (s,t) | Le (s,t)) -> Util.removeDuplicates (List.append (vars_in_term s) (vars_in_term t))
+  let vars_in_formula (f : formula) : id list =
+  	match f with
+  	| (Eq (s,t) | Le (s,t)) ->
+			removeDuplicates (List.append (vars_in_term s) (vars_in_term t))
+
+  (* collects the possible values of each variable *)
+  let rec values (h : (id, string) SetMap.t) (t : term) : unit =
+    match t with
+    | Assg (x,v) -> SetMap.add h x v
+    | Test (x,v) -> SetMap.add h x v
+    | Times x -> List.iter (values h) x
+    | Plus x -> Termset.iter (values h) x
+    | Not x -> values h x
+    | Star x -> values h x
+    | (Zero | One) -> ()
+
+  let values_in_term (t : term) : (id, string) SetMap.t =
+    let h = SetMap.make() in values h t; h
+
+  let values_in_formula (f : formula) : (id, string) SetMap.t =
+		match f with
+		| (Eq (s,t) | Le (s,t)) ->
+			let h = values_in_term s in values h t; h
 
 (* (*  let substVariables (s : substitution) : id list =               *)                      *)
 (* (*    Subst.fold (fun id term list -> id :: list) s []              *)                      *)
 
-  (* (* flatten terms *)                                                                       *)
-  (* let rec flatten (t : term) : term =                                                       *)
-  (*   match t with                                                                            *)
-  (*     Plus x ->                                                                             *)
-  (*       let y = List.map flatten x in                                                       *)
-  (*       let z = List.concat (List.map (fun u -> match u with Plus v -> v | _ -> [u]) y) in  *)
-  (*       (match z with [] -> Zero | [x] -> x | _ -> Plus z)                                  *)
-  (*   | Times x ->                                                                            *)
-  (*       let y = List.map flatten x in                                                       *)
-  (*       let z = List.concat (List.map (fun u -> match u with Times v -> v | _ -> [u]) y) in *)
-  (*       (match z with [] -> One | [x] -> x | _ -> Times z)                                  *)
-  (*   | Not x -> Not (flatten x)                                                              *)
-  (*   | Star x -> Star (flatten x)                                                            *)
-  (*   | _ -> t                                                                                *)
-
-  (* let rec flatten_formula (e : formula) : formula =                                         *)
-  (*   match e with                                                                            *)
-  (*   | Eq (s,t) -> Eq (flatten s, flatten t)                                                 *)
-  (*   | Le (s,t) -> Le (flatten s, flatten t)                                                 *)
-    
 (***********************************************
  * simplify
  ***********************************************)
 
-  (* convert empty sums and products to 0 and 1, resp,
-   * and sums and products of one element to that element,
-   * combine adjacent sums and products *)
-  let rec simplifyLite (t : term) : term =
+  (* flatten terms *)
+  let flatten_sum (t : term list) : term =
+    let f x = match x with Plus v -> (Termset.elements v) | Zero -> [] | _ -> [x] in
+    let t1 = List.concat (List.map f t) in
+    let t2 = termset_from_list t1 in
+    match Termset.elements t2 with [] -> Zero | [x] -> x | _ -> Plus t2
+    
+  let flatten_product (t : term list) : term =
+    let f x = match x with Times v -> v | One -> [] | _ -> [x] in
+    let t1 = List.concat (List.map f t) in
+    if List.exists (fun x -> match x with Zero -> true | _ -> false) t1 then Zero
+    else match t1 with [] -> One | [x] -> x | _ -> Times t1
+    
+  let flatten_not (t : term) : term =
     match t with
-    | Plus s ->
-			(match (Termset.elements s) with
-			| [] -> Zero
-      | [x] -> simplifyLite x
-      | y ->
-        let y' = List.map simplifyLite y in
-        let f = function (Plus z) -> fun zz -> (Termset.elements z) @ zz
-                       | x -> fun zz -> x :: zz in
-        Plus (termset_from_list (List.fold_right f y' [])))
-    | Times [] -> One
-    | Times [t] -> simplifyLite t
-    | Times y ->
-        let y' = List.map simplifyLite y in
-        let f = function (Times z) -> fun zz -> z @ zz
-                       | x -> fun zz -> x :: zz in
-        Times (List.fold_right f y' [])
-    | Not x -> Not (simplifyLite x)
-    | Star x -> Star (simplifyLite x)
-    | _ -> t
-
+    | Not y -> y
+    | Zero -> One
+    | One -> Zero
+    | _ -> Not t
+    
+  let flatten_star (t : term) : term =
+    if is_test t then One
+    else match t with
+    | Star _ -> t
+    | _ -> Star t
+    
   let rec simplify (t : term) : term =
     match t with
-      Plus x ->
-				let x0 = Termset.elements x in
-        let x1 = List.map simplify x0 in
-        let x2 = List.filter (function Zero -> false | _ -> true) x1 in
-        let x3 = Util.removeDuplicates x2 in
-        simplifyLite (Plus (termset_from_list x3))
-    | Times x ->
-        let x1 = List.map simplify x in
-        let x2 = List.filter (function One -> false | _ -> true) x1 in
-        let x3 = if List.mem Zero x2 then [] else x2 in
-        simplifyLite (Times x3)
-    | Not (Not x) -> simplify x
-    | Not One -> Zero
-    | Not Zero -> One
-    | Not x -> Not (simplify x)
-    | Star (Star x) -> simplify (Star x)
-    | Star x ->
-        let x' = simplify x
-        in if is_test x' then One else Star x'
+    | Plus x -> flatten_sum (List.map simplify (Termset.elements x))
+    | Times x -> flatten_product (List.map simplify x)
+		| Not x -> flatten_not (simplify x)
+    | Star x -> flatten_star (simplify x)
     | _ -> t
 
 	let simplify_formula (e : formula) : formula =
 		match e with
 		| Eq (s,t) -> Eq (simplify s, simplify t)
 		| Le (s,t) -> Le (simplify s, simplify t)
-
