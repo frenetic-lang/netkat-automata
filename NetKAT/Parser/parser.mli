@@ -3,6 +3,7 @@ type token =
   | STRING of (string)
   | ZERO
   | ONE
+  | DUP
   | PLUS
   | TIMES
   | STAR

@@ -14,22 +14,21 @@ open Term
 
 (* UNDER CONSTRUCTION *)
 
-module SetMap = SetMapF (String) (String)
-
-let rec normalize (h : SetMap.t) (t : term) : (SetMap.t * SetMap.t) list =
-	match t with 
-	| Assg (var, value) ->
-		  let h1 = SetMap.make() in
-		  let h2 = SetMap.add var value (SetMap.make()) in
-		  [(h1,h2)]
-  | Test (var, value) ->
-		  let h1 = SetMap.add var value (SetMap.make()) in
-      let h2 = SetMap.make() in
+let rec normalize (h : StringSetMap.t) (t : term) : (StringSetMap.t * StringSetMap.t) list =
+  match t with 
+  | Assg (var, value) ->
+      let h1 = StringSetMap.empty in
+      let h2 = StringSetMap.add var value (StringSetMap.empty) in
       [(h1,h2)]
+  | Test (var, value) ->
+          let h1 = StringSetMap.add var value (StringSetMap.empty) in
+      let h2 = StringSetMap.empty in
+      [(h1,h2)]
+  | Dup -> []
   | Plus x -> []
   | Times x -> []
   | Not x -> []
   | Star x -> []
   | Zero -> []
-  | One -> [(h,SetMap.make())]
+  | One -> [(h,StringSetMap.empty)]
 		 

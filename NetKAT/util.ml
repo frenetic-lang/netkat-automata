@@ -22,8 +22,7 @@ let copy_lines in_channel out_channel : unit =
   with End_of_file -> ()
   
 let rec range (min : int) (max : int) : int list =
-  if max <= min then [] else
-  min :: range (min + 1) max  
+  if max <= min then [] else min :: range (min + 1) max  
   
 let rec removeDuplicates list =
   match list with
@@ -108,7 +107,7 @@ module type SetMapF =
     type t
     type elt = V.t
     type key = K.t
-    val make : unit -> t
+    val empty : t
     val add : key -> elt -> t -> t
     val remove : key -> elt -> t -> t
     val remove_all : key -> t -> t
@@ -116,6 +115,11 @@ module type SetMapF =
     val contains_value : key -> elt -> t -> bool
     val iter : (elt -> unit) -> key -> t -> unit
     val iter_all : (key -> elt -> unit) -> t -> unit
+		val equal : t -> t -> bool
+    val fold : (key -> elt -> 'b -> 'b) -> t -> 'b -> 'b
+    val filter : (key -> elt -> bool) -> t -> t
+    val union : t -> t -> t
+    val intersection : t -> t -> t
   end
 
 module SetMapF : SetMapF =
@@ -126,7 +130,7 @@ module SetMapF : SetMapF =
     type t = Values.t Keys.t
     type elt = Values.elt
     type key = Keys.key
-    let make () = Keys.empty
+    let empty = Keys.empty
     let contains_key = Keys.mem
     let contains_value x v h =
       contains_key x h && Values.mem v (Keys.find x h)
@@ -144,9 +148,17 @@ module SetMapF : SetMapF =
       else h
     let iter f x h =
       if contains_key x h then Values.iter f (Keys.find x h)
-    let iter_all f =
-      Keys.iter (fun x -> Values.iter (f x))
+    let iter_all f = Keys.iter (fun x -> Values.iter (f x))
+    let equal = Keys.equal Values.equal
+    let fold f = Keys.fold (fun x -> Values.fold (f x))
+    let filter f h =
+      let g x v h = if f x v then add x v h else h in
+      fold g h empty
+    let union = fold add
+    let intersection h = filter (fun x v -> contains_value x v h)
   end
+
+module StringSetMap = SetMapF (String) (String)
 
 (*****************************************************
  * Stream of strings in length-lexicographic order --

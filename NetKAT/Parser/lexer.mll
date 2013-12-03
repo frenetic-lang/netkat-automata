@@ -11,6 +11,7 @@ rule token = parse
   | whitespace { token lexbuf }
   | "drop" { ZERO }
   | "pass" { ONE }
+  | "dup"  { DUP }
   | id as id { VAR id }
   | "\""   { STRING (String.concat "" (string lexbuf)) }
   | num as num { STRING (string_of_int (int_of_string num)) }

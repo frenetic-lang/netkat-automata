@@ -5,7 +5,7 @@ open Ast.Term
 
 %token <string> VAR
 %token <string> STRING
-%token ZERO ONE
+%token ZERO ONE DUP
 %token PLUS TIMES STAR
 %token NOT
 %token LPAREN RPAREN
@@ -37,6 +37,7 @@ term:
   | VAR NEQ STRING  { Not (Test ($1, $3)) }
   | ZERO            { Zero }
   | ONE             { One }
+  | DUP             { Dup }
   | LPAREN term RPAREN { $2 }
   | term PLUS term  { Plus (termset_from_list [$1; $3]) }
   | term TIMES term { Times [$1; $3] }

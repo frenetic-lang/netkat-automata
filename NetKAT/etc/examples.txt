@@ -1,0 +1,2 @@
+(a := 1 b=1)*a:=2 == (x=2 + x=3) x=4 x="hello world"
+x := 5; y := 6;pass (x = 5 + y := 6 + drop)*** pass == pass

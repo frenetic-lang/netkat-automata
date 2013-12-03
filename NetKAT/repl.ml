@@ -20,9 +20,7 @@ let parse (s : string) : Ast.formula =
 
 let process (input : string) : unit =
   let parsed = parse input in
-  let ps = Ast.simplify_formula parsed in
-  print_endline (Ast.formula_to_string ps);
-	Test.check_vars ps
+	Test.test parsed
   
 (* read from a file *)
 let load (filename : string) : string list =
