@@ -1,0 +1,751 @@
+\documentclass{article}
+\usepackage[T1]{fontenc}
+%\usepackage{lmodern}
+\usepackage{mathpazo}
+\usepackage{amssymb,latexsym,amsmath,dk,dkenv,stmaryrd,enumerate,url,xcolor,alltt}
+\usepackage{tikz}
+\usepgflibrary{shapes}
+\usetikzlibrary{arrows,automata,backgrounds}
+\usepackage{bbm}
+\usepackage{xspace}
+
+\usepackage[all]{xy}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+\DeclareFontFamily{U}{mathb}{\hyphenchar\font45}
+\DeclareFontShape{U}{mathb}{m}{n}{<5> <6> <7> <8> <9> <10> gen * mathb <10.95> mathb10 <12> <14.4> <17.28> <20.74> <24.88> mathb12}{}
+\DeclareSymbolFont{mathb}{U}{mathb}{m}{n}
+\DeclareMathSymbol\fsmash\mathbin{mathb}{"0C}
+
+\newcommand\rsem[1]{[#1]}
+\newcommand\lsem[1]{L\den{#1}}
+\newcommand\cset[1]{\{#1\}}
+\newcommand\Rel{\kw{Rel}}
+\newcommand\KL{\kw{Kl}}
+\newcommand\KLP{\ensuremath{\KL\,\PP}} 
+\newcommand\lam[2]{\lambda{#1}\kern1pt.\kern1pt{#2}}
+\newcommand\nf[1]{#1^{\mathrm{nf}}}
+\newcommand\CA{\ensuremath{P}}
+\newcommand\At{\ensuremath{\mathsf{At}}}
+\newcommand\cseq[2]{\pseq{\pseq{#1}\cdots}{#2}}
+\renewcommand\smash{\mathrel{\diamond}}
+\newcommand\ssum{\mathop{\textstyle\sum}}
+\newcommand\sbigcup{\mathop{\textstyle\bigcup}}
+\newcommand\One{\mathbf{1}}
+\newcommand\Two{\mathbf{2}}
+\newcommand\Exp{\mathsf{Exp}}
+\newcommand\bval[1]{[#1]}
+\renewcommand\star{^*}
+\newcommand\NetHKC[2]{\texttt{NetKATEquiv}(#1,#2)}
+\newcommand\pair[2]{\langle #1,#2\rangle}
+\renewcommand\powerset[1]{2^{#1}}
+\newcommand\JI{\At\cdot(P\cdot\pdup)\star\cdot P}
+\newcommand\setJI{2^{\At\cdot P\cdot(\pdup\cdot P)^{\scriptstyle *}}}
+\newcommand\funJI{(2^{\At \cdot P})^{(P\cdot\pdup)^{\scriptstyle *}}}
+\newcommand\acc{\mathsf{Accept}}
+\newcommand\clname{\mathrm{cl}}
+\newcommand\cl[1]{\clname(#1)}
+
+\newcommand\repname{R}
+\newcommand\repone[1]{\repname(#1)}
+\newcommand\rep[2]{\repname(#2)(#1)}
+\newcommand\pfun\rightharpoonup
+\newcommand\arity[1]{\mathrm{arity}(#1)}
+
+\newcommand\STD{\Delta}
+\newcommand\Anti{A}
+\newcommand\STDM{\Delta}
+\newcommand\Mat[2]{\mathsf{Mat}(#1,#2)}
+\newcommand\GS{\mathit{GS}}
+
+
+
+%from NetKAT pervasives
+\newcommand{\defeq}{\ensuremath{\triangleq}}
+\newcommand{\rulename}[1]{\begin{small}\textsc{#1}\end{small}}
+
+\newcommand\KA{\textsc{ka}}
+\newcommand\BA{BA}
+\newcommand\KAT{\textsc{kat}}
+\newcommand{\netkat}{NetKAT\xspace}
+\newcommand{\NetKAT}{\netkat}
+\newcommand{\nkfrag}[1]{\textrm{\netkat}\ensuremath{^{\,-\left(#1\right)}}}
+\newcommand{\SDN}{\textsc{sdn}}
+\newcommand{\ONF}{\textsf{ONF}\xspace}
+\newcommand{\GONF}{\textsf{G-ONF}\xspace}
+
+\newcommand\Hist{H}
+
+% foster commands
+\newcommand{\PA}{\mathit{a}_{A}}
+\newcommand{\MA}{\mathit{m}_{A}}
+
+\newcommand{\PB}{\mathit{a}_{B}}
+\newcommand{\MB}{\mathit{m}_{B}}
+
+\newcommand{\PO}{\mathit{a}_{1}}
+\newcommand{\MO}{\mathit{m}_{1}}
+
+\newcommand{\PT}{\mathit{a}_{2}}
+\newcommand{\MT}{\mathit{m}_{2}}
+
+
+\newcommand{\PSSH}{\textsc{ssh}}
+\newcommand{\PNSSH}{\pnot{\PSSH}}
+\setlength{\fboxsep}{.33ex}
+\newcommand{\shade}[1]{\colorbox{black!15}{\ensuremath{\!#1\!}}}
+\newcommand{\justify}[1]{\{~#1~\}}
+\newcommand{\history}[1]{\langle #1 \rangle}
+
+% meta variables
+\newcommand{\pol}{\flag{\ensuremath{\mathit{pol}}}\xspace} % to be phased out
+\newcommand{\pols}{\ensuremath{p,q}\xspace}
+\newcommand{\polp}{\ensuremath{p}\xspace}
+\newcommand{\polq}{\ensuremath{q}\xspace}
+\newcommand{\polr}{\ensuremath{r}\xspace}
+\newcommand{\pred}{\flag{\ensuremath{\mathit{pred}}}\xspace} % to be phased out
+\newcommand{\preds}{\ensuremath{a,b}\xspace}
+\newcommand{\preda}{\ensuremath{a}\xspace}
+\newcommand{\predb}{\ensuremath{b}\xspace}
+\newcommand{\predc}{\ensuremath{c}\xspace}
+\newcommand{\predd}{\ensuremath{d}\xspace}
+\newcommand{\prede}{\ensuremath{e}\xspace}
+\newcommand{\predin}{\ensuremath{\mathit{in}}\xspace}
+\newcommand{\predout}{\ensuremath{\mathit{out}}\xspace}
+\newcommand{\field}{\ensuremath{\mathit{f}}\xspace}
+\newcommand{\loc}{\ensuremath{\mathit{loc}}\xspace}
+\newcommand{\sw}{\ensuremath{\mathit{sw}}\xspace}
+\newcommand{\pt}{\ensuremath{\mathit{pt}}\xspace}
+\newcommand{\pk}{\ensuremath{\mathit{pk}}\xspace}
+\newcommand{\h}{\ensuremath{\mathit{h}}\xspace}
+\newcommand{\topo}{\ensuremath{t}}
+\newcommand{\user}{\ensuremath{U}}
+\newcommand{\network}{\ensuremath{N}}
+\newcommand{\host}{\ensuremath{H}}
+\newcommand{\inputs}{\ensuremath{\pred_{in}}}
+\newcommand{\outputs}{\ensuremath{\pred_{out}}}
+\newcommand{\cass}[1]{\ensuremath{\pi_{#1}}}
+\newcommand{\cassq}[1]{\ensuremath{\pi'_{#1}}}
+\newcommand{\atom}[1]{\ensuremath{\alpha_{#1}}}
+\newcommand{\atomb}[1]{\ensuremath{\beta_{#1}}}
+
+\newcommand{\sort}[1]{\ensuremath{sort(#1)}}
+
+% key word font
+\newcommand{\kw}[1]{\ensuremath{\mathsf{#1}}}
+
+% policies
+\newcommand{\pnot}[1]{\ensuremath{\neg#1}}
+\newcommand{\ppar}[2]{\ensuremath{#1 + #2}}
+\newcommand{\pseq}[2]{\ensuremath{#1 \cdot #2}}
+\newcommand{\pdup}{\ensuremath{\mathrel{\kw{dup}}}}
+
+\newcommand{\id}{\kw{1}}
+\renewcommand{\drop}{\kw{0}}
+\newcommand{\modify}[2]{#1\leftarrow#2}
+\newcommand{\modobs}[2]{#1 \Leftarrow #2}
+\newcommand{\kstarsem}[2]{\ensuremath{\bigcup_{#1 \in \mathbb{N}} #2}}
+\newcommand{\onflong}[3]{\ensuremath{ \ppar{\pseq{#1}{#2}}{\pseq{\neg #1}{#3}} }}
+\newcommand{\onflongnl}[3]{\ensuremath{\pseq{#1}{#2}} \\ & \ensuremath{\quad +~\pseq{\neg #1}{#3}}}
+\newcommand{\match}[2]{\ensuremath{#1=#2}}
+\newcommand{\IF}{\kw{if}\,}
+\newcommand{\THEN}{\kw{then}\,}
+\newcommand{\ELSE}{\kw{else}\,}
+\newcommand{\ITE}[3]{\IF #1 \, \THEN #2 \, \ELSE #3 \, \xspace}
+
+\newcommand{\name}[1]{\kw{#1}}
+\newcommand{\move}[4]{\ensuremath{#1_{#2}{\Rightarrow}#3_{#4}}}
+\newcommand{\moves}[3]{\ensuremath{#1_{#2}{\Rightarrow}#1_{#3}}}
+\newcommand{\moveback}[4]{\ensuremath{#1_{#2}{\Leftarrow}#3_{#4}}}
+\newcommand{\link}[4]{\ensuremath{#1_{#2}{\leftrightarrow}#3_{#4}}}
+
+% firewall
+\newcommand{\fw}{\ensuremath{f}}
+\newcommand{\infw}{\ensuremath{in}}
+\newcommand{\outfw}{\ensuremath{out}}
+\newcommand{\ra}{\ensuremath{r_1}}
+\newcommand{\rb}{\ensuremath{r_2}}
+\newcommand{\tp}{\ensuremath{t}}
+\renewcommand{\eqdef}{\ensuremath{\stackrel{\mathsf{def}}{=}}}
+
+\newcommand{\slice}[4]{\ensuremath{\{#1\}~#4:\left(#2\right)\{#3\}}}
+\newcommand{\slicen}{\ensuremath{s}}
+
+% packets
+\newcommand{\swf}{\kw{sw}}
+\newcommand{\ptf}{\kw{pt}}
+\newcommand{\locf}{\kw{loc}}  % abbrev for switch and port together A_i
+\newcommand{\srcf}{\kw{src}}
+\newcommand{\dstf}{\kw{dst}}
+\newcommand{\vlanf}{\kw{vlan}}
+\newcommand{\tagf}{\kw{tag}}
+\newcommand{\protof}{\kw{typ}}
+\newcommand{\packet}[4]{\ensuremath{\{\swf=#1, \ptf=#2, \srcf=#3, \dstf=#4\}}}
+\newcommand{\genericpacket}{\packet{\sw}{\pt}{n}{m}}
+\newcommand{\pkupd}[3]{\ensuremath{#1[#2\coloneqq#3]}}
+\newcommand{\pkproj}[2]{\ensuremath{#1.#2}}
+% use \pk.\fieldnamef for projections
+
+% traces
+\newcommand{\cons}{\ensuremath{\mathord{::}}}
+\newcommand{\hone}[1]{\ensuremath{#1\cons\langle\rangle}}
+\newcommand{\hcons}[2]{\ensuremath{#1\cons#2}}
+\newcommand{\trace}[1]{\ensuremath{\langle#1\rangle}}
+
+% kleene macros
+\newcommand{\kone}{\ensuremath{\id}}
+\newcommand{\kzero}{\ensuremath{\drop}}
+\newcommand{\kseq}[2]{\ensuremath{#1 \cdot #2}}
+\newcommand{\kpar}[2]{\ensuremath{#1 + #2}}
+\newcommand{\knot}[1]{\ensuremath{\neg #1}}
+\newcommand{\kstar}[1]{\ensuremath{#1\star}}
+\newcommand{\kplus}[1]{\ensuremath{#1^+}}
+\newcommand{\kle}[2]{\ensuremath{#1 \leq #2}}
+
+% predicates
+\newcommand{\swp}[1]{\match{\swf}{#1}}
+\newcommand{\ptp}[1]{\match{\ptf}{#1}}
+\newcommand{\srcp}[1]{\match{\srcf}{#1}}
+\newcommand{\dstp}[1]{\match{\dstf}{#1}}
+\newcommand{\any}[0]{\kw{any}}
+\newcommand{\True}[0]{\top}
+\newcommand{\False}[0]{\bot}
+\newcommand{\atp}[2]{\kw{at}(#1_{#2})\xspace}
+\newcommand{\prov}[2]{\ensuremath{\force #1 \equiv #2}}
+
+% semantics
+\newcommand{\den}[1]{\ensuremath{\llbracket #1\rrbracket}\xspace}
+\newcommand{\desugar}[2]{\ensuremath{\llparenthesis #1 \rrparenthesis^{#2}}}
+
+% types
+\newcommand{\Bool}{\ensuremath{\mathit{Bool}}}
+\newcommand{\History}{\ensuremath{\mathit{History}}}
+\newcommand{\Set}[1]{\ensuremath{#1~\mathit{Set}}}
+
+% isolation
+\newcommand{\td}{\topo \cdot \pdup}
+
+% ranks and validity
+\newcommand{\rank}[1]{\ensuremath{\kw{rank}(#1)}}
+\newcommand{\valid}[2]{\ensuremath{#1 \vdash #2~\mathbf{ok}}}
+\newcommand{\rankden}[1]{\ensuremath{[[#1]]}}
+
+% math
+\renewcommand{\implies}{\ensuremath{\Rightarrow}}
+\newcommand{\EmptyList}{[\, ]}
+\newcommand{\Kleisli}{\bullet}
+\newcommand{\kleislisem}[4]{\ensuremath{\bigcup \left\{ #2~#4 \mid #4 \in #1~#3 \right\}}}
+\newcommand\myrule[1]{\hbox{\small [#1]}}
+\newcommand\rng[1]{\textsf{rng}{#1}}
+\newcommand{\letin}[2]{\ensuremath{\mathsf{let}~#1 = #2~\mathsf{in}}}
+\newcommand{\coloneqq}{\ensuremath{:=}}
+\newcommand{\Coloneqq}{\ensuremath{::=}}
+\newcommand{\List}[1]{\ensuremath{[#1]}}
+
+\begin{document}
+
+\title{Deciding \netkat Efficiently}
+\author{\hspace{2cm}Nate Foster\footnote{Computer Science Department, Cornell University, Ithaca, NY 14853-7501, USA}
+\and
+Dexter Kozen\footnotemark[1]\hspace{2cm}
+\and
+\hspace{2cm}Alexandra Silva\footnote{Institute for Computing and Information Sciences, Radboud University Nijmegen, 6525 AJ Nijmegen, The Netherlands. Also affiliated to Centrum Wiskunde \& Informatica (Amsterdam, The Netherlands) and HASLab/INESC TEC, Universidade do Minho (Braga, Portugal).}
+\and
+Laure Thompson\footnotemark[1]\hspace{2cm}
+}
+
+\maketitle
+
+\begin{abstract}
+\netkat is an algebraic system for specification and verification of network protocols. \netkat is known to be PSPACE-complete, but the best previously known algorithm is hardly feasible, as it is obtained by determinizing a nondeterministic PSPACE algorithm using Savitch's theorem and requires quadratic space. In this paper, we develop the coalgebraic theory of \netkat and show how it leads to a direct and more efficient deterministic decision procedure.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+\section{Definitions}
+\label{sec:defs}
+
+\subsection{\netkat}
+\label{sec:netkat}
+
+This section contains an abbreviated review of \netkat.
+We refer the reader to \cite{AFGJKSW13a} for a more comprehensive treatment.
+
+A \emph{packet} is a record with fields $\seq f1k$. Fields are bound to
+constants representing various types of packet data such as IP
+addresses, protocol names, or ports.
+We can assign a constant value to a packet by $f := n$ and test its
+value by $f=n$. A packet history is a nonnull sequence of packets.
+We can duplicate the head packet in a packet history with the primitive action $\pdup$.
+Tests and assignments apply to the head packet of a packet history.
+We write $\Hist$ for the set of all histories.
+
+\netkat expressions comprise two syntactic categories:
+predicates $a,b,\ldots$ and policies $p,q,\ldots$.  Predicates include
+the constants true ($1$) and false ($0$) and primitive tests
+$f=n$ and are closed under Boolean negation, disjunction, and conjunction.
+Policies include predicates and primitive assignments $f := n$ and the
+primitive action $\pdup$ and are closed under union $+$, sequential composition $\cdot$, and iteration $\star$.
+
+Semantically, every \netkat expression $p$ denotes a function
+$\den p:\Hist\to\powerset\Hist$ that takes a packet history $\h$ and produces a (possibly empty) set of
+histories $\cset{\seq h1n}$. Producing the empty set corresponds to dropping the packet.
+Producing a singleton corresponds to modifying the packet or forwarding it.
+Producing a larger set corresponds to duplicating the packet and forwarding it
+to several locations. Tests act as filters; the packet is dropped if it does
+not pass the test and propagated unchanged if it does.
+
+The operators are defined as follows. For primitive actions and tests,
+\begin{align*}
+\den{f := n}(h) &= \{h\subst nf\},\\
+\den{f = n}(h) &= \begin{cases}
+\{h\}, & \text{if the value of the field $f$ of the head packet is $n$,}\\
+\emptyset, & \text{otherwise,}
+\end{cases}\\
+\den{\pdup}(x :: h) &= x :: x :: h,
+\end{align*}
+where $h\subst nf$ denotes the packet history $h$ with the field $f$ of the head
+packet rebound to the value $n$, and $x::h$ denotes the packet history with head
+packet $x$ and tail $h$. The remaining operators are defined as follows.
+\begin{align*}
+\den{p+q}(h) &= \den p(h) \cup \den q(h)\\
+\den{pq}(h) &= \bigcup_{h'\in\den p(h)}\den q(h')\\
+\den{p\star}(h) &= \bigcup_{n\geq 0} \den{p^n}(h),\ \text{where $p^0=1$ and $p^{n+1}=pp^n$}\\
+\den{\bar b}(h) &= \begin{cases}
+\{h\}, & \text{if $\den b(h)=\emptyset$,}\\
+\emptyset, & \text{if $\den b(h)=\{h\}$}\\
+\end{cases}\\
+\den{1}(h) &= \{h\}\\
+\den{0}(h) &= \emptyset.
+\end{align*}
+The definition of the sequential composition operator is known as
+Kleisli composition.
+
+The standard \netkat packet model is a Kleene algebra with tests (KAT) \cite{K97c}. Formally, a \emph{Kleene algebra} (\KA) is an algebraic
+structure $(K,\,+,\,\cdot,\,\star,\,0,\,1)$
+where $(K,+,\cdot,0,1)$ is an idempotent semiring and
+$p\star q$ (respectively $qp\star$) is the
+least solution of the affine linear inequality
+$q + pr \leq r$ (respectively
+$q+rp\leq r$), where $p\leq q$ is an abbreviation for
+$p+q = q$.  
+
+A \emph{Kleene algebra with tests} (\KAT) is
+a two-sorted algebraic structure,
+\[
+(K,\,B,\,+,\,\cdot,\,\star,\,0,\,1,\,\barnone),
+\]
+where $\barnone$ is a unary operator defined only on $B$, such that
+\begin{itemize}
+\item
+$(K,\,+,\,\cdot,\,\star ,\,0,\,1)$ is a Kleene algebra,
+\item
+$(B,\,+,\,\cdot,\,\barnone,\,0,\,1)$ is a Boolean algebra, and
+\item
+$(B,\,+,\,\cdot,\,0,\,1)$ is a subalgebra of $(K,\,+,\,\cdot,\,0,\,1)$.
+\end{itemize}
+%
+The elements of $B$ and $K$ are usually called \emph{tests}
+and \emph{actions} respectively. These correspond to the
+predicates and policies, respectively, of \netkat.
+
+As argued in \cite{AFGJKSW13a}, the standard packet model of \netkat is a KAT. However, it satisfies
+some additional axioms that are not valid for KATs in general. These axioms are
+\begin{align*}
+(f := n)(f' := n') &= (f' := n')(f := n),\ f\neq f'\\
+(f := n)(f' = n') &= (f' = n')(f := n),\ f\neq f'\\
+\pdup(f = n) &= (f = n)\pdup\\
+(f := n)(f = n) &= f := n\\
+(f = n)(f := n) &= f = n\\
+(f := n)(f := n') &= f := n'\\
+(f = n)(f = n') &= 0,\ n\neq n'\\
+\sum_n (f=n) &= 1.
+\end{align*}
+
+\subsection{Reduced \netkat}
+\label{sec:reduced}
+
+In this section we give a brief overview of \emph{reduced \netkat}, a
+concise but equivalent form of the language that was used in \cite{AFGJKSW13a} to
+simplify the soundness and completeness proofs.
+See \cite{AFGJKSW13a} for more detail.
+
+Let $\seq f1k$ be a list of all fields of a packet in some fixed
+order. For each tuple $\bar n = \seq n1k$ of values, let $\bar
+f=\bar n$ and $\bar f := \bar n$ denote the expressions
+%
+\begin{align*}
+f_1=n_1;\cdots;f_k=n_k && f_1:=n_1;\cdots;f_k:=n_k,
+\end{align*}
+%
+called \emph{atoms} and \emph{complete assignments} respectively. Atoms are so called
+because they are the atoms (minimal nonzero elements)
+of the Boolean algebra generated by $B$. Atoms and complete assignments are in one-to-one correspondence
+according to the values $\bar n$. The complete assignment corresponding to
+the atom $\alpha$ is denoted $p_\alpha$, and the atom corresponding to
+complete assignment $p$ is denoted $\alpha_p$.  The sets of atoms and complete assignments are
+denoted by $\At$ and \CA, respectively.
+
+The \netkat axioms entail the following properties of atoms and complete
+assignments:
+\begin{align*}
+p &= p\alpha_p & \alpha\,{\pdup} &= {\pdup}\,\alpha & \sum_\alpha \alpha &= 1\\
+\alpha &= \alpha p_\alpha & pp' &= p' & \alpha\beta &= 0,\ \alpha\neq\beta.
+\end{align*}
+Every policy is provably equivalent to a policy in which all
+primitive assignments $f:=n$ appear in the context of a
+complete assignment, and every test is equivalent to a
+sum of atoms. For this reason, we can view any \netkat policy as a
+KAT expression over the alphabet $\CA\cup\At\cup\cset\pdup$.
+
+\subsection{Language Semantics}
+\label{sec:language}
+
+As shown in \cite{AFGJKSW13a}, \netkat has a natural language semantics that plays the same role as that played by ordinary strings in KA and guarded strings in KAT. These language models are important because they are free algebras for their respective algebraic systems; that is, they capture the equational theory of an entire class of algebras in a single concrete interpretation. As with KA and KAT, the language model for \netkat is defined as the family of regular sets over a certain typed monoid.
+
+A typed monoid is simply a small category where the types are the objects and the elements of the monoid are the morphisms. The purpose of the typing is to exclude certain products: the product $xy$ exists if and only if the codomain of $x$ matches the domain of $y$. Instead of a single identity element, a typed monoid has a component $1_\alpha$ for every object $\alpha$. The regular sets over a typed monoid $M$ are the smallest family of subsets of $M$ containing the singletons and closed under the KAT operations $+$, $\cdot$, $\star$, $\barnone$, $1$, and $0$, where
+\begin{align*}
+%\begin{array}{rl}
+A+B &= A\cup B\\
+A\cdot B &= \set{xy}{\text{$x\in A$, $y\in B$, $xy$ exists}}\\
+A\star &= \bigcup_n A^n,\ \text{where $A^0=1$ and $A^{n+1}=A\cdot A^n$}\\
+\bar A &= 1 - A,\ A\subs 1\\
+1 &= \set{1_\alpha}{\text{$\alpha$ is an object}}\\
+0 &= 1.
+%\end{array}
+\end{align*}
+It is not difficult to show that the regular sets over $M$ form a KAT.
+
+The language model for KA is the family of regular sets over the free monoid $\Sigma\star$, where $\Sigma$ is a finite alphabet. The category has only one object, and all products $xy$ exist. The element $1$ is the singleton $\{\eps\}$, where $\eps$ is the null string. This is a KAT, although the Boolean component is the trivial two-element Boolean algebra. There is a standard interpretation $R$ from regular expressions to regular sets defined as the unique homomorphism such that $R(a)=\{a\}$ for $a\in\Sigma$, $R(1)=\{\eps\}$, and $R(a)=1$, and $R(e_1)=R(e_2)$ iff $e_1$ and $e_2$ represent the same element in all Kleene algebras \cite{K94b}.
+
+The language model for KAT is the family of regular sets of guarded strings over a set of primitive tests $B$ and a set of primitive actions $\Sigma$. A guarded string is a sequence of the form\begin{align*}
+\alpha_0p_1\alpha_1p_2\alpha_2\cdots p_{n-1}\alpha_{n-1}p_n\alpha_n,\ n\geq 0,
+\end{align*}
+where the $\alpha_i$ are atoms of the free Boolean algebra on generators $B$ and the $p_i$ are elements of $\Sigma$. The objects of the category are the atoms $\alpha$, and the guarded string $\alpha x\beta$ is a morphism of type $\alpha\to\beta$. The components of the identity are guarded strings of length $0$, which are just the atoms $\alpha$. The multiplication operation on guarded strings is the fusion product
+\begin{align*}
+x\alpha\cdot\beta y &= \begin{cases}
+x\alpha y & \text{if $\alpha=\beta$,}\\
+\text{undefined} & \text{otherwise.}
+\end{cases}
+\end{align*}
+As above, there is a standard interpretation $G$ that maps KAT expressions to regular sets of guarded strings defined as the unique homomorphism such that $G(p)=\set{\alpha p\beta}{\alpha,\beta\in\At}$ for $p\in\Sigma$ and $G(b)=\set{\alpha}{\alpha\leq b}$ for $b\in B$. Again, $e_1$ and $e_2$ agree under $G$ iff they agree under all interpretations \cite{KS96a}.
+ 
+For \netkat, we have a similar language model formed from a typed monoid. The monoid consists of strings in the set
+\begin{gather*}
+I = \At\cdot (P\cdot\pdup)\star\cdot P,
+\end{gather*}
+where $P$, $\At$, and $\pdup$ are as in \S\ref{sec:reduced}; that is, strings of the form
+\begin{gather*}
+\alpha p_0\pdup p_1\pdup\cdots\pdup p_n,\ n\geq 0,
+\end{gather*}
+where $p_i\in P$ and $\alpha\in\At$. The types are the atoms $\At$, and the string $\alpha x p$ is of type $\alpha\to\alpha_p$. Multiplication is thus
+\begin{align*}
+x p\cdot\alpha y &= \begin{cases}
+xy & \text{if $\alpha=\alpha_p$,}\\
+\text{undefined} & \text{otherwise.}
+\end{cases}
+\end{align*}
+The components of the identity are the strings $\alpha p_\alpha$.
+
+As above, the regular sets over this typed monoid form a KAT, and there is an interpretation $G$ from KAT expressions over primitive tests $B$ and primitive actions $P\cup\{\pdup\}$ to this KAT, namely the unique homomorphism such that
+\begin{align*}
+G(p) &= \set{\alpha p}{\alpha\in\At}\\
+G(b) &= \set{\alpha p_\alpha}{\alpha\leq b}\\
+G(\pdup) &= \set{\alpha p_\alpha\pdup p_\alpha}{\alpha\in\At}.
+\end{align*}
+As shown in \cite{AFGJKSW13a}, $G(e_1)=G(e_2)$ iff $\den{e_1}=\den{e_2}$, where $\den{e}$ is the standard interpretation of \netkat expressions as packet-forwarding programs in a network, and the axioms of \netkat are complete for the equational theory of these interpretations.
+
+\section{\netkat Coalgebra and \netkat Automata}
+
+There is a coalgebraic theory of \netkat that provides a combinatorial view of abstract \netkat in much the same way that classical automata theory does for KA and automata on guarded strings do for KAT. A coalgebra for \netkat is a kind of deterministic automaton that operates on strings in $I$. There is also a notion of nondeterministic automaton and a conversion algorithm akin to Kleene's theorem for classical automata.
+
+Let us start with the definition of a \netkat coalgebra and a deterministic \netkat automaton. A \netkat coalgebra is a coalgebra for the functor
+\begin{align*}
+FX = X^{\At\times P}\times 2^{\At\times P}.
+\end{align*}
+The structure map of such a coalgebra consists of a pair of functions
+\begin{align*}
+\delta &: X\to X^{\At\times P} & \eps &: X\to 2^{\At\times P},
+\end{align*}
+called the \emph{continuation map} and the \emph{observation map}, respectively. The continuation map plays the role of the transition function and the observation map plays the role of the accept states in classical automata theory. We write $\delta_{\alpha p}(t)$ for $\delta(t)(\alpha,p)$ and $\eps_{\alpha p}(t)$ for $\eps(t)(\alpha,p)$, so
+\begin{align*}
+\delta_{\alpha p} &: X\to X & \eps_{\alpha p} &: X\to 2.
+\end{align*}
+A deterministic \netkat automaton is a finite \netkat coalgebra with a distinguished start state $s\in X$.
+
+Inputs to the automaton are strings in $I$, that is, strings of the form
+\begin{align*}
+\alpha p_0\pdup p_1\pdup\cdots\pdup p_n.
+\end{align*}
+Intuitively, if the input string contains a $\pdup$, then $\delta_{\alpha p}$ reads $\alpha p\pdup$ from the front of the input string and moves to a new state, and $\eps_{\alpha p}$ determines whether the string $\alpha p$ should be accepted in the current state. Formally, acceptance is defined in terms of a coinductively defined predicate $\acc:X\times I\to\Two$:
+\begin{align*}
+\acc(t,\alpha p\pdup x) &= \acc(\delta_{\alpha p}(t),\alpha_p x)\\
+\acc(t,\alpha p) &= \eps_{\alpha p}(t).
+\end{align*}
+A string $x\in I$ is \emph{accepted} by the automaton if $\acc(s,x)$.
+
+\subsection{The Final Coalgebra}
+
+Define
+\begin{gather*}
+\bval\phi = \begin{cases}
+1, & \phi\\
+0, & \neg\phi.
+\end{cases}
+\end{gather*}
+As is well known, the set-theoretic Brzozowski derivative consisting of continuation and observation maps
+\begin{align*}
+& \delta_a:\powerset{\Sigma\star}\to\powerset{\Sigma\star} && \eps:\powerset{\Sigma\star}\to\Two\\
+& \delta_a(A) = \set{x\in\Sigma\star}{ax\in A} && \eps(A) = \bval{\eps\in A}
+\end{align*}
+constitute the final coalgebra for the functor $FX = X^\Sigma + \Two$ relevant to the study of KA and classical automata theory \cite{Rutten00,Silva10}. There is also a version for KAT and automata on guarded strings:
+\begin{align*}
+& \delta_{\alpha p}:\powerset\GS\to\powerset\GS && \eps_\alpha:\powerset\GS\to\Two\\
+& \delta_{\alpha p}(A) = \set{x\in\GS}{\alpha px\in A} && \eps_\alpha(A) = \bval{\alpha\in A},
+\end{align*}
+where $\GS$ is the set of guarded strings \cite{K08a}.
+
+For \netkat, we have a similar construction:
+\begin{align*}
+& \delta_{\alpha p} : \powerset I \fun \powerset I && \eps_{\alpha p} : \powerset I \fun \Two\\
+& \delta_{\alpha p}(A) = \set{\alpha_p x}{\alpha p\pdup x\in A} && \eps_{\alpha p}(A) = \bval{\alpha p\in A}.
+\end{align*}
+
+\subsection{The Syntactic Coalgebra}
+\label{sec:syntactic}
+
+In addition to the set-theoretic Brzozowski derivative, there is a syntactic version consisting of continuation and observation maps
+\begin{align*}
+& D_a:\Exp\to\Exp && E:\Exp\to\Two
+\end{align*}
+where $\Exp$ is the set of regular expressions over a finite alphabet $\Sigma$. The syntactic Brzozowski derivative operates on regular expressions and can be defined by induction on the structure of the expression.
+
+Similarly, for KAT, there is a syntactic derivative
+\begin{align*}
+& D_{\alpha p}:\Exp\to\Exp && E_\alpha:\Exp\to\Two
+\end{align*}
+where now $\Exp$ is the set of KAT expressions over a set of primitive actions $\Sigma$ and a set of primitive tests $B$. Again, these can be defined by induction on the structure of the expression.
+
+For \netkat, a similar syntactic coalgebra exists, which we now define. It is of type
+\begin{align*}
+& D_{\alpha p}:\Exp\to\Exp && E_{\alpha p}:\Exp\to\Two,
+\end{align*}
+where now $\Exp$ is the set of reduced \netkat expressions. It is defined inductively as follows:
+\begin{gather*}
+D_{\alpha p}(q) = 0 \qquad
+D_{\alpha p}(b) = 0 \qquad
+D_{\alpha p}(\pdup) = \alpha\cdot\bval{\alpha=\alpha_p}\\[1ex]
+D_{\alpha p}(e_1+e_2) = D_{\alpha p}(e_1)+D_{\alpha p}(e_2)\\[1ex]
+D_{\alpha p}(e_1e_2) = D_{\alpha p}(e_1)\cdot e_2 + \sum_{q} E_{\alpha q}(e_1)\cdot D_{\alpha_qp\pdup}(e_2)\\
+D_{\alpha p}(e\star) = D_{\alpha p}(e)\cdot e\star + \sum_{q} E_{\alpha q}(e)\cdot D_{\alpha_qp\pdup}(e\star)
+\end{gather*}
+\begin{gather*}
+E_{\alpha p}(q) = \bval{q = p} \qquad
+E_{\alpha p}(b) = \bval{\alpha_p=\alpha\leq b} \qquad
+E_{\alpha p}(\pdup) = 0\\[1ex]
+E_{\alpha p}(e_1+e_2) = E_{\alpha p}(e_1)+E_{\alpha p}(e_2) \qquad
+E_{\alpha p}(e_1e_2) = \sum_{q} E_{\alpha q}(e_1)\cdot E_{\alpha_q p}(e_2)\\
+E_{\alpha p}(e\star) = \bval{\alpha=\alpha_p} + \sum_{q} E_{\alpha q}(e)\cdot E_{\alpha_q p}(e\star)
+\end{gather*}
+We will give a more succinct representation in \S\ref{sec:matrix}.
+
+\subsection{Matrix Form}
+\label{sec:matrix}
+
+At this point we can make an interesting observation about \netkat that will lead to some substantial simplifications in the technical development. We noted in \S\ref{sec:reduced} that $P$ and $\At$ were in one-to-one correspondence: each atom $\alpha\in\At$ has a corresponding complete assignment $p_\alpha$ and each $p\in P$ has a corresponding atom $\alpha_p$. This allows us to retype the structure map of a \netkat coalgebra as
+\begin{align*}
+\delta &: X\to X^{\At\times\At} & \eps &: X\to 2^{\At\times\At},
+\end{align*}
+and view $\delta(t)$ as an $\At\times\At$ matrix over $X$ and $\eps(t)$ as an $\At\times\At$ matrix over $2$. If $X$ happens to be a KAT, then the family of $\At\times\At$ matrices over $X$ again forms a KAT, denoted $\Mat\At X$, under the standard matrix operations \cite{CKS96a}.
+
+In this view, the syntactic coalgebra defined in \S\ref{sec:syntactic} takes the following more succinct form:
+\begin{gather*}
+D(q) = 0 \qquad
+D(b) = 0 \qquad
+D_{\alpha\beta}(\pdup) = \alpha\cdot\bval{\alpha=\beta}\\
+D(e_1+e_2) = D(e_1)+D(e_2)\\
+D(e_1e_2) = D(e_1)\cdot I_{e_2} + E(e_1)\cdot D(e_2)\\
+D(e\star) = E(e\star)\cdot D(e)\cdot I_{e^*}
+\end{gather*}
+\begin{gather*}
+E(q)_{\alpha\beta} = \bval{q = p_\beta} \qquad
+E(b)_{\alpha\beta} = \bval{\beta=\alpha\leq b} \qquad
+E(\pdup) = 0\\
+E(e_1+e_2) = E(e_1)+E(e_2) \qquad
+E(e_1e_2) = E(e_1)\cdot E(e_2)\\
+E(e\star) = E(e)\star
+\end{gather*}
+Thus $E$ becomes a KAT homomorphism $E:\Exp\to\Mat\At\Two$.
+
+The final coalgebra takes the following form in terms of matrices.
+\begin{align*}
+\delta(A)_{\alpha\beta} &= \set{\beta x}{\alpha p_\beta\pdup x\in A}
+&
+\eps(A)_{\alpha\beta} &= \bval{\alpha p_\beta\in A}
+\end{align*}
+In this form, $\eps$ becomes a KAT homomorphism $\eps:\powerset I\to\Two$, as we now prove.
+%\begin{lemma}\ 
+%\begin{enumerate}
+%\romanize
+%\item
+%$\eps_{\alpha p}(\id) = \bval{\alpha=\alpha_p}$
+%\item
+%$\eps_{\alpha p}(A\cup B) = \eps_{\alpha p}(A) + \eps_{\alpha p}(B)$
+%\item
+%$\eps_{\alpha p}(A\smash B) = \ssum_q\eps_{\alpha q}(A)\cdot\eps_{\alpha_q p}(B)$
+%\item
+%$\eps_{\alpha p}(A\star) = \bval{\alpha = \alpha_p} + \ssum_q\eps_{\alpha q}(A)\cdot\eps_{\alpha_q p}(A\star)$
+%\end{enumerate}
+%\end{lemma}
+\begin{lemma}\ 
+\begin{enumerate}
+\romanize
+\item
+$\eps(\id) = I$, where $I$ is the identity matrix.
+\item
+$\eps(A\cup B) = \eps(A) + \eps(B)$
+\item
+$\eps(A\cdot B) = \eps(A)\cdot\eps(B)$
+\item
+$\eps(A\star) = \eps(A)\star$
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+[See left2right.tex for original version]
+
+(i) $\eps(1)_{\alpha\beta} = \bval{\alpha p_\beta\in 1} = \bval{\alpha=\beta}$.
+
+(ii)
+\begin{align*}
+\eps(A\cup B)_{\alpha\beta}
+&= \bval{\alpha p_\beta\in A\cup B}
+= \bval{\alpha p_\beta\in A} + \bval{\alpha p_\beta\in B}
+= \eps(A)_{\alpha\beta} + \eps(B)_{\alpha\beta}
+\end{align*}
+
+(iii)
+\begin{align*}
+\eps(AB)_{\alpha\beta}
+&= \bval{\alpha p_\beta\in AB}
+= \bval{\exists \gamma\ \alpha p_\gamma\in A\meet\gamma p_\beta\in B}\\
+&= \sum_\gamma \bval{\alpha p_\gamma\in A}\cdot\bval{\gamma p_\beta\in B}
+= \sum_\gamma\eps(A)_{\alpha\gamma}\cdot\eps(B)_{\gamma\beta}\\
+&= (\eps(A)\cdot\eps(B))_{\alpha\beta}
+\end{align*}
+
+(iv)
+\begin{align*}
+\eps(A\star)
+&= \eps(1\cup AA\star)\\
+&= \eps(1) + \eps(A)\cdot\eps(A\star)\\
+&= I + \eps(A)\cdot\eps(A\star)
+\end{align*}
+\end{proof}
+
+\begin{lemma}\ 
+\begin{enumerate}
+\romanize
+\item
+$\delta(\ssum_n A_n)= \ssum_n \delta(A_n)$ (componentwise union)
+\item
+$\delta(A\cdot B) = \delta(A)\cdot I_B + \eps(A)\cdot\delta(B)$
+\item
+$\delta(A\star) = \eps(A\star)\cdot\delta(A)\cdot I_{A^*}$
+\end{enumerate}
+\end{lemma}
+
+[See left2right.tex for original version]
+
+\subsection*{Main Result}
+
+[See left2right.tex for original version -- UNDER CONSTRUCTION -- this is not right and needs work!]
+
+\begin{lemma}\ 
+\begin{enumerate}
+\romanize
+\item
+$G(D(e)) = \delta(G(e))$
+\item
+$E(e) = \eps(G(e))$
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+By induction on $e$.
+
+(i)
+\begin{align*}
+G(D(q)_{\alpha\beta})
+&= G(0)
+= 1\\
+&= \set{\beta x}{\alpha p_\beta\pdup x\in\set{\gamma q}{\gamma\in\At}}\\
+&= \delta(\set{\gamma q}{\gamma\in\At})_{\alpha\beta}
+= \delta(G(q))_{\alpha\beta}
+\end{align*}
+
+\begin{align*}
+G(D(b)_{\alpha\beta})
+&= G(0)
+= 1\\
+&= \set{\beta x}{\alpha p_\beta\pdup x\in\set{\beta p_\beta}{\beta\leq b}}\\
+&= \delta(\set{\beta p_\beta}{\beta\leq b})_{\alpha\beta}
+= \delta(G(b))_{\alpha\beta}
+\end{align*}
+
+\begin{align*}
+G(D(\pdup)_{\alpha\beta})
+&= G(\alpha\cdot\bval{\alpha=\beta})\\
+&= \set{\beta p_\beta}{\alpha=\beta}\\
+&= \set{\beta x}{\alpha p_\beta\pdup x\in\set{\gamma p_\gamma\pdup p_\gamma}{\gamma\in\At}}\\
+&= \delta(\set{\gamma p_\gamma\pdup p_\gamma}{\gamma\in\At})_{\alpha\beta}\\
+&= \delta(G(\pdup))_{\alpha\beta}
+\end{align*}
+
+\begin{align*}
+G(D(e_1+e_2))
+&= G(D(e_1)) + G(D(e_2))\\
+&= \delta(G(e_1)) + \delta(G(e_2))\\
+&= \delta(G(e_1 + e_2))
+\end{align*}
+
+\begin{align*}
+G(D(e_1e_2))
+&= G(D(e_1)\cdot I_{e_2} + E(e_1)\cdot D(e_2))\\
+&= G(D(e_1)\cdot I_{e_2}) + G(E(e_1)\cdot D(e_2))\\
+&= G(D(e_1))\smash G(I_{e_2}) + G(E(e_1))\smash G(D(e_2))\\
+&= \delta(G(e_1))\smash I_{G(e_2)} + \eps(G(e_1))\cdot\delta(G(e_2))\\
+&= \delta(G(e_1)\smash G(e_2))\\
+&= \delta(G(e_1e_2))
+\end{align*}
+
+System defining $D(e\star)$ is
+
+\begin{align*}
+D(e\star) = D(e)\cdot I_{e^*} + E(e)\cdot D(e\star)
+\end{align*}
+whose least solution is 
+\begin{align*}
+D(e\star) = E(e\star)\cdot D(e)\cdot I_{e^*}
+\end{align*}
+We wish to show that
+\begin{align*}
+G(D(e\star)) = \delta(G(e\star))
+\end{align*}
+
+\begin{align*}
+G(D(e\star)) &= G(E(e\star)\cdot D(e)\cdot I_{e^*})\\
+&= G(E(e\star))\cdot G(D(e))\cdot G(I_{e^*})\\
+&= \eps(G(e)\star)\cdot\delta(G(e))\smash I_{G(e)^*}\\
+&= \delta(G(e\star))
+\end{align*}
+
+\end{proof}
+
+\bibliographystyle{plain}
+\setlength{\itemsep}{-1ex}\small
+\bibliography{dk,kleene,jb}
+
+\end{document}
