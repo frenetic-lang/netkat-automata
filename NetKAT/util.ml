@@ -24,13 +24,14 @@ let copy_lines in_channel out_channel : unit =
 let rec range (min : int) (max : int) : int list =
   if max <= min then [] else min :: range (min + 1) max  
   
-let rec removeDuplicates list =
+let rec remove_duplicates list =
   match list with
   | [] -> []
-  | x :: t -> x :: removeDuplicates (List.filter (fun y -> y <> x) t)
+  | x :: t -> x :: remove_duplicates (List.filter ((<>) x) t)
 
-let rec partition (f : 'a -> bool) (t : 'a list) : 'a list * 'a list =
-  List.fold_right (fun x (t1,t2) -> if f x then (x :: t1, t2) else (t1, x :: t2)) t ([],[])
+(* perform f on all pairs *)
+let cross (f : 'a -> 'b -> 'c) (s : 'a list) (t : 'b list) : 'c list =
+  List.concat (List.map (fun x -> List.map (f x) t) s)
 
 (*****************************************************
  * HashSet -- like in Java
@@ -113,13 +114,18 @@ module type SetMapF =
     val remove_all : key -> t -> t
     val contains_key : key -> t -> bool
     val contains_value : key -> elt -> t -> bool
-    val iter : (elt -> unit) -> key -> t -> unit
-    val iter_all : (key -> elt -> unit) -> t -> unit
-		val equal : t -> t -> bool
+    val size : key -> t -> int
+    val keys : t -> key list
+    val bindings : t -> (key * elt list) list
+    (* val iter : (elt -> unit) -> key -> t -> unit     *)
+    (* val iter_all : (key -> elt -> unit) -> t -> unit *)
+    val compare : t -> t -> int
+    val equal : t -> t -> bool
     val fold : (key -> elt -> 'b -> 'b) -> t -> 'b -> 'b
+    val fold_key : (elt -> 'b -> 'b) -> key -> t -> 'b -> 'b
     val filter : (key -> elt -> bool) -> t -> t
     val union : t -> t -> t
-    val intersection : t -> t -> t
+    val consis : key -> elt -> t -> bool
   end
 
 module SetMapF : SetMapF =
@@ -143,19 +149,30 @@ module SetMapF : SetMapF =
       if contains_key x h then
         let s = Keys.find x h in
         let t = Values.remove v s in
-        if Values.is_empty t then Keys.remove x h
-        else Keys.add x t h
+        if Values.is_empty t then Keys.remove x h else
+        Keys.add x t h
       else h
-    let iter f x h =
-      if contains_key x h then Values.iter f (Keys.find x h)
-    let iter_all f = Keys.iter (fun x -> Values.iter (f x))
+    let size x h =
+      if contains_key x h then Values.cardinal (Keys.find x h) else 0
+    let keys h = List.map fst (Keys.bindings h)
+    let bindings h =
+      let s = Keys.bindings h in
+      List.map (fun (x,a) -> (x, Values.elements a)) s
+    (* let iter f x h =                                         *)
+    (*   if contains_key x h then Values.iter f (Keys.find x h) *)
+    (* let iter_all f = Keys.iter (fun x -> Values.iter (f x))  *)
     let equal = Keys.equal Values.equal
+    let compare = Keys.compare Values.compare
     let fold f = Keys.fold (fun x -> Values.fold (f x))
+    let fold_key f x h b =
+      if contains_key x h then Values.fold f (Keys.find x h) b
+      else b
     let filter f h =
       let g x v h = if f x v then add x v h else h in
       fold g h empty
-    let union = fold add
-    let intersection h = filter (fun x v -> contains_value x v h)
+    let union = fold add               
+    let consis x v h =
+      not (contains_key x h) || contains_value x v h               
   end
 
 module StringSetMap = SetMapF (String) (String)
@@ -281,4 +298,32 @@ module Subst : Subst = struct
     with Not_found -> false
 end
 
-  
+(*****************************************************
+ * Option
+ *****************************************************)
+
+module Option : sig
+  exception No_value
+  val map : ('a -> 'b) -> 'a option -> 'b option
+  val bind : ('a -> 'b option) -> 'a option -> 'b option
+  val get : 'a option -> 'a
+  val is_some : 'a option -> bool
+end = struct
+  exception No_value
+  let map f x =
+    match x with
+    | Some x -> Some (f x)
+    | None -> None
+  let bind f x =
+    match x with
+    | Some x -> f x
+    | None -> None
+  let get x =
+    match x with
+    | Some x -> x
+    | None -> raise No_value
+  let is_some x =
+    match x with
+    | Some x -> true
+    | None -> false
+end

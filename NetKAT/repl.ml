@@ -10,8 +10,7 @@ let parse (s : string) : Ast.formula =
   (try
 		Parser.formula_main Lexer.token lexbuf
 	with
-  | Lexer.LexError s -> raise (Lexer.LexError s)
-  | _ ->
+  | Parsing.Parse_error ->
     let curr = lexbuf.Lexing.lex_curr_p in
     let line = curr.Lexing.pos_lnum in
     let char = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
@@ -19,8 +18,14 @@ let parse (s : string) : Ast.formula =
     raise (ParseError (line, char, token)))
 
 let process (input : string) : unit =
-  let parsed = parse input in
-	Test.test parsed
+  try
+    let parsed = parse input in
+	  Test.test parsed
+  with
+  | Ast.Empty -> ()
+  | Lexer.LexError s -> Printf.printf "Lex Error: %s\n" s
+  | ParseError (l, ch, t) ->
+    Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
   
 (* read from a file *)
 let load (filename : string) : string list =
@@ -28,28 +33,25 @@ let load (filename : string) : string list =
     let input_line_option file =
       try Some (input_line file) with End_of_file -> None in
     match (input_line_option file) with
-      Some x -> get_contents (x :: contents) file
+    | Some x -> get_contents (x :: contents) file
     | None -> contents in
   try
     let file = open_in filename in
-    let result = get_contents [] file in close_in file; List.rev result
+    let result = get_contents [] file in
+    close_in file;
+    List.rev result
   with Sys_error msg ->
     print_endline msg; []
 			
 let process_file (filename : string) : unit =
-	List.iter process (load filename)
+  List.iter process (load filename)
 
 (* command loop *)
 let rec repl (state : state) : unit =
   print_string "? ";
   let input = read_line() in
   if input = "quit" then raise Quit;
-  (try
-    process input
-  with
-  | Lexer.LexError s -> Printf.printf "Lex Error: %s\n" s
-  | ParseError (l, ch, t) ->
-		Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t);
+  process input;
   repl state
 
 let _ =

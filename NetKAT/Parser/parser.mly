@@ -14,7 +14,7 @@ open Ast.Term
 
 %nonassoc EQ LE /* lowest precedence */
 %left PLUS
-%left TIMES VAR ZERO ONE LPAREN
+%left TIMES VAR ZERO ONE DUP LPAREN
 %nonassoc NOT STAR /* highest precedence */
 
 %start formula_main term_main  /* entry points */
@@ -24,11 +24,12 @@ open Ast.Term
 %%
 
 formula_main:
-  formula EOL { $1 }
+  | formula EOL { $1 }
+  | EOL { raise Empty } 
 ;
 
 term_main:
-  term EOL { $1 }
+  | term EOL { $1 }
 ;
 
 term:
@@ -39,7 +40,7 @@ term:
   | ONE             { One }
   | DUP             { Dup }
   | LPAREN term RPAREN { $2 }
-  | term PLUS term  { Plus (termset_from_list [$1; $3]) }
+  | term PLUS term  { Plus (TermSet.from_list [$1; $3]) }
   | term TIMES term { Times [$1; $3] }
   | term STAR       { Star $1 }
   | NOT term        { Not $2 }

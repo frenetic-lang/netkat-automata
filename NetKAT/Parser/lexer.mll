@@ -5,7 +5,7 @@ exception LexError of string
 
 let id = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '_' '0'-'9']*
 let num = ['0'-'9']+
-let whitespace = ['\n' '\t' '\r' ' ']
+let whitespace = ['\t' '\r' ' ']
 
 rule token = parse
   | whitespace { token lexbuf }
@@ -29,6 +29,7 @@ rule token = parse
   | "<="   { LE }
   | '<'    { LE }
   | eof    { EOL }
+  | '\n'   { EOL }
 	| _ as c { raise (LexError ("Unexpected character " ^ (String.make 1 c))) }
 
 and string = parse
