@@ -118,7 +118,7 @@ module type SetMapF =
     val keys : t -> key list
     val bindings : t -> (key * elt list) list
     (* val iter : (elt -> unit) -> key -> t -> unit     *)
-    (* val iter_all : (key -> elt -> unit) -> t -> unit *)
+    val iter : (key -> elt -> unit) -> t -> unit
     val compare : t -> t -> int
     val equal : t -> t -> bool
     val fold : (key -> elt -> 'b -> 'b) -> t -> 'b -> 'b
@@ -126,6 +126,7 @@ module type SetMapF =
     val filter : (key -> elt -> bool) -> t -> t
     val union : t -> t -> t
     val consis : key -> elt -> t -> bool
+    val for_all : (key -> elt -> bool) -> t -> bool
   end
 
 module SetMapF : SetMapF =
@@ -160,7 +161,7 @@ module SetMapF : SetMapF =
       List.map (fun (x,a) -> (x, Values.elements a)) s
     (* let iter f x h =                                         *)
     (*   if contains_key x h then Values.iter f (Keys.find x h) *)
-    (* let iter_all f = Keys.iter (fun x -> Values.iter (f x))  *)
+    let iter f = Keys.iter (fun x -> Values.iter (f x))
     let equal = Keys.equal Values.equal
     let compare = Keys.compare Values.compare
     let fold f = Keys.fold (fun x -> Values.fold (f x))
@@ -173,6 +174,8 @@ module SetMapF : SetMapF =
     let union = fold add               
     let consis x v h =
       not (contains_key x h) || contains_value x v h               
+    let for_all f =
+      Keys.for_all (fun k a -> Values.for_all (f k) a)
   end
 
 module StringSetMap = SetMapF (String) (String)

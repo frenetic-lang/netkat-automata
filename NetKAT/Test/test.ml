@@ -2,20 +2,17 @@ open Util
 open Ast
 
 module S = StringSetMap
-module B = Normalize.BaseSet
+module B = Base.BaseSet
 type base = S.t * S.t
 
 let display_term (t : term) =
   Printf.printf "%s\n" (Ast.term_to_string t)
 
 let display_base (b : base) =
-  Printf.printf "%s\n" (Normalize.base_to_string b)
+  Printf.printf "%s\n" (Base.base_to_string b)
   
 let display_baseset (m : B.t) =
   print_endline (B.to_string m)
-
-let test t a b =
-  if t a b then print_endline "yes" else print_endline "no"
 
 let display_binding (k,l) =
   let s = String.concat "," l in
@@ -45,20 +42,22 @@ let test (f : Ast.formula) : unit =
   (* Printf.printf "# subterms t: %d\n" (Hashtbl.length ht);                             *)
   (* Printf.printf "%s\n" (Ast.coterm_to_string ht);                                     *)
 
-  let h = Normalize.universe f in
-  let s = Normalize.normalize h s in
-  let t = Normalize.normalize h t in
+  let univ = Normalize.universe f in
+  let s = Normalize.normalize univ s in
+  let t = Normalize.normalize univ t in
   Printf.printf "Normalized:\n";
   Printf.printf "lhs: ";
   display_baseset s;
+  Eval.test_atomized_baseset univ s;
   Printf.printf "rhs: ";
   display_baseset t;
-  Printf.printf "Reduced:\n";
-  Printf.printf "lhs: ";
-  display_baseset (Normalize.breakout s);
-  Printf.printf "rhs: ";
-  display_baseset (Normalize.breakout t);
+  Eval.test_atomized_baseset univ t;
+  (* Printf.printf "Reduced:\n";             *)
+  (* Printf.printf "lhs: ";                  *)
+  (* display_baseset (Normalize.breakout s); *)
+  (* Printf.printf "rhs: ";                  *)
+  (* display_baseset (Normalize.breakout t); *)
 
-  print_endline (if Normalize.eval f then "true" else "false");
+  print_endline (if Eval.eval f then "true" else "false");
   print_newline ()
   

@@ -9,7 +9,7 @@
 export SHELL = /bin/bash
 export PATH = /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
 
-SOURCES = util.ml ast.ml Parser/parser.mli Parser/lexer.ml Parser/parser.ml Parser/parse.ml normalize.ml Test/test.ml repl.ml
+SOURCES = util.ml ast.ml Parser/parser.mli Parser/lexer.ml Parser/parser.ml Parser/parse.ml base.ml normalize.ml eval.ml Test/test.ml repl.ml
 
 all: netkat
 
