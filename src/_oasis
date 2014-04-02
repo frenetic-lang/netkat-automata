@@ -1,0 +1,17 @@
+OASISFormat: 0.3
+OCamlVersion: >= 4.01.0
+Name:        netkat
+Version:     0.0.1
+Synopsis:    The NetKAT Coalgebraic Decision Procedure
+Authors:     https://github.com/cornell-pl/netkat/contributors
+License:     PROP
+Plugins:     META (0.3)
+BuildTools:
+  ocamlbuild
+
+Executable netkat
+  Path: src
+  MainIs: Repl.ml
+  Install: false
+  BuildDepends:
+    str

@@ -1,0 +1,11 @@
+#!/bin/bash
+while read line; 
+do 
+    if echo $line | grep -q '#'
+    then continue
+    fi
+    echo "running line" $line; 
+    echo "$line""
+quit" | ./netkat; echo " 
+
+"; done

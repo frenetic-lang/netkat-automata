@@ -1,0 +1,5 @@
+
+To build:
+- install oasis (e.g., `opam install oasis`)
+- install findlib (e.g., `opam install findlib`)
+- type `make`
