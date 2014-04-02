@@ -2,360 +2,136 @@ open Util
 open Ast
 open Term
 
-module S = StringSetMap
-
-(* A base is a pair (t,p) of StringSetMaps, where t is a set of tests      *)
-(* of the form x in A for a variable x and set of values A and each x      *)
-(* occurs at most once in t, and p is a sequence of assignments x := n,    *)
-(* where each x occurs at most once in p. The values in p are singletons.  *)
-
 module type UnivDescr = sig 
-  val univ : StringSetMap.t 
+  type t 
+  type field 
+  type value 
+  module FieldSet : Set.S with type elt = field
+  module ValueSet : Set.S with type elt = value
+  val field_compare : field -> field -> int
+  val value_compare : value -> value -> int
+  val all_fields : t -> FieldSet.t
+  val all_values : t -> field -> ValueSet.t
+  val field_to_string : field -> string
+  val value_to_string : value -> string
 end
 
 module Univ = functor (U : UnivDescr) -> struct 
-
-  module M = Map.Make (String)
-  module Index = struct 
-    type t = string M.t
-    let compare = M.compare String.compare
-    let add = M.add
-    let empty = M.empty
-    let fold = M.fold
-    
-    let to_test i = 
-      Term.Plus
-	(fold
-	   (fun f v acc -> 
-	     TermSet.add (Term.Test (f,v)) acc
-	   )
-	   i TermSet.empty)
-
-    let to_string i = 
-      Printf.sprintf "(%s)" (fold (Printf.sprintf "%s=%s;%s") i "")
-  end 
-	
-  module IndexSet = struct 
-    include Set.Make (struct 
-      type t = Index.t
-      let compare = Pervasives.compare
-    end)
-      
-    let of_StringSetMap t =
-      let module IListSet = Set.Make(struct
-	type t = (string * string) list
-	let compare = Pervasives.compare
-      end ) in
-
-      let stringsetmap_to_indexset ssm =
-	List.fold_left
-	  (fun (set_of_lists : IListSet.t ) (field : string) ->
-	    
-	    let per_val_algo (valu : string)
-		(new_set_of_lists : IListSet.t) :
-		IListSet.t =
-	      IListSet.union
-		(IListSet.fold
-		   (fun (ilist : IListSet.elt)
-		     ( new_set_of_lists : IListSet.t) ->
-		       let ilist' = ((field,valu)::ilist) in
-		       IListSet.add ilist' new_set_of_lists
-		   )
-		   set_of_lists IListSet.empty)
-		new_set_of_lists in
-	    let sol : IListSet.t = (StringSetMap.fold_key
-				      per_val_algo
-				      field ssm IListSet.empty) in
-	    sol
-	  )
-	  (IListSet.singleton []) (StringSetMap.keys ssm) in
-      
-      let tuple_univ_repr = stringsetmap_to_indexset t in
-      let ret = IListSet.fold
-	(fun complete_test acc ->
-	  add
-	    (List.fold_left
-	       (fun (acc : Index.t) ((field : string),(value : string)) ->
-		 Index.add field value acc
-	       ) Index.empty complete_test)
-	    acc
-	)
-	tuple_univ_repr empty in
-      ret
-	
-      
-  end
-	
-  module IndexPairSet = struct 
-    include Set.Make (struct
-      type t = Index.t * Index.t
-      let compare = Pervasives.compare 
-    end)
-
-    let all_pairs t_exp p_exp = 
-      IndexSet.fold 
-	(fun ti acc -> 
-	  IndexSet.fold 
-	    (fun pi acc -> 
-	      add (ti,pi) acc)
-	    p_exp acc)
-	t_exp empty 
-
-  end
   
-  module BaseElt = struct 
-
-    exception Universe_Exception
-      
-    (* TODO: stronger compare? *)
-    let compare = Pervasives.compare
-
- 
-    let all_fields = StringSetMap.keys U.univ
-      
+  module PosNeg = struct
     type t = 
-      | Alpha of StringSetMap.t
-      | Beta of t * StringSetMap.t
-      | Empty 
+        Pos of U.ValueSet.t
+      | Neg of U.ValueSet.t
 
-    let is_alpha = function 
-      | Alpha _ -> true
-      | _ -> false
-
-    let is_beta = function
-      | Beta _ -> true
-      | _ -> false
-
-    let compare_dexter a b = 
-      let ssmc = StringSetMap.compare in
-      match a,b with 
-	| Alpha ssm1, Beta (_,ssm2) -> ssmc ssm1 ssm2
-	| Alpha ssm1, Alpha ssm2 -> ssmc ssm1 ssm2
-	| Beta (_,ssm1), Beta (_,ssm2) -> ssmc ssm1 ssm2
-	| Beta (_,ssm1), Alpha ssm2 -> ssmc ssm1 ssm2
-	| (Empty,_ | _,Empty) -> failwith "don't compare empties."
-	  
-    type field = StringSetMap.key
-	
-    let field_as_string f = f
-
-    let rec find_all f b1 = 
-      if StringSetMap.contains_key f U.univ then
-	match b1 with 
-	  | Alpha ssm -> 
-	    if StringSetMap.contains_key f ssm
-	    then StringSetMap.find_all f ssm
-	    else StringSetMap.find_all f U.univ
-	  | Beta (up,ssm) -> 
-	    if StringSetMap.contains_key f ssm
-	    then StringSetMap.find_all f ssm
-	    else find_all f up
-	  | Empty -> StringSetMap.val_empty
-      else failwith "trying to find a key not in the universe! bad!"
-	
-  (* removes redundancies between Alpha and universe 
-     and between A and B
-  *)
-    let rec normalize r = 
-      match r with 
-	| Alpha ssm -> 
-	  Alpha (List.fold_left
-		   (fun acc f -> 
-		     let r_contents = StringSetMap.find_all f ssm in
-		     let univ_contents = StringSetMap.find_all f U.univ in 
-		     if StringSetMap.val_equal r_contents univ_contents
-		     then acc
-		     else StringSetMap.add_all f r_contents acc)
-		   StringSetMap.empty all_fields)
-	| Beta (up,ssm) -> 
-	  let up = normalize up in
-	  let ssm = StringSetMap.fold 
-	    (fun k v acc -> if v = "" then acc else StringSetMap.add k v acc)
-	    ssm StringSetMap.empty in
-	  Beta (up, (List.fold_left 
-		       (fun acc f -> 
-			 let r_contents = StringSetMap.find_all f ssm in
-			 let up_contents = find_all f up in
-			 (* does not contain the empty string *)
-			 assert (StringSetMap.fold_key 
-				   (fun e acc -> 
-				     e <> "" && acc
-				   )
-				   f ssm true);
-			 if (StringSetMap.val_equal r_contents up_contents)
-			 then acc
-			 else StringSetMap.add_all f r_contents acc)
-		       StringSetMap.empty all_fields))
-	| Empty -> r
-	  
-    let beta_from_alpha up r = 
-      match r with 
-	| Alpha ssm -> normalize (Beta (up,ssm))
-	| _ -> failwith "you gave me a non-alpha..."
-	  
-
-  (* this can only make an alpha *)
-    exception Empty_Intersection
-    let intersect b1 b2 = 
-      match b1,b2 with 
-	| Alpha _, Alpha _ -> 
-	  (try 
-	    Alpha (List.fold_left
-		     (fun acc f ->
-		       let b1_f = find_all f b1 in
-		       let b2_f = find_all f b2 in
-		       let inter = StringSetMap.val_inter b1_f b2_f in
-		       if StringSetMap.val_is_empty inter
-		       then raise Empty_Intersection
-		       else StringSetMap.add_all f inter acc
-		     ) StringSetMap.empty all_fields)
-	  with Empty_Intersection -> Empty)
-	| _ -> failwith "It doesn't make sense to intersect non-alphas at the BaseElt level" 
-
-    let contains_value f v r = 
-      let vals = find_all f r in
-      StringSetMap.val_mem v vals
-
-    let get_beta_val f b = 
-      match b with 
-	| Beta (up,b) ->  
-	  StringSetMap.fold_key (fun e _ -> e) f b ""
-	| _ -> failwith "it's not a beta.  fix it."
-
-    let get_full_stringset a = 
-      List.fold_left
-	(fun acc f -> 
-	  StringSetMap.add_all f (find_all f a) acc)
-	StringSetMap.empty all_fields
-	
-    let to_string (t : t) : string =
-      let ssm_to_string ssm op = StringSetMap.to_string ssm op (fun x -> x) in
-      match t with 
-	| Alpha _ -> ssm_to_string (get_full_stringset t) "%s={%s}"
-	| Beta (_,b) -> ssm_to_string b "%s=%s"
-	| _ -> failwith "I just hate Empty."
-
-    let rec sanity_check a = 
-      match a with 
-	| Alpha ssm -> List.for_all (fun f -> StringSetMap.contains_key f U.univ) (StringSetMap.keys ssm)
-	| Beta (up,ssm) -> 
-	  (List.for_all (fun f -> StringSetMap.single_mapping f ssm) all_fields)
-	  && sanity_check up
-	| Empty -> true
-	  
-  (* matches the intuition we had when we wrote the multiplication algorithm
-     for alphas, it includes inheriting from the universe.
-     for betas, it doesn't.
-  *)
-    let contains_key k t = 
-      match t with 
-	| Alpha ssm -> failwith "the answer is always YES here.."
-	| Beta (_,ssm) -> 
-	  if StringSetMap.contains_key k ssm 
-	  then (assert ((StringSetMap.size k ssm) = 1); 
-		true)
-	  else false
-	| Empty -> failwith "just don't do operations on empty."
-	  
-    let contains_value k v t = 
-      match t with 
-	| Alpha ssm -> 
-	  if StringSetMap.contains_key k ssm
-	  then StringSetMap.contains_value k v ssm
-	  else true
-	| _ -> failwith "contains_value only makes sense for alpha"
-	  
-    let add_all f v t = 
-      match t with 
-	| Alpha ssm -> Alpha (StringSetMap.add_all f v ssm)
-	| _ -> failwith "I'm only defining add_all on alphas."
-	  
-	  
-    let intersect_vals f a b = 
-      let a_f = find_all f a in
-      let b_f = find_all f b in 
-      StringSetMap.val_inter a_f b_f
-	
-    let empty = Alpha (StringSetMap.empty)
-      
-    let val_is_empty = StringSetMap.val_is_empty
-	
-    let construct_pair a b : t * t = 
-      match a,b with 
-	| Alpha _, Beta _ -> 
-	  let a = normalize a in
-	  let b = normalize b in
-	  assert (sanity_check a);
-	  assert (sanity_check b);
-	  a,b
-	| _ -> failwith "I just want inheritance, is that so much to ask for?"
-
-
-    let size f a = 
-      StringSetMap.val_size (find_all f a)
-
-    let add k v t = 
-      match t with 
-	| Alpha a -> Alpha (StringSetMap.add k v a)
-	| Beta (up,a) -> Beta (up, StringSetMap.add k v a)
-	| Empty -> failwith "shouldn't add to this kind of Empty.  Add to BaseElt.empty instead"	
-
-    let beta_of_index a i = 
-      beta_from_alpha a (Index.fold add i empty)
-
-    let alpha_of_index i = 
-      Index.fold add i empty
-
-
-    (* NOTE: all the below is present to support dexter-code.  
-       so it just flat-forwards to the underlying maps.*)
-
-
-    let filter f t = 
-      match t with 
-	| (Alpha a ) -> Alpha (StringSetMap.filter f a)
-	| Beta (up,a) -> Beta (up, StringSetMap.filter f a)
-	| Empty -> failwith "Dexter code should NOT get empty"
-
-    let remove_all f t = 
-      match t with 
-	| Alpha a -> Alpha (StringSetMap.remove_all f a)
-	| Beta (up,a) -> Beta (up,StringSetMap.remove_all f a)
-	| Empty -> failwith "Dexter code should NOT get empty"
-
-    let fold_key (f : StringSetMap.elt -> 'b -> 'b)  (k : StringSetMap.key) (t : t) (acc : 'b) : 'b =
-      match t with 
-	| Alpha a -> (StringSetMap.fold_key f k a acc)
-	| Beta (up,a) -> StringSetMap.fold_key f k a acc
-	| Empty -> failwith "Dexter code should NOT get empty"
-
-      	  
-    let dexter_union a b = 
-      match a with 
-	| Alpha a -> Alpha (StringSetMap.union a b)
-	| Beta (up,a) -> Beta(up,StringSetMap.union a b)
-	| Empty -> failwith "Dexter code should NOT get empty"	
-	  
   end
+  module Base = struct
 
-  module Base = struct 
-    module R = BaseElt
-    type t = R.t * R.t
-	
-    let construct = R.construct_pair
+    module Map = Map.Make(U.FieldSet)      
+    type atom = ValueSet.t Map.t
+    type assg = ValueSet.elt Map.t
+        
+    let values_to_string (vs:ValueSet.t) : string = 
+      Printf.sprintf "{%s}"
+        (ValueSet.fold
+           (fun v acc -> 
+             Printf.sprintf "%s%s"
+               (if acc = "" then acc else acc ^ ", ")
+               (U.value_to_string v))
+           vs "")
+        
+    let atom_to_string (a:atom) : string = 
+      Map.fold (fun f v acc -> 
+        Printf.sprintf "%s%s=%s"
+          (if acc = "" then acc else acc ^ ", ") 
+          (U.field_to_string f)
+          (values_to_string v))
+        a ""
+        
+    let assg_to_string (b:assg) : string = 
+      Map.fold (fun f v acc -> 
+        Printf.sprintf "%s%s:=%s"
+          (if acc = "" then acc else acc ^ ", ") 
+          (U.field_to_string f)
+          (U.value_to_string v))
+        b ""
+        
+    let atom_compare (a1:atom) (a2:atom) : int = 
+      Map.compare ValueSet.compare
+
+    let assg_compare (b1:assg) (b2:assg) : int = 
+      Map.compare U.value_compare
+
+    type t = Base of atom * assg 
+
+    let to_string (Base(a,b) : t) : string =
+      Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
+        
+    let compare (Base(a1,b1):t) (Base(a2,b2):t) : int =
+      let cmp = atom_compare a1 a2 in
+      if cmp <> 0 then cmp else assg_compare b1 b2
+
+    let equal (x:t) (y:t) : bool = 
+      compare x y = 0
+
+    type this_t = t
+    module S = Set.Make(struct
+      type t = this_t
+      let compare = compare
+      let equal = equal
+    end)
+
+    module Set = struct
+      include S
+      let to_string (bs:t) : string = 
+        Printf.sprintf "{%s}" 
+          (S.fold (fun x s -> (if s = "" then s else s ^ ", ") ^ Base.to_string x) bs "")
+    end
       
-    let to_string ((t,p) : t) : string =
-      Printf.sprintf "[%s,%s]" (R.to_string t) (R.to_string p )
+    (* Operations on Set.t *)
+    let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
 
-    let of_stringsetmaps a b = 
-      let alpha = BaseElt.Alpha a in
-      let beta = BaseElt.Beta (alpha,b) in
-      construct alpha beta
+      let f o1 o2 = Some(o1,o2) in 
+      let g o = function
+        | None -> (Neg ValueSet.empty, None)
+        | Some 
+        match
 
-    let of_indexpair (a,b) = 
-      let alpha = BaseElt.alpha_of_index a in
-      construct alpha (BaseElt.beta_of_index alpha b)
-	
+      Map.merge g 
+        (Map.merge f a1 b1)
+        (Map.merge f a2 b2)
+
+      List.fold_left 
+        (fun acc k -> 
+          let sa1 = Map.find_all k a1 in 
+          let sb1 = SSM.find_all k b1 in 
+          let sa2 = SSM.find_all k a2 in 
+          let sb2 = SSM.find_all k b2 in 
+          
+                    
+
+    (* of_term : Ast.term -> Set.t *)
+    let rec of_term (t0:Ast.term) : Set.t = 
+      match t0 with 
+        | One -> 
+          Set.singleton (StringSetMap.empty, StringSetMap.empty)
+        | Zero -> 
+          Set.empty
+        | Assg(x,v) -> 
+          Set.singleton (StringSetMap.empty, StringSetMap.add x v StringSetMap.empty)
+        | Test(x,v) -> 
+          Set.singleton (StringSetMap.add x v StringSetMap.empty, StringSetMap.empty)
+        | Dup -> 
+          Set.empty
+        | Plus ts ->
+          Ast.TermSet.fold (fun t acc -> Set.union (of_term t) acc) ts Set.empty 
+        | Times t -> 
+          Ast.TermSet.fold (fun t acc -> mult (of_term t) acc) ts (Set.singleton (StringSetMap.empty, StringSetMap.empty))
+        | Not x -> 
+          assert false
+        | Star x -> 
+          assert false
+      
+
     (* multiply two bases *)
     exception Mult_fail
     let mult ((ta,pa) : t) ((tb,pb) : t) : t option =
@@ -366,32 +142,26 @@ module Univ = functor (U : UnivDescr) -> struct
 	    (fun acc f -> 
 	      let (tr : R.t),pr = acc in
 	      let tr_f = 
-		if R.contains_key f pa 
-		then 
-		  (
-		    if (not (R.contains_value f (R.get_beta_val f pa) tb))
-		    then (
-		      raise Mult_fail
-		    );
-		    R.find_all f ta)
+		if R.contains_key f pa then
+	          if (not (R.contains_value f (R.get_beta_val f pa) tb)) then 
+		    raise Mult_fail
+                  else
+		    R.find_all f ta
 		else 
 		  let intersection = R.intersect_vals f ta tb in
-		  if R.val_is_empty intersection
-		  then (
-		    raise Mult_fail)
+		  if R.val_is_empty intersection then
+		    raise Mult_fail
 		  else intersection in
 	      let pr_f = 
-		if R.contains_key f pb
-		then R.get_beta_val f pb
-		else R.get_beta_val f pa in
-	      let (tr' : R.t) = 
-		R.add_all f tr_f tr in
-	      let pr' = 
-		R.add f pr_f pr in
-	      tr',pr'
-	    ) (R.empty,R.empty) R.all_fields in
-	construct l (R.beta_from_alpha l r)
-      )
+		if R.contains_key f pb then
+                  R.get_beta_val f pb
+		else 
+                  R.get_beta_val f pa in
+	      let (tr' : R.t) = R.add_all f tr_f tr in
+	      let pr' = R.add f pr_f pr in
+	      tr',pr')
+	    (R.empty,R.empty) R.all_fields in
+	construct l (R.beta_from_alpha l r))
       with Mult_fail -> 
 	None
 	
@@ -621,74 +391,6 @@ module Univ = functor (U : UnivDescr) -> struct
         else failwith "Not reduced" in
       List.iter f (S.keys univ)
         
-    (* parameter univ is the universe *)
-    let normalize = 
-      let hash = Hashtbl.create 0 in
-      (* do we only need to take the universe here as a sanity check? *)
-      let rec normalize  t = 
-        let normalize (t : term) : B.t =
-          (* to negate a test x=v, we allow x to have any value except v *)
-          let negate x v =
-            (* sanity check *)
-	    if not (S.contains_value x v U.univ)
-	    then failwith (Printf.sprintf "Unknown variable/value %s/%s" x v);
-	    let s = S.fold_key (S.add x) x U.univ S.empty in
-	    let negated_ssm = (S.remove x v s) in
-	    Printf.printf "normalize negate: %s\n" (StringSetMap.to_string negated_ssm "%s={%s}" (fun x -> x));
-	    B.singleton (Base.of_stringsetmaps negated_ssm S.empty) in
-          let t = Ast.zero_dups t in (* may only normalize dup-free terms *)
-          let t = Ast.deMorgan t in
-          match t with 
-	    | Assg (x,v) ->
-	  (* I thought that the LHS needed to be fully specified.
-	     Is there an assumption that "missing" elements in h1
-	     simply inherit from the universe?
-	  *)
-	      let h1 = S.empty in
-	      let h2 = S.add x v (S.empty) in
-	      B.singleton (Base.of_stringsetmaps h1 h2)
-	    | Test (x,v) ->
-	  (*
-	    are these complete tests and assignments or partial ones?
-	    They look like partial ones.
-	    Same question as above.
-	  *)
-	      let h1 = S.add x v (S.empty) in
-	      let h2 = S.empty in
-	      B.singleton (Base.of_stringsetmaps h1 h2)
-	    | Dup -> failwith "Cannot normalize a term with dups"
-	    | Plus x ->
-	      let s = List.map (normalize ) (TermSet.elements x) in
-	      B.union_list s
-	    | Times x ->
-	      let s = List.map (normalize ) x in
-	      let mult_res = List.fold_left 
-	        (fun acc e -> 
-	          B.mult acc e) 
-	        (B.singleton (Base.of_stringsetmaps S.empty S.empty)) s in
-	      mult_res
-	    | Not x -> begin
-	      match x with
-	        | Zero -> B.singleton (Base.of_stringsetmaps S.empty S.empty)
-	        | One -> B.empty
-	        | Test (x,v) -> negate x v
-	        | _ -> failwith "De Morgan law should have been applied"
-	    end
-	    | Star x ->
-	      let s = normalize  x in
-	      let s1 = B.add (Base.of_stringsetmaps S.empty S.empty) s in
-	      let rec f (s : B.t) (r : B.t) : B.t =
-                if B.equal s r then s
-                else f (B.mult s s) s in
-	      f (B.mult s1 s1) s1
-	    | Zero -> B.empty
-	    | One -> B.singleton (Base.of_stringsetmaps S.empty S.empty) in
-        try Hashtbl.find hash t
-        with Not_found -> 
-          let ret = normalize t in
-          Hashtbl.add hash t ret;
-          ret in
-      normalize
   end 
   let calculate_E = Normalize.normalize
 end

@@ -4,36 +4,23 @@ end
 
 module Univ : functor (U:UnivDescr) -> 
 sig 
-  module Index : sig 
+  module Element : sig 
     type t 
-    val to_test : t -> Ast.term
-    val to_string : t -> string
-  end 
-
-  module IndexPairSet : sig 
-    include Set.S with type elt = (Index.t * Index.t)
-  end 
-
-  module BaseElt : sig 
-    type t 
-    val alpha_of_index : Index.t -> t
-    val beta_of_index : t -> Index.t -> t 
+    module Set : Set.S with type elt = t
   end 
 
   module Base : sig 
-    type t = BaseElt.t * BaseElt.t
+    type t
+    val to_test : t -> Element.t
+    val to_assign : t -> Element.t
     val to_string : t -> string
+    module Set : sig
+      include Set.S with type elt = Base.t
+      val fold : (Base.t -> 'a -> 'a) -> t -> 'a -> 'a
+      val to_string : t -> string
+      val to_matrix_string : t -> string
+    end
   end 
 
-  module BaseSet : sig 
-    include Set.S with type elt = Base.t
-    (* our stuff *)
-    val contains : BaseElt.t -> BaseElt.t -> t -> bool
-    val non_empty : t -> bool (* TODO(jnf): this is some kind of Milanoesque semantic non-emptiness *)
-    val to_IndexPairSet : t -> IndexPairSet.t
-    val to_string : t -> string
-    val to_matrix_string : t -> string
-  end 
-
-  val calculate_E : Ast.term -> BaseSet.t
+  val calculate_E : Ast.term -> Base.Set.t
 end
