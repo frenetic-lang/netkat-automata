@@ -10,41 +10,73 @@ module type UnivDescr = sig
   module ValueSet : Set.S with type elt = value
   val field_compare : field -> field -> int
   val value_compare : value -> value -> int
-  val all_fields : t -> FieldSet.t
-  val all_values : t -> field -> ValueSet.t
+  val all_fields : FieldSet.t
+  val all_values : field -> ValueSet.t
   val field_to_string : field -> string
   val value_to_string : value -> string
 end
 
+let collection_to_string fold elt_to_string sep c = 
+  fold (fun x acc -> if acc = "" else acc ^ sep ^ elt_to_string x) c ""
+
 module Univ = functor (U : UnivDescr) -> struct 
   
+  let values_to_string (vs:ValueSet.t) : string = 
+    Printf.sprintf "{%s}"
+      (collection_to_string U.ValueSet.fold U.value_to_string ", " s)
+
   module PosNeg = struct
     type t = 
-        Pos of U.ValueSet.t
-      | Neg of U.ValueSet.t
+        Pos of field * U.ValueSet.t
+      | Neg of field * U.ValueSet.t
+    let to_string = function
+      | Pos (_,s) -> 
+        values_to_string s
+      | Neg (_,s) -> 
+        "!" ^ values_to_string s 
 
+    let any (f:field) : t = Neg(f,U.ValueSet.empty) 
+
+    (* pre: pn1 and pn2 should be defined over the same field *)
+    let compare pn1 pn2 = 
+      | Pos (_,s1), Pos (_,s2) -> 
+        U.ValueSet.compare s1 s2
+      | Neg (_,s1), Neg (_,s2) -> 
+        -1 * U.ValueSet.compare s1 s2
+      | Pos (_,s1), Neg (f,s2) -> 
+        U.ValueSet.compare s1 (U.ValueSet.diff (U.all_values f) s2)
+      | Neg (f,s1), Pos (_,s2) -> 
+        U.ValueSet.compare (U.ValueSet.diff (U.all_values f) s1) s2
+
+    let contains (pn:t) (v:U.value) : bool = 
+      match pn with 
+        | Pos(_,s) -> U.ValueSet.mem v s 
+        | Neg(_,s) -> not (U.ValueSet.mem v s)
+
+    let intersect (pn1:t) (pn2:t) : t = 
+      match pn1, pn2 with
+        | Pos(f,s1), Pos(_,s2) -> Pos(f,U.ValueSet.inter s1 s2)
+        | Neg(f,s1), Neg(_,s2) -> Neg(f,U.ValueSet.union s1 s2)
+        | Pos(f,s1), Neg(_,s2) -> Pos(f,U.ValueSet.diff s1 s2)
+        | Neg(f,s1), Pos(_,s2) -> Pos(f,U.ValueSet.diff s2 s1)
+
+    let is_empty (pn:t) : bool = 
+      match pn with 
+        | Pos(_,s) -> U.ValueSet.is_empty s
+        | Neg(f,s) -> U.ValueSet.equal (U.all_values f) s
   end
   module Base = struct
 
     module Map = Map.Make(U.FieldSet)      
-    type atom = ValueSet.t Map.t
+    type atom = PosNeg.t Map.t
     type assg = ValueSet.elt Map.t
-        
-    let values_to_string (vs:ValueSet.t) : string = 
-      Printf.sprintf "{%s}"
-        (ValueSet.fold
-           (fun v acc -> 
-             Printf.sprintf "%s%s"
-               (if acc = "" then acc else acc ^ ", ")
-               (U.value_to_string v))
-           vs "")
-        
+                
     let atom_to_string (a:atom) : string = 
-      Map.fold (fun f v acc -> 
+      Map.fold (fun f pn acc -> 
         Printf.sprintf "%s%s=%s"
           (if acc = "" then acc else acc ^ ", ") 
           (U.field_to_string f)
-          (values_to_string v))
+          (PosNeg.to_string pn))
         a ""
         
     let assg_to_string (b:assg) : string = 
@@ -56,7 +88,7 @@ module Univ = functor (U : UnivDescr) -> struct
         b ""
         
     let atom_compare (a1:atom) (a2:atom) : int = 
-      Map.compare ValueSet.compare
+      Map.compare PosNeg.compare 
 
     let assg_compare (b1:assg) (b2:assg) : int = 
       Map.compare U.value_compare
@@ -88,26 +120,30 @@ module Univ = functor (U : UnivDescr) -> struct
     end
       
     (* Operations on Set.t *)
+    exception Empty_mult
+
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
-
-      let f o1 o2 = Some(o1,o2) in 
-      let g o = function
-        | None -> (Neg ValueSet.empty, None)
-        | Some 
-        match
-
-      Map.merge g 
-        (Map.merge f a1 b1)
-        (Map.merge f a2 b2)
-
-      List.fold_left 
-        (fun acc k -> 
-          let sa1 = Map.find_all k a1 in 
-          let sb1 = SSM.find_all k b1 in 
-          let sa2 = SSM.find_all k a2 in 
-          let sb2 = SSM.find_all k b2 in 
-          
-                    
+      try 
+        U.FieldSet.fold 
+          (fun f Base(a,b) -> 
+            let pn1 = try Map.find f a1 with Not_found -> PosNeg.any f in 
+            let pn2 = try Map.find f a2 with Not_found -> PosNeg.any f in           
+            let o1 = try Some (Map.find f b1) with Not_found -> None in 
+            let o2 = try Some (Map.find f b2) with Not_found -> None in 
+            let pn',v' = 
+              match o1,o2 with 
+                | (Some v1, Some v2) when PosNeg.contains pn2 v1 -> 
+                  (pn1, o2)
+                | (Some v1, None) when PosNeg.contains pn2 v1 -> 
+                  (pn1,o1)
+                | (None, Some v2) when not (is_empty (intersect pn1 pn2)) -> 
+                  (intersect pn1 pn2, o2)
+                | None, None when not (is_empty (intersect pn1 pn2)) -> 
+                  (intersect pn1 pn2, None) 
+                | _ -> 
+                  raise Empty_mult in 
+            Base(Map.add f pn' a, Map.add f v' b))
+          (U.all_fields) (Base(Map.empty, Map.empty)) 
 
     (* of_term : Ast.term -> Set.t *)
     let rec of_term (t0:Ast.term) : Set.t = 
@@ -132,39 +168,6 @@ module Univ = functor (U : UnivDescr) -> struct
           assert false
       
 
-    (* multiply two bases *)
-    exception Mult_fail
-    let mult ((ta,pa) : t) ((tb,pb) : t) : t option =
-      
-      try Some (
-	let l,r = 
-	  List.fold_left 
-	    (fun acc f -> 
-	      let (tr : R.t),pr = acc in
-	      let tr_f = 
-		if R.contains_key f pa then
-	          if (not (R.contains_value f (R.get_beta_val f pa) tb)) then 
-		    raise Mult_fail
-                  else
-		    R.find_all f ta
-		else 
-		  let intersection = R.intersect_vals f ta tb in
-		  if R.val_is_empty intersection then
-		    raise Mult_fail
-		  else intersection in
-	      let pr_f = 
-		if R.contains_key f pb then
-                  R.get_beta_val f pb
-		else 
-                  R.get_beta_val f pa in
-	      let (tr' : R.t) = R.add_all f tr_f tr in
-	      let pr' = R.add f pr_f pr in
-	      tr',pr')
-	    (R.empty,R.empty) R.all_fields in
-	construct l (R.beta_from_alpha l r))
-      with Mult_fail -> 
-	None
-	
     exception Intersect_fail
     let intersect (ta,pa) (tb,pb) = 
       assert (BaseElt.is_alpha ta);
