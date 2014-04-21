@@ -107,7 +107,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
     try 
       Printf.printf "asked for the deriv of %s \n" (Ast.term_to_string e);
       TermSet.fold 
-	(fun spine_pair acc -> 
+	(fun spine_pair (acc,set_of_points) -> 
 	  (* pull out elements of spine pair*)
 	  let e1,e2 = match spine_pair with 
 	    | Times [lspine;rspine] -> lspine,rspine
@@ -135,16 +135,19 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	    mul_terms (U.Base.assg_of_point point) e2
 	  else 
             Zero in 
-          (* TODO(jnf,mpm,ljt): make sure that new points are handled elsewhere *)
-	(fun point -> add_terms (internal_matrix_ref point) (acc point)))
-	(Hashtbl.find all_spines e) (fun _ -> Zero) 
+	let more_points = 
+	  U.Base.Set.union set_of_points e_where_intersection_is_present in
+
+	(fun point -> add_terms (internal_matrix_ref point) (acc point)),
+	more_points)
+	(Hashtbl.find all_spines e) ((fun _ -> Zero), U.Base.Set.empty)
     with Not_found -> 
       begin 
         Printf.printf "couldn't find requested expression in spines.\n";
         if (Ast.contains_dups e) then 
           calculate_deriv (allLRspines e) e
         else 
-          (fun _ -> Zero)
+          ((fun _ -> Zero),U.Base.Set.empty)
       end
   in
 
@@ -223,7 +226,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
       let rest_work_list = WorkList.tl work_list in
       let q1_E = U.Base.Set.of_term q1 in
       let q2_E = U.Base.Set.of_term q2 in
-      Printf.printf "The universe: %s\n" (StringSetMap.to_string univ "%s={%s}" (fun x -> x));
+      Printf.printf "The universe: %s\n" 
+	(StringSetMap.to_string univ "%s={%s}" (fun x -> x));
       Printf.printf "q1: %s\n" (Ast.term_to_string q1);
       Printf.printf "q2: %s\n" (Ast.term_to_string q2);
       Printf.printf "E of q1: %s\n" (U.Base.Set.to_string q1_E);
@@ -245,19 +249,18 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	let z2 = get_state2 q2 f2 in
 	let _ = Printf.printf "q%d %b\n" z1 f1 in
 	let _ = Printf.printf "q%d %b\n" z2 f2 in
-	let q1_matrix = calculate_deriv spines_t1 q1 in 
-	let q2_matrix = calculate_deriv spines_t2 q2 in 
+	let q1_matrix,q1_points = calculate_deriv spines_t1 q1 in 
+	let q2_matrix,q2_points = calculate_deriv spines_t2 q2 in 
 	let work_list = U.Base.Set.fold_points
-	  (fun (alpha,beta) expanded_work_list -> 
-	    Printf.printf "transition: {%s*%s}\n " (U.Index.to_string alpha) (U.Index.to_string beta);
-	    let q1' = q1_matrix alpha beta in
-	    let q2' = q2_matrix alpha beta in
+	  (fun pt expanded_work_list -> 
+	    let q1' = q1_matrix pt in
+	    let q2' = q2_matrix pt in
 	    Printf.printf "q1': %s\n" (Ast.term_to_string q1');
 	    Printf.printf "q2': %s\n" (Ast.term_to_string q2');
-	    let q1'_E = U.calculate_E q1' in
-	    let q2'_E = U.calculate_E q2' in
-	    let f1' = BaseSet.non_empty (q1'_E) in
-	    let f2' = BaseSet.non_empty (q2'_E) in
+	    let q1'_E = U.Base.Set.of_term q1' in
+	    let q2'_E = U.Base.Set.of_term q2' in
+	    let f1' = not (U.Base.Set.is_empty (q1'_E)) in
+	    let f2' = not (U.Base.Set.is_empty (q2'_E)) in
 	    let z1' = get_state1 q1' f1' in
 	    let z2' = get_state2 q2' f2' in
 	    let _= add_edge1 z1 z1' in
@@ -265,7 +268,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	    WorkList.add (q1',q2' )
 	      expanded_work_list
 	  )
-	  combined_indices rest_work_list in
+	  (U.Base.Set.union q1_points q2_points) rest_work_list in
 	main_loop work_list in
   main_loop (WorkList.singleton (t1,t2))
 
