@@ -114,7 +114,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	    | _ -> failwith "Dexter LIES" in
 
 	(* calculate e of left spine*)
-	let corresponding_E = U.Base.set_of_term e1 in
+	let corresponding_E = U.Base.Set.of_term e1 in
 	  
 	(* use previous intersection to determine non-zero elements of D(e) *)
 	Printf.printf "left spine in deriv: %s \n" (Ast.term_to_string e1);
@@ -125,9 +125,13 @@ let check_equivalent (t1:term) (t2:term) : bool =
            multiplying by E(e1), that is, the left spine. There is
            some unknown bug that is tickled by enabling this, so
            it's currently disabled. *)
-	let e_where_intersection_is_present = corresponding_E (*BaseSet.mult corresponding_E er_E'*) in
+	(* TODO(mpm): The bug was actually a somewhat interesting algorithmic error, 
+	   and has been fixed in the legacy code.  It requires some interface re-structuring,
+	   and has thus been delayed until after the current re-factor is stable.
+	*)
+	let e_where_intersection_is_present = corresponding_E  in
 	let internal_matrix_ref point = 
-	  if U.Base.contains_point e_where_intersection_is_present point then
+	  if U.Base.Set.contains_point e_where_intersection_is_present point then
 	    mul_terms (U.Base.assg_of_point point) e2
 	  else 
             Zero in 
@@ -217,28 +221,33 @@ let check_equivalent (t1:term) (t2:term) : bool =
     else
       let q1,q2 = WorkList.hd work_list in
       let rest_work_list = WorkList.tl work_list in
-      let q1_E = U.set_of_term q1 in
-      let q2_E = U.set_of_term q2 in
+      let q1_E = U.Base.Set.of_term q1 in
+      let q2_E = U.Base.Set.of_term q2 in
       Printf.printf "The universe: %s\n" (StringSetMap.to_string univ "%s={%s}" (fun x -> x));
       Printf.printf "q1: %s\n" (Ast.term_to_string q1);
       Printf.printf "q2: %s\n" (Ast.term_to_string q2);
-      Printf.printf "E of q1: %s\n" (BaseSet.to_string q1_E);
-      Printf.printf "E of q2: %s\n" (BaseSet.to_string q2_E);
-      Printf.printf "E of q1 in matrix form:\n%s\n" (BaseSet.to_matrix_string q1_E);
-      Printf.printf "E of q2 in matrix form:\n%s\n" (BaseSet.to_matrix_string q2_E);
-      if not (BaseSet.equal q1_E q2_E)
+      Printf.printf "E of q1: %s\n" (U.Base.Set.to_string q1_E);
+      Printf.printf "E of q2: %s\n" (U.Base.Set.to_string q2_E);
+      (*
+	TODO(mpm): Re-write this pretty-printer at some point.
+	Printf.printf "E of q1 in matrix form:\n%s\n" (BaseSet.to_matrix_string q1_E);
+      Printf.printf "E of q2 in matrix form:\n%s\n" (BaseSet.to_matrix_string q2_E);*)
+
+      (*TODO(mpm):  all of this assumes a normal form.  If the bases inside the set are empty,
+	or there are structurally-different representations of equal things, this will all break.
+      *)
+      if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
-	let f1 = BaseSet.non_empty (q1_E) in
-	let f2 = BaseSet.non_empty (q2_E) in
+	let f1 = not (U.Base.Set.is_empty (q1_E)) in
+	let f2 = not (U.Base.Set.is_empty (q2_E)) in
 	let z1 = get_state1 q1 f1 in
 	let z2 = get_state2 q2 f2 in
 	let _ = Printf.printf "q%d %b\n" z1 f1 in
 	let _ = Printf.printf "q%d %b\n" z2 f2 in
-	let q1_matrix,q1_indices = calculate_deriv spines_t1 q1 in 
-	let q2_matrix,q2_indices = calculate_deriv spines_t2 q2 in 
-	let combined_indices = U.IndexPairSet.union q1_indices q2_indices in
-	let work_list = U.IndexPairSet.fold 
+	let q1_matrix = calculate_deriv spines_t1 q1 in 
+	let q2_matrix = calculate_deriv spines_t2 q2 in 
+	let work_list = U.Base.Set.fold_points
 	  (fun (alpha,beta) expanded_work_list -> 
 	    Printf.printf "transition: {%s*%s}\n " (U.Index.to_string alpha) (U.Index.to_string beta);
 	    let q1' = q1_matrix alpha beta in
