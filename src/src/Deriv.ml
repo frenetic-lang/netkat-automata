@@ -95,6 +95,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
         ValueSet.empty
     let field_to_string x = x
     let value_to_string x = x
+    let field_of_id x = x
+    let value_of_id x = x
   end in 
   let module U = Univ(UnivDescr) in 
 
@@ -138,7 +140,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
         if (Ast.contains_dups e) then 
           calculate_deriv (allLRspines e) e
         else 
-          (fun a b -> Zero)
+          (fun _ -> Zero)
       end
   in
 
@@ -215,8 +217,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
     else
       let q1,q2 = WorkList.hd work_list in
       let rest_work_list = WorkList.tl work_list in
-      let q1_E = U.calculate_E q1 in
-      let q2_E = U.calculate_E q2 in
+      let q1_E = U.set_of_term q1 in
+      let q2_E = U.set_of_term q2 in
       Printf.printf "The universe: %s\n" (StringSetMap.to_string univ "%s={%s}" (fun x -> x));
       Printf.printf "q1: %s\n" (Ast.term_to_string q1);
       Printf.printf "q2: %s\n" (Ast.term_to_string q2);
