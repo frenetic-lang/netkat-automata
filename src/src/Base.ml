@@ -127,14 +127,39 @@ module Univ = functor (U : UnivDescr) -> struct
       let equal = equal
     end)
       
-    (* Operations on Set.t *)
     exception Empty_mult
 
-    let is_empty (Base(a,b):t) : bool = 
-      failwith "NYI"
 
-    let intersect (Base(a1,b1):t) (Base(a2,b2):t) : t = 
-      failwith "NYI"
+    (* TODO: is this right? mpm *)
+    let intersect (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
+      try 
+	Some (U.FieldSet.fold
+	  (fun field (Base(tests, assgs)) -> 
+	    let test_1 = 
+	      try Map.find field a1 with Not_found -> PosNeg.any field in 
+	    let test_2 = 
+	      try Map.find field a2 with Not_found -> PosNeg.any field in 
+	    let new_test = PosNeg.intersect test_1 test_2 in
+	    if PosNeg.is_empty new_test 
+	    then raise Empty_mult;
+	    let new_assg = 
+	      match ((try Some (Map.find field b1) with Not_found -> None),
+		     (try Some (Map.find field b1) with Not_found -> None)) 
+	      with 
+		| (Some assg1, Some assg2) -> 
+		  if (U.value_compare assg1 assg2) = 0 
+		  then Some assg1
+		  else None
+		| ((None, Some assg) | (Some assg, None)) -> Some assg 
+		| (None, None) ->  None in
+	    match new_assg with 
+	      | None -> Base(Map.add field new_test tests, assgs)
+	      | Some new_assg -> 
+		Base(Map.add field new_test tests,
+		     Map.add field new_assg assgs))
+	  U.all_fields (Base(Map.empty, Map.empty)))
+      with Empty_mult -> None
+	    
 
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
