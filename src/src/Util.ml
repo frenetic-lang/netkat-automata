@@ -1,4 +1,3 @@
-
 exception Quit
 exception Undo
 
@@ -107,7 +106,8 @@ module type SetMapF =
   functor (V : Set.OrderedType) -> sig
     type t
     type elt = V.t
-    type eltSet
+    module Values : Set.S with type elt = elt
+    type eltSet = Values.t
     type key = K.t
     val empty : t
     val add : key -> elt -> t -> t

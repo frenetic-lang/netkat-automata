@@ -1,4 +1,5 @@
 open Util
+
 exception Empty
 
 module S = StringSetMap

@@ -3,7 +3,8 @@ exception Quit
 module StringSetMap : sig 
     type t
     type elt = string
-    type eltSet
+    module Values : Set.S with type elt = elt
+    type eltSet = Values.t
     type key = string
     val empty : t
     val add : key -> elt -> t -> t

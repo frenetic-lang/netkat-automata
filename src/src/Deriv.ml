@@ -75,71 +75,71 @@ end
 
 let check_equivalent (t1:term) (t2:term) : bool = 
 
-  (* TODO: this is a heuristic.  Which I can't spell.  *)
+  (* TODO: this is a heuristic.  Which I can spell, hooray.  *)
   let univ = StringSetMap.union (values_in_term t1) (values_in_term t2) in 
   let univ = List.fold_left (fun u x -> StringSetMap.add x "<other>" u) univ (StringSetMap.keys univ) in
-  let module U = Univ(struct let univ = univ end) in
-  let module BaseElt = U.BaseElt in
-  let module BaseSet = U.BaseSet in
+  let module UnivDescr = struct
+    type field = string
+    type value = string
+    module FieldSet = Set.Make(String)
+    module ValueSet = StringSetMap.Values
+    let field_compare = Pervasives.compare
+    let value_compare = Pervasives.compare
+    let all_fields = 
+      (* TODO: fix me when SSM is eliminated *)
+      List.fold_right FieldSet.add (StringSetMap.keys univ) FieldSet.empty
+    let all_values f = 
+      try 
+        StringSetMap.find_all f univ
+      with Not_found -> 
+        ValueSet.empty
+    let field_to_string x = x
+    let value_to_string x = x
+  end in 
+  let module U = Univ(UnivDescr) in 
 
   (* calculate all spines as the first thing in the main algorithm
      and pass them in here *)
-  let rec calculate_deriv all_spines (e:Ast.term) : 
-      (U.Index.t -> U.Index.t -> Term.term) * (* the term matrix *) 
-      U.IndexPairSet.t (* the alpha-betas to iterate over *) 
-   =
+  let rec calculate_deriv all_spines (e:Ast.term) =
+    (* TODO(jnf,ljt,mpm): fill in the type *)
     try 
       Printf.printf "asked for the deriv of %s \n" (Ast.term_to_string e);
       TermSet.fold 
-	(fun spine_pair (acc,existing_alpha_betas) -> 
-	  let e1,e2 = 
+	(fun spine_pair acc -> 
 	  (* pull out elements of spine pair*)
-	    match spine_pair with 
-	      | Times [lspine;rspine] -> lspine,rspine
-	      | _ -> failwith "Dexter LIES" in
+	  let e1,e2 = match spine_pair with 
+	    | Times [lspine;rspine] -> lspine,rspine
+	    | _ -> failwith "Dexter LIES" in
+
 	(* calculate e of left spine*)
-	let corresponding_E = U.calculate_E e1 in
+	let corresponding_E = U.Base.set_of_term e1 in
 	  
 	(* use previous intersection to determine non-zero elements of D(e) *)
-	  
-	  (* let er_E = U.calculate_E e2 in *)
-	  (* let er_E' = BaseSet.fold  *)
-	  (*   (fun (ta,pa) acc -> BaseSet.add (ta,BaseElt.Beta (ta, StringSetMap.empty)) acc) *)
-	  (*   er_E BaseSet.empty in *)
-          (* ignore (er_E'); (\* TODO(jnf): remove this *\) *)
-	  Printf.printf "left spine in deriv: %s \n" (Ast.term_to_string e1);
-          (* TODO(jnf): the commented out line below is attempting to
-             further shrink the set of base pairs that we have to
-             consider while calculating the rest of the derivative by
-             calculating E(e2), that is, the right spine, and then
-             multiplying by E(e1), that is, the left spine. There is
-             some unknown bug that is tickled by enabling this, so
-             it's currently disabled. *)
-	  let e_where_intersection_is_present = corresponding_E (*BaseSet.mult corresponding_E er_E'*) in
-	  let internal_matrix_ref alpha beta = 
-	    let complete_assg = U.Index.to_test beta in
-	    let alpha = BaseElt.alpha_of_index alpha in
-	    let beta = BaseElt.beta_of_index alpha beta in
-	    if BaseSet.contains alpha beta e_where_intersection_is_present 
-	    then 
-	      mul_terms complete_assg e2
-	    else Zero
-	  in
-	  let new_indices = 
-	    U.IndexPairSet.union existing_alpha_betas (BaseSet.to_IndexPairSet e_where_intersection_is_present) in
-	  if U.IndexPairSet.is_empty new_indices then Printf.printf "Deriv: pair set is empty!\n" ;
-	  (fun alpha beta -> 
-	    add_terms (internal_matrix_ref alpha beta) (acc alpha beta)),
-	  new_indices
-	)
-	(Hashtbl.find all_spines e) ((fun a b -> Zero), U.IndexPairSet.empty) 
-    with Not_found -> begin 
-      
-      Printf.printf "couldn't find requested expression in spines.\n";
-      if (Ast.contains_dups e)
-      then calculate_deriv (allLRspines e) e
-      else ((fun a b -> Zero), U.IndexPairSet.empty)
-    end
+	Printf.printf "left spine in deriv: %s \n" (Ast.term_to_string e1);
+        (* TODO(jnf): the commented out line below is attempting to
+           further shrink the set of base pairs that we have to
+           consider while calculating the rest of the derivative by
+           calculating E(e2), that is, the right spine, and then
+           multiplying by E(e1), that is, the left spine. There is
+           some unknown bug that is tickled by enabling this, so
+           it's currently disabled. *)
+	let e_where_intersection_is_present = corresponding_E (*BaseSet.mult corresponding_E er_E'*) in
+	let internal_matrix_ref point = 
+	  if U.Base.contains_point e_where_intersection_is_present point then
+	    mul_terms (U.Base.assg_of_point point) e2
+	  else 
+            Zero in 
+          (* TODO(jnf,mpm,ljt): make sure that new points are handled elsewhere *)
+	(fun point -> add_terms (internal_matrix_ref point) (acc point)))
+	(Hashtbl.find all_spines e) (fun _ -> Zero) 
+    with Not_found -> 
+      begin 
+        Printf.printf "couldn't find requested expression in spines.\n";
+        if (Ast.contains_dups e) then 
+          calculate_deriv (allLRspines e) e
+        else 
+          (fun a b -> Zero)
+      end
   in
 
   let module WorkList = WorkList(struct 
