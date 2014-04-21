@@ -177,46 +177,45 @@ module Univ = functor (U : UnivDescr) -> struct
             | None -> r in
 	let g x  (r : t) : t = fold (f x) right r in
 	fold g left empty
-	
-    end
 
-    (* set_of_term : Ast.term -> Set.t *)
+      let fold_points (f : (point -> 'a -> 'a)) (st : t) (acc : 'a) : 'a =
+	failwith "implme"
+
+    (* of_term : Ast.term -> Set.t *)
     (* this calculates the E matrix *)
-    let rec set_of_term (t0:Ast.term) : Set.t = 
+    let rec of_term (t0:Ast.term) : t = 
       let open Ast.Term in 
       match t0 with 
         | One -> 
-          Set.singleton (Base(Map.empty, Map.empty))
+          singleton (Base(Map.empty, Map.empty))
         | Zero -> 
-          Set.empty
+          empty
         | Assg(field,v) -> 
-          Set.singleton (Base(Map.empty, Map.add (U.field_of_id field) (U.value_of_id v) Map.empty))
+          singleton (Base(Map.empty, Map.add (U.field_of_id field) (U.value_of_id v) Map.empty))
 	| Test(field,v) ->  
 	  let field = U.field_of_id field in
 	  let v = U.value_of_id v in
-	  Set.singleton (Base(Map.add field (PosNeg.Pos (field,U.ValueSet.singleton v)) Map.empty, Map.empty))
+	  singleton (Base(Map.add field (PosNeg.Pos (field,U.ValueSet.singleton v)) Map.empty, Map.empty))
         | Dup -> 
-          Set.empty
+          empty
         | Plus ts ->
-          Ast.TermSet.fold (fun t acc -> Set.union (set_of_term t) acc) ts Set.empty 
+          Ast.TermSet.fold (fun t acc -> union (of_term t) acc) ts empty 
         | Times tl -> 
-          List.fold_right (fun t acc ->  Set.mult (set_of_term t) acc) tl
-	    (Set.singleton (Base (Map.empty, Map.empty)))
+          List.fold_right (fun t acc ->  mult (of_term t) acc) tl
+	    (singleton (Base (Map.empty, Map.empty)))
         | Not x -> 
           assert false
         | Star x -> 
           assert false
+
+    let contains_point (st : t) (pt : point) : bool = 
+      failwith "implme"
+
+    end
+
 	    
     let assg_of_point (p : point) : Ast.term = 
       failwith "implme"
-
-
-    let contains_point (st : Set.t) (pt : point) : bool = 
-      failwith "implme"
-
-    let fold_points (f : (point -> 'a -> 'a)) (st : Set.t) (acc : 'a) : 'a =
-      failwith "implme"
-
 
   end (* Base *)
 end (* Univ *)

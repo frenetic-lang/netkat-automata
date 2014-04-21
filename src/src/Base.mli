@@ -18,10 +18,13 @@ sig
   module Base : sig
     type t
     type point
-    module Set : Set.S with type elt = t
-    val fold_points : (point -> 'a -> 'a) -> Set.t -> 'a -> 'a
-    val contains_point : Set.t -> point -> bool
-    val set_of_term : Ast.term -> Set.t
+    module Set : sig 
+      include Set.S with type elt = t
+      val to_string : t -> string
+      val fold_points : (point -> 'a -> 'a) -> t -> 'a -> 'a
+      val contains_point : t -> point -> bool
+      val of_term : Ast.term -> t
+    end
     val assg_of_point : point -> Ast.term
   end
 end
