@@ -144,7 +144,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	    then raise Empty_mult;
 	    let new_assg = 
 	      match ((try Some (Map.find field b1) with Not_found -> None),
-		     (try Some (Map.find field b1) with Not_found -> None)) 
+		     (try Some (Map.find field b2) with Not_found -> None)) 
 	      with 
 		| (Some assg1, Some assg2) -> 
 		  if (U.value_compare assg1 assg2) = 0 
