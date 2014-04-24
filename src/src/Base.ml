@@ -108,6 +108,7 @@ module Univ = functor (U : UnivDescr) -> struct
       Map.compare U.value_compare b1 b2
 
     type t = Base of atom * assg 
+    (* must be a Pos * completely-filled-in thing*)
     type point = t
 
     let to_string (Base(a,b) : t) : string =
@@ -130,7 +131,39 @@ module Univ = functor (U : UnivDescr) -> struct
     exception Empty_mult
 
     
+    let contains_point (Base(x,y) : point) (Base(a,b) : t) : bool = 
+      let extract_x field x = 
+	let x = try Map.find field x with Not_found -> 
+	  failwith "Point doesn't match the spec." in
+	let x = match x with 
+	  | PosNeg.Pos (_,x) -> x
+	  | PosNeg.Neg _ -> failwith "Point doesn't match the spec." in
+	match (U.ValueSet.elements x) with 
+	  | [x] -> x
+	  | _ -> failwith "Point doesn't match the spec"
+      in
+      let extract_y field y = 
+	try Map.find field y with Not_found -> 
+	  failwith "Point doesn't match the spec." 
+      in
+      U.FieldSet.fold 
+	(fun field acc -> 
+	  let x = extract_x field x in
+	  let y = extract_y field y in
+	  let a = try Map.find field a with Not_found -> (PosNeg.any field) in
+	  PosNeg.contains a x && 
+	    (try let v = (Map.find field b) in 
+		 v = y && 
+		(if PosNeg.contains a v then x = y else true)
+	     with Not_found -> y = x)
+	  && acc
+	) U.all_fields true
 
+
+    let test_of_point (p : point) : Ast.term = 
+      failwith "implme"
+
+	
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
         Some (U.FieldSet.fold 
@@ -158,6 +191,7 @@ module Univ = functor (U : UnivDescr) -> struct
           (U.all_fields) (Base(Map.empty, Map.empty)))
       with Empty_mult -> 
         None
+
 
     module Set = struct
       include S
@@ -204,13 +238,9 @@ module Univ = functor (U : UnivDescr) -> struct
           assert false
 
     let contains_point (st : t) (pt : point) : bool = 
-      failwith "implme"
+      fold (fun e acc -> (contains_point pt e) || acc) st false
 
-    end
-
-	    
-    let assg_of_point (p : point) : Ast.term = 
-      failwith "implme"
+    end (* Base.Set *)	    
 
   end (* Base *)
 end (* Univ *)

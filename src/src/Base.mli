@@ -25,6 +25,6 @@ sig
       val contains_point : t -> point -> bool
       val of_term : Ast.term -> t
     end
-    val assg_of_point : point -> Ast.term
+    val test_of_point : point -> Ast.term
   end
 end

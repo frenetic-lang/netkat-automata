@@ -132,7 +132,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	let e_where_intersection_is_present = corresponding_E  in
 	let internal_matrix_ref point = 
 	  if U.Base.Set.contains_point e_where_intersection_is_present point then
-	    mul_terms (U.Base.assg_of_point point) e2
+	    mul_terms (U.Base.test_of_point point) e2
 	  else 
             Zero in 
 	let more_points = 
