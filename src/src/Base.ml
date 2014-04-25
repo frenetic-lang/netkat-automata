@@ -109,7 +109,7 @@ module Univ = functor (U : UnivDescr) -> struct
 
     type t = Base of atom * assg 
     (* must be a Pos * completely-filled-in thing*)
-    type point = t
+    type point = Point of assg * assg
 
     let to_string (Base(a,b) : t) : string =
       Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
@@ -131,16 +131,10 @@ module Univ = functor (U : UnivDescr) -> struct
     exception Empty_mult
 
     
-    let contains_point (Base(x,y) : point) (Base(a,b) : t) : bool = 
+    let contains_point (Point(x,y) : point) (Base(a,b) : t) : bool = 
       let extract_x field x = 
-	let x = try Map.find field x with Not_found -> 
-	  failwith "Point doesn't match the spec." in
-	let x = match x with 
-	  | PosNeg.Pos (_,x) -> x
-	  | PosNeg.Neg _ -> failwith "Point doesn't match the spec." in
-	match (U.ValueSet.elements x) with 
-	  | [x] -> x
-	  | _ -> failwith "Point doesn't match the spec"
+	try Map.find field x with Not_found -> 
+	  failwith "Point doesn't match the spec." 
       in
       let extract_y field y = 
 	try Map.find field y with Not_found -> 
@@ -160,7 +154,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	) U.all_fields true
 
 
-    let test_of_point (Base(_,y) : point) : Ast.term = 
+    let test_of_point (Point(_,y) : point) : Ast.term = 
       Ast.Term.Plus
 	(U.FieldSet.fold 
 	   (fun field acc -> 
@@ -168,6 +162,12 @@ module Univ = functor (U : UnivDescr) -> struct
 	       failwith "Point doesn't match the spec."  in
 	     Ast.TermSet.add (Ast.Term.Test(U.field_to_string field, U.value_to_string v)) acc)
 	   U.all_fields Ast.TermSet.empty)
+
+    let base_of_point (Point(x,y) : point) : t = 
+      let x = Map.fold 
+	(fun f v acc -> Map.add f (PosNeg.Pos(f,U.ValueSet.singleton v)) acc)
+	x Map.empty in
+      Base(x, y)
 	
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
@@ -197,12 +197,19 @@ module Univ = functor (U : UnivDescr) -> struct
       with Empty_mult -> 
         None
 
-
+    let fold_points (f : (point -> 'a -> 'a)) (b : t) (acc : 'a) : 'a =
+      let extract_points bse = 
+	failwith "todo later"
+      in
+      List.fold_right f (extract_points b) acc
+	
     module Set = struct
       include S
       let to_string (bs:t) : string = 
         Printf.sprintf "{%s}" 
           (S.fold (fun x s -> (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
+
+
       (* TODO: a more efficient multiplication would be nice.*)
       let mult (left : t) (right : t) : t =
 	let f x y (r : t) : t =
@@ -212,8 +219,29 @@ module Univ = functor (U : UnivDescr) -> struct
 	let g x  (r : t) : t = fold (f x) right r in
 	fold g left empty
 
+      let contains_point (st : t) (pt : point) : bool = 
+	fold (fun e acc -> (contains_point pt e) || acc) st false
+	
+      (* we're dealing with duplicates right now by rememering and skipping points.  
+	 It would be better to invent a normal form which guaranteed no duplicates.
+      *)
       let fold_points (f : (point -> 'a -> 'a)) (st : t) (acc : 'a) : 'a =
-	failwith "implme"
+	let seen_points = ref S.empty in
+	fold (fun base acc -> 
+	  fold_points (fun elt acc -> 
+	    let belt = base_of_point elt in 
+	    if S.mem belt (!seen_points)
+	    then acc 
+	    else (seen_points := S.add belt (!seen_points); 
+		  (f elt acc))) 
+	    base acc
+	) st acc
+
+      let compare a b = failwith "can't do it"
+
+      let equal a b = 
+	fold_points (fun pt acc -> contains_point b pt && acc) a true
+
 
     (* of_term : Ast.term -> Set.t *)
     (* this calculates the E matrix *)
@@ -241,9 +269,6 @@ module Univ = functor (U : UnivDescr) -> struct
           assert false
         | Star x -> 
           assert false
-
-    let contains_point (st : t) (pt : point) : bool = 
-      fold (fun e acc -> (contains_point pt e) || acc) st false
 
     end (* Base.Set *)	    
 
