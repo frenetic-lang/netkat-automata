@@ -1,16 +1,17 @@
 module type UnivDescr = sig 
-  type t 
   type value 
   type field
   module FieldSet : Set.S with type elt = field
   module ValueSet : Set.S with type elt = value
-  val field_of_string : string -> field
   val field_compare : field -> field -> int
   val value_compare : value -> value -> int
   val all_fields : FieldSet.t
   val all_values : field -> ValueSet.t
   val field_to_string : field -> string
   val value_to_string : value -> string
+  val field_of_id : Ast.id -> field
+  val value_of_id : Ast.id -> value
+
 end
 
 let collection_to_string fold elt_to_string sep c =
@@ -74,7 +75,7 @@ module Univ = functor (U : UnivDescr) -> struct
           U.ValueSet.is_empty s
         | Neg(f,s) -> 
           U.ValueSet.equal (U.all_values f) s
-  end
+  end (* PosNeg *)
   module Base = struct
 
     module Map = Map.Make(struct
@@ -107,6 +108,8 @@ module Univ = functor (U : UnivDescr) -> struct
       Map.compare U.value_compare b1 b2
 
     type t = Base of atom * assg 
+    (* must be a Pos * completely-filled-in thing*)
+    type point = t
 
     let to_string (Base(a,b) : t) : string =
       Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
@@ -124,23 +127,48 @@ module Univ = functor (U : UnivDescr) -> struct
       let compare = compare
       let equal = equal
     end)
-
-    module Set = struct
-      include S
-      let to_string (bs:t) : string = 
-        Printf.sprintf "{%s}" 
-          (S.fold (fun x s -> (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
-    end
       
-    (* Operations on Set.t *)
     exception Empty_mult
 
-    let is_empty (Base(a,b):t) : bool = 
-      failwith "NYI"
+    
+    let contains_point (Base(x,y) : point) (Base(a,b) : t) : bool = 
+      let extract_x field x = 
+	let x = try Map.find field x with Not_found -> 
+	  failwith "Point doesn't match the spec." in
+	let x = match x with 
+	  | PosNeg.Pos (_,x) -> x
+	  | PosNeg.Neg _ -> failwith "Point doesn't match the spec." in
+	match (U.ValueSet.elements x) with 
+	  | [x] -> x
+	  | _ -> failwith "Point doesn't match the spec"
+      in
+      let extract_y field y = 
+	try Map.find field y with Not_found -> 
+	  failwith "Point doesn't match the spec." 
+      in
+      U.FieldSet.fold 
+	(fun field acc -> 
+	  let x = extract_x field x in
+	  let y = extract_y field y in
+	  let a = try Map.find field a with Not_found -> (PosNeg.any field) in
+	  PosNeg.contains a x && 
+	    (try let v = (Map.find field b) in 
+		 v = y && 
+		(if PosNeg.contains a v then x = y else true)
+	     with Not_found -> y = x)
+	  && acc
+	) U.all_fields true
 
-    let intersect (Base(a1,b1):t) (Base(a2,b2):t) : t = 
-      failwith "NYI"
 
+    let test_of_point (Base(_,y) : point) : Ast.term = 
+      Ast.Term.Plus
+	(U.FieldSet.fold 
+	   (fun field acc -> 
+	     let v = try Map.find field y with Not_found -> 
+	       failwith "Point doesn't match the spec."  in
+	     Ast.TermSet.add (Ast.Term.Test(U.field_to_string field, U.value_to_string v)) acc)
+	   U.all_fields Ast.TermSet.empty)
+	
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
         Some (U.FieldSet.fold 
@@ -169,27 +197,55 @@ module Univ = functor (U : UnivDescr) -> struct
       with Empty_mult -> 
         None
 
-    (* set_of_term : Ast.term -> Set.t *)
-    let rec set_of_term (t0:Ast.term) : Set.t = 
+
+    module Set = struct
+      include S
+      let to_string (bs:t) : string = 
+        Printf.sprintf "{%s}" 
+          (S.fold (fun x s -> (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
+      (* TODO: a more efficient multiplication would be nice.*)
+      let mult (left : t) (right : t) : t =
+	let f x y (r : t) : t =
+          match mult x y with
+            | Some z -> add z r
+            | None -> r in
+	let g x  (r : t) : t = fold (f x) right r in
+	fold g left empty
+
+      let fold_points (f : (point -> 'a -> 'a)) (st : t) (acc : 'a) : 'a =
+	failwith "implme"
+
+    (* of_term : Ast.term -> Set.t *)
+    (* this calculates the E matrix *)
+    let rec of_term (t0:Ast.term) : t = 
       let open Ast.Term in 
       match t0 with 
         | One -> 
-          Set.singleton (Base(Map.empty, Map.empty))
+          singleton (Base(Map.empty, Map.empty))
         | Zero -> 
-          Set.empty
+          empty
         | Assg(field,v) -> 
-          Set.singleton (Base(Map.empty, Map.add (field v Map.empty))
-        (* | Test(x,v) ->  *)
-        (*   Set.singleton (StringSetMap.add x v StringSetMap.empty, StringSetMap.empty) *)
+          singleton (Base(Map.empty, Map.add (U.field_of_id field) (U.value_of_id v) Map.empty))
+	| Test(field,v) ->  
+	  let field = U.field_of_id field in
+	  let v = U.value_of_id v in
+	  singleton (Base(Map.add field (PosNeg.Pos (field,U.ValueSet.singleton v)) Map.empty, Map.empty))
         | Dup -> 
-          Set.empty
+          empty
         | Plus ts ->
-          Ast.TermSet.fold (fun t acc -> Set.union (set_of_term t) acc) ts Set.empty 
-        | Times t -> 
-          Ast.TermSet.fold (fun t acc -> mult (set_of_term t) acc) ts (Set.singleton (StringSetMap.empty, StringSetMap.empty))
+          Ast.TermSet.fold (fun t acc -> union (of_term t) acc) ts empty 
+        | Times tl -> 
+          List.fold_right (fun t acc ->  mult (of_term t) acc) tl
+	    (singleton (Base (Map.empty, Map.empty)))
         | Not x -> 
           assert false
         | Star x -> 
           assert false
+
+    let contains_point (st : t) (pt : point) : bool = 
+      fold (fun e acc -> (contains_point pt e) || acc) st false
+
+    end (* Base.Set *)	    
+
   end (* Base *)
 end (* Univ *)
