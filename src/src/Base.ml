@@ -75,6 +75,13 @@ module Univ = functor (U : UnivDescr) -> struct
           U.ValueSet.is_empty s
         | Neg(f,s) -> 
           U.ValueSet.equal (U.all_values f) s
+
+    let elements (pn : t) : U.ValueSet.t = 
+      match pn with 
+	| Pos (_,elts) -> elts
+	| Neg (f,elts) -> 
+	  (U.ValueSet.diff (U.all_values f) elts)
+	      
   end (* PosNeg *)
   module Base = struct
 
@@ -197,9 +204,26 @@ module Univ = functor (U : UnivDescr) -> struct
       with Empty_mult -> 
         None
 
-    let fold_points (f : (point -> 'a -> 'a)) (b : t) (acc : 'a) : 'a =
-      let extract_points bse = 
-	failwith "todo later"
+    let fold_points (f : (point -> 'a -> 'a)) (Base(a,b) : t) (acc : 'a) : 'a =
+      let extract_points bse : point list = 
+	  U.FieldSet.fold
+	    (fun field partial_list -> 
+	      let a = PosNeg.elements (try Map.find field a 
+		with Not_found -> 
+		  (PosNeg.any field)) in
+	      List.fold_right 
+		(fun (Point(x,y)) (acc : point list) -> 
+		  try 
+		    let b = Map.find field b in
+		    U.ValueSet.fold (fun v acc -> 
+		      (Point(Map.add field v x, Map.add field b y)) :: acc
+		    ) a acc
+		  with Not_found ->
+		    U.ValueSet.fold (fun v acc -> 
+		    (Point(Map.add field v x, Map.add field v y)) :: acc
+		    ) a acc
+		) partial_list []
+	    ) U.all_fields []
       in
       List.fold_right f (extract_points b) acc
 	
