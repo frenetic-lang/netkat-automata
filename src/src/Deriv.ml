@@ -157,11 +157,14 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let spines_t1 = allLRspines t1 in
   let spines_t2 = allLRspines t2 in
 
+  let get_state,update_state,print_states = Dot.init (fun a -> not 
+    (U.Base.Set.is_empty a)) in
+
   let rec main_loop work_list = 
     Printf.printf "Iterating the work list! \n";
     if WorkList.is_empty work_list
     then 
-      true
+      (print_states (); true)
     else
       let q1,q2 = WorkList.hd work_list in
       let rest_work_list = WorkList.tl work_list in
@@ -177,26 +180,29 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	TODO(mpm): Re-write this pretty-printer at some point.
 	Printf.printf "E of q1 in matrix form:\n%s\n" (BaseSet.to_matrix_string q1_E);
       Printf.printf "E of q2 in matrix form:\n%s\n" (BaseSet.to_matrix_string q2_E);*)
-
-      (*TODO(mpm):  all of this assumes a normal form.  If the bases inside the set are empty,
-	or there are structurally-different representations of equal things, this will all break.
-      *)
       if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
-	 let q1_matrix,q1_points = calculate_deriv spines_t1 q1 in 
-	 let q2_matrix,q2_points = calculate_deriv spines_t2 q2 in 
-	 let work_list = U.Base.Set.fold_points
-	   (fun pt expanded_work_list -> 
-	     let q1' = q1_matrix pt in
-	     let q2' = q2_matrix pt in
-	     Printf.printf "q1': %s\n" (Ast.term_to_string q1');
-	     Printf.printf "q2': %s\n" (Ast.term_to_string q2');
-	     WorkList.add (q1',q2')
-	       expanded_work_list
-	   )
-	   (U.Base.Set.union q1_points q2_points) rest_work_list in
-	 main_loop work_list in
+	let (dot_bundle : Dot.t) = get_state q1 q2 q1_E q2_E in
+	let q1_matrix,q1_points = calculate_deriv spines_t1 q1 in 
+	let q2_matrix,q2_points = calculate_deriv spines_t2 q2 in 
+	let work_list = U.Base.Set.fold_points
+	  (fun pt expanded_work_list -> 
+	    let q1' = q1_matrix pt in
+	    let q2' = q2_matrix pt in
+	    Printf.printf "q1': %s\n" (Ast.term_to_string q1');
+	    Printf.printf "q2': %s\n" (Ast.term_to_string q2');
+	    update_state 
+	      dot_bundle 
+	      q1'
+	      q2'
+	      (U.Base.Set.of_term q1')
+	      (U.Base.Set.of_term q2');
+	    WorkList.add (q1',q2')
+	      expanded_work_list
+	  )
+	  (U.Base.Set.union q1_points q2_points) rest_work_list in
+	main_loop work_list in
   main_loop (WorkList.singleton (t1,t2))
 
 
