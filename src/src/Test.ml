@@ -31,6 +31,5 @@ let test (f : Ast.formula) : unit =
   
   check "ss" (Deriv.ss_sanity s);
   check "ss" (Deriv.ss_sanity t);
-
   Printf.printf "Bisimulation result: %b\n"
     (Deriv.check_equivalent (Ast.deMorgan s) (Ast.deMorgan t))

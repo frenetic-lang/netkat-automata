@@ -11,11 +11,12 @@ module type UnivDescr = sig
   val value_to_string : value -> string
   val field_of_id : Ast.id -> field
   val value_of_id : Ast.id -> value
+  val value_of_string : string -> value
 
 end
 
 let collection_to_string fold elt_to_string sep c =
-  fold (fun x acc -> if acc = "" then acc else acc ^ sep ^ elt_to_string x) c ""
+  fold (fun x acc ->if acc = "" then acc ^ elt_to_string x else acc ^ sep ^ elt_to_string x) c ""
 
 module Univ = functor (U : UnivDescr) -> struct 
   
@@ -34,8 +35,8 @@ module Univ = functor (U : UnivDescr) -> struct
     let to_string = function
       | Pos (_,s) -> 
         values_to_string s
-      | Neg (_,s) -> 
-        "!" ^ values_to_string s 
+      | Neg (f,s) -> 
+        values_to_string (U.ValueSet.diff (U.all_values f) s)
 
     let any (f:U.field) : t = Neg(f, U.ValueSet.empty) 
 
@@ -93,20 +94,30 @@ module Univ = functor (U : UnivDescr) -> struct
     type assg = U.ValueSet.elt Map.t
                 
     let atom_to_string (a:atom) : string = 
-      Map.fold (fun f pn acc -> 
+      U.FieldSet.fold (fun f acc -> 
+	let pnstr = 
+	  try 
+	    PosNeg.to_string (Map.find f a)
+	  with Not_found -> 
+	    PosNeg.to_string (PosNeg.any f)
+	in
         Printf.sprintf "%s%s=%s"
           (if acc = "" then acc else acc ^ ", ") 
           (U.field_to_string f)
-          (PosNeg.to_string pn))
-        a ""
+          pnstr)
+        U.all_fields ""
         
     let assg_to_string (b:assg) : string = 
-      Map.fold (fun f v acc -> 
+      U.FieldSet.fold (fun f acc -> 
+	let vstr = 
+	  try U.value_to_string (Map.find f b)
+	  with Not_found -> "_"
+	in
         Printf.sprintf "%s%s:=%s"
           (if acc = "" then acc else acc ^ ", ") 
           (U.field_to_string f)
-          (U.value_to_string v))
-        b ""
+          vstr)
+        U.all_fields ""
         
     let atom_compare (a1:atom) (a2:atom) : int = 
       Map.compare PosNeg.compare a1 a2
@@ -137,25 +148,23 @@ module Univ = functor (U : UnivDescr) -> struct
       
     exception Empty_mult
 
+    let base_of_point (Point(x,y) : point) : t = 
+      let x = Map.fold 
+	(fun f v acc -> Map.add f (PosNeg.Pos(f,U.ValueSet.singleton v)) acc)
+	x Map.empty in
+      Base(x, y)
+
     
     let contains_point (Point(x,y) : point) (Base(a,b) : t) : bool = 
-      let extract_x field x = 
-	try Map.find field x with Not_found -> 
-	  failwith "Point doesn't match the spec." 
-      in
-      let extract_y field y = 
-	try Map.find field y with Not_found -> 
-	  failwith "Point doesn't match the spec." 
-      in
       U.FieldSet.fold 
 	(fun field acc -> 
-	  let x = extract_x field x in
-	  let y = extract_y field y in
+	  let x = try Map.find field x with Not_found -> 
+	    failwith "Point doesn't match the spec." in
+	  let y = try Map.find field y with Not_found -> 
+	    failwith "Point doesn't match the spec." in
 	  let a = try Map.find field a with Not_found -> (PosNeg.any field) in
 	  PosNeg.contains a x && 
-	    (try let v = (Map.find field b) in 
-		 v = y && 
-		(if PosNeg.contains a v then x = y else true)
+	    (try y = (Map.find field b)
 	     with Not_found -> y = x)
 	  && acc
 	) U.all_fields true
@@ -170,11 +179,6 @@ module Univ = functor (U : UnivDescr) -> struct
 	     Ast.TermSet.add (Ast.Term.Test(U.field_to_string field, U.value_to_string v)) acc)
 	   U.all_fields Ast.TermSet.empty)
 
-    let base_of_point (Point(x,y) : point) : t = 
-      let x = Map.fold 
-	(fun f v acc -> Map.add f (PosNeg.Pos(f,U.ValueSet.singleton v)) acc)
-	x Map.empty in
-      Base(x, y)
 	
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
@@ -218,17 +222,26 @@ module Univ = functor (U : UnivDescr) -> struct
 		    U.ValueSet.fold (fun v acc -> 
 		      (Point(Map.add field v x, Map.add field b y)) :: acc
 		    ) a acc
-		  with Not_found ->
+		  with Not_found ->		    
 		    U.ValueSet.fold (fun v acc -> 
-		    (Point(Map.add field v x, Map.add field v y)) :: acc
+		      (Point(Map.add field v x, Map.add field v y)) :: acc
 		    ) a acc
 		) partial_list []
-	    ) U.all_fields []
+	    ) U.all_fields [Point(Map.empty, Map.empty)]
       in
-      List.fold_right f (extract_points b) acc
+      let pts = (extract_points b) in
+      (*Printf.printf "When asked about this base: %s\nwe extracted these points: %s\n" 
+	(to_string (Base(a,b)))
+	(List.fold_right (Printf.sprintf "%s %s")
+	   (List.map 
+	      (fun (Point(a,b)) -> 
+		Printf.sprintf "<%s;%s>" (assg_to_string a) (assg_to_string b)
+	      ) pts) "");*)
+      List.fold_right f pts acc
 	
     module Set = struct
       include S
+
       let to_string (bs:t) : string = 
         Printf.sprintf "{%s}" 
           (S.fold (fun x s -> (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
@@ -263,13 +276,20 @@ module Univ = functor (U : UnivDescr) -> struct
 
       let compare a b = failwith "can't do it"
 
-      let equal a b = 
+      let equal (a : t) (b : t) = 
 	fold_points (fun pt acc -> contains_point b pt && acc) a true
+	&& fold_points (fun pt acc -> contains_point a pt && acc) b true
 
 
     (* of_term : Ast.term -> Set.t *)
     (* this calculates the E matrix *)
     let rec of_term (t0:Ast.term) : t = 
+      (* to negate a test x=v, we allow x to have any value except v *)
+      let negate (x : U.field) (v : U.value) =
+	singleton(Base(Map.add x (PosNeg.Neg(x,U.ValueSet.singleton v)) Map.empty,Map.empty))
+      in
+      let t0 = Ast.zero_dups t0 in (* may only normalize dup-free terms *)
+      let t0 = Ast.deMorgan t0 in
       let open Ast.Term in 
       match t0 with 
         | One -> 
@@ -289,10 +309,20 @@ module Univ = functor (U : UnivDescr) -> struct
         | Times tl -> 
           List.fold_right (fun t acc ->  mult (of_term t) acc) tl
 	    (singleton (Base (Map.empty, Map.empty)))
-        | Not x -> 
-          assert false
-        | Star x -> 
-          assert false
+	| Not x -> begin
+	  match x with
+	    | Zero -> singleton (Base(Map.empty,Map.empty))
+	    | One -> empty
+	    | Test (x,v) -> negate (U.field_of_id x) (U.value_of_string v)
+	    | _ -> failwith "De Morgan law should have been applied"
+	end
+	| Star x ->
+	  let s = of_term x in
+	  let s1 = add (Base(Map.empty, Map.empty)) s in
+	  let rec f (s : t) (r : t) : t =
+            if equal s r then s
+            else f (mult s s) s in
+	  f (mult s1 s1) s1
 
     end (* Base.Set *)	    
 

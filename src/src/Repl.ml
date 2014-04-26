@@ -20,7 +20,7 @@ let parse (s : string) : Ast.formula =
 let process (input : string) : unit =
   try
     let parsed = parse input in
-	  Test.test parsed
+    Test.test parsed
   with
   | Ast.Empty -> ()
   | Lexer.LexError s -> Printf.printf "Lex Error: %s\n" s
@@ -53,6 +53,7 @@ let rec repl (state : state) : unit =
   print_string "? ";
   let input = read_line() in
   if input = "quit" then raise Quit;
+  Printf.printf "processing...\n%!";
   process input;
   repl state
 

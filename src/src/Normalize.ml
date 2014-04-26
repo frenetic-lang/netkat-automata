@@ -5,10 +5,10 @@ module S = StringSetMap
 type ssm_pair = S.t * S.t
 
 (* universe tells what values in the formula are associated with each variable *)
-    (* <other> is included with each variable to represent values not mentioned *)
+    (* ☃ is included with each variable to represent values not mentioned *)
 let universe (f : formula) : S.t =
   let univ = Ast.values_in_formula f in
-  let g u x = S.add x "<other>" u in
+  let g u x = S.add x "☃" u in
   List.fold_left g univ (S.keys univ)
 
 

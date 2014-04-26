@@ -11,6 +11,7 @@ module type UnivDescr = sig
   val value_to_string : value -> string
   val field_of_id : Ast.id -> field
   val value_of_id : Ast.id -> value
+  val value_of_string : string -> value
 end
 
 module Univ : functor (U:UnivDescr) ->
