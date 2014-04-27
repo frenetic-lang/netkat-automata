@@ -262,13 +262,19 @@ module Univ = functor (U : UnivDescr) -> struct
       (* we're dealing with duplicates right now by rememering and skipping points.  
 	 It would be better to invent a normal form which guaranteed no duplicates.
       *)
+
+      let wasted_cycles = ref 0.
+      let total_cycles = ref 1.
+	
       let fold_points (f : (point -> 'a -> 'a)) (st : t) (acc : 'a) : 'a =
+	Printf.printf "Percent wasted so far: %%%f\n" ((!wasted_cycles /. !total_cycles) *. 100.);
 	let seen_points = ref S.empty in
 	fold (fun base acc -> 
 	  fold_points (fun elt acc -> 
+	    total_cycles := !total_cycles +. 1.;
 	    let belt = base_of_point elt in 
 	    if S.mem belt (!seen_points)
-	    then acc 
+	    then (wasted_cycles := !wasted_cycles +. 1.; acc)
 	    else (seen_points := S.add belt (!seen_points); 
 		  (f elt acc))) 
 	    base acc
