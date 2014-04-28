@@ -19,12 +19,14 @@ sig
   module Base : sig
     type t
     type point
+    val project_lhs : t -> t
     module Set : sig 
       include Set.S with type elt = t
       val to_string : t -> string
       val fold_points : (point -> 'a -> 'a) -> t -> 'a -> 'a
       val contains_point : t -> point -> bool
       val of_term : Ast.term -> t
+      val mult : t -> t -> t
     end
     val test_of_point : point -> Ast.term
   end

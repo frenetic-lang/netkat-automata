@@ -36,6 +36,7 @@ val simplify : term -> term
 val simplify_formula : formula -> formula
 val deMorgan : term -> term 
 val zero_dups : term -> term 
+val one_dups : term -> term 
 
 (* Ye olde matrix stuff *)
 val mul_terms : term -> term -> term

@@ -115,20 +115,11 @@ let check_equivalent (t1:term) (t2:term) : bool =
 
 	(* calculate e of left spine*)
 	let corresponding_E = U.Base.Set.of_term e1 in
-	  
-	(* use previous intersection to determine non-zero elements of D(e) *)
-        (* TODO(jnf): the commented out line below is attempting to
-           further shrink the set of base pairs that we have to
-           consider while calculating the rest of the derivative by
-           calculating E(e2), that is, the right spine, and then
-           multiplying by E(e1), that is, the left spine. There is
-           some unknown bug that is tickled by enabling this, so
-           it's currently disabled. *)
-	(* TODO(mpm): The bug was actually a somewhat interesting algorithmic error, 
-	   and has been fixed in the legacy code.  It requires some interface re-structuring,
-	   and has thus been delayed until after the current re-factor is stable.
-	*)
-	let e_where_intersection_is_present = corresponding_E  in
+	let er_E = U.Base.Set.of_term (Ast.one_dups e2) in
+	let er_E' = U.Base.Set.fold 
+	  (fun base acc -> U.Base.Set.add (U.Base.project_lhs base) acc)
+	  er_E U.Base.Set.empty in
+	let e_where_intersection_is_present =  U.Base.Set.mult corresponding_E er_E' in
 	let internal_matrix_ref point = 
 	  if U.Base.Set.contains_point e_where_intersection_is_present point then
 	    mul_terms (U.Base.test_of_point point) e2
@@ -157,8 +148,10 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let spines_t1 = allLRspines t1 in
   let spines_t2 = allLRspines t2 in
 
-  let get_state,update_state,print_states = Dot.init (fun a -> not 
-    (U.Base.Set.is_empty a)) in
+  let get_state,update_state,print_states = 
+    Dot.init (fun a -> not (U.Base.Set.is_empty a))
+    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
+  in
 
   let rec main_loop work_list = 
     Printf.printf "Iterating the work list! \n";

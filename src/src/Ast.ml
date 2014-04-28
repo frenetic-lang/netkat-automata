@@ -246,6 +246,18 @@ let zero_dups (t : term) : term =
     | Star x -> Star (zero x) in
   simplify (zero t)
 
+(* set dups to 1 *)
+let one_dups (t : term) : term =
+  let rec one t =
+    match t with 
+      | (Assg _ | Test _ | Zero | One) -> t
+      | Dup -> One
+      | Plus x -> Plus (TermSet.map one x)
+      | Times x -> Times (List.map one x)
+      | Not x -> Not (one x)
+      | Star x -> Star (one x) in
+  simplify (one t)
+
 let contains_dups (t : term) : bool =
   let rec contains t =
     match t with 

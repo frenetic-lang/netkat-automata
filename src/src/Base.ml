@@ -238,6 +238,9 @@ module Univ = functor (U : UnivDescr) -> struct
 		Printf.sprintf "<%s;%s>" (assg_to_string a) (assg_to_string b)
 	      ) pts) "");*)
       List.fold_right f pts acc
+
+    let project_lhs (Base(a,b)) = 
+      Base(a,Map.empty)
 	
     module Set = struct
       include S
