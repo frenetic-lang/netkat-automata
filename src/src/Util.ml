@@ -1,13 +1,5 @@
 exception Quit
 exception Undo
-
-let starts_with (s : string) (t : string) : bool =
-  Str.string_match (Str.regexp_string s) t 0
-  
-let ends_with (s : string) (t : string) : bool =
-  let n = String.length t - String.length s in
-  if n < 0 then false else
-  Str.string_match (Str.regexp_string s) t n
   
 let output_endline (out : out_channel) (s : string) : unit =
   output_string out s;
