@@ -122,7 +122,10 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	let e_where_intersection_is_present =  U.Base.Set.mult corresponding_E er_E' in
 	let internal_matrix_ref point = 
 	  if U.Base.Set.contains_point e_where_intersection_is_present point then
-	    mul_terms (U.Base.test_of_point point) e2
+	    let ret = Times[(U.Base.test_of_point point); e2] in
+	    Printf.printf "Here's what we're about to produce: %s\n"
+	      (Ast.term_to_string ret);
+	    ret
 	  else 
             Zero in 
 	let more_points = 
@@ -134,7 +137,15 @@ let check_equivalent (t1:term) (t2:term) : bool =
     with Not_found -> 
       begin 
         if (Ast.contains_dups e) then 
-          calculate_deriv (allLRspines e) e
+	  match e with 
+	    | Times[beta;er] -> 
+	      let f,_ = calculate_deriv all_spines er in 
+	      f,U.Base.Set.of_term beta
+	    | _ -> 
+	      Printf.printf "We're about to fail.  Here's what we were asked: e: %s\n"
+		(Ast.term_to_string e)
+	      ;
+	      failwith "This optimization didn't work"
         else 
           ((fun _ -> Zero),U.Base.Set.empty)
       end
@@ -149,8 +160,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let spines_t2 = allLRspines t2 in
 
   let get_state,update_state,print_states = 
-    Dot.init (fun a -> not (U.Base.Set.is_empty a))
-    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
+    (*Dot.init (fun a -> not (U.Base.Set.is_empty a))  *)
+    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())
   in
 
   let rec main_loop work_list = 
