@@ -1,6 +1,5 @@
 
 open Ast
-open Ast.Term
 open Base
 open Util
 open Spines
@@ -43,6 +42,7 @@ open Spines
 
 (* collect subterms *)
 let rec subterms (e : term) : TermSet.t =
+  let open Ast.Term in 
   match e with
   | (Assg _ | Test _ | Not _ | Zero | One | Dup) -> TermSet.singleton e
   | Plus ts ->
@@ -67,11 +67,16 @@ let ss_sanity (e : term) : bool =
   let ss = spines_of_subterms e in
   TermSet.for_all (fun x -> TermSet.subset (spines_of_subterms x) ss) ss
 
-module TermMap = Map.Make(struct 
-  type t = Term.term
-  let compare = Pervasives.compare (* prolly want our own compare here *)
-end
-)
+
+type deriv_term = 
+  | Spine of Term.term 
+  | BetaSpine of Term.term * TermSet.t
+  | Zero
+
+let deriv_term_to_term = function 
+  | Spine e -> e
+  | BetaSpine (b,e) -> Term.Times[b;Term.Plus e]
+  | Zero -> Term.Zero
 
 let check_equivalent (t1:term) (t2:term) : bool = 
 
@@ -103,15 +108,15 @@ let check_equivalent (t1:term) (t2:term) : bool =
   (* calculate all spines as the first thing in the main algorithm
      and pass them in here *)
 
-  let calc_deriv_main all_spines e = 
-    TermSet.fold 
+  let calc_deriv_main all_spines (e : Term.term) = 
+    let d,pts = TermSet.fold 
       (fun spine_pair (acc,set_of_points) -> 
-	  (* pull out elements of spine pair*)
+	(* pull out elements of spine pair*)
 	let e1,e2 = match spine_pair with 
-	  | Times [lspine;rspine] -> lspine,rspine
+	  | Term.Times [lspine;rspine] -> lspine,rspine
 	  | _ -> failwith "Dexter LIES" in
 	
-	  (* calculate e of left spine*)
+	(* calculate e of left spine*)
 	let corresponding_E = U.Base.Set.of_term e1 in
 	let er_E = U.Base.Set.of_term (Ast.one_dups e2) in
 	let er_E' = U.Base.Set.fold 
@@ -120,35 +125,47 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	let e_where_intersection_is_present =  U.Base.Set.mult corresponding_E er_E' in
 	let internal_matrix_ref point = 
 	  if U.Base.Set.contains_point e_where_intersection_is_present point then
-	    mul_terms (U.Base.test_of_point point) e2
+	    (Spine e2)
+	  (* mul_terms (U.Base.test_of_point point) e2 *)
 	  else 
-            Zero in 
+	    Zero in 
 	let more_points = 
 	  U.Base.Set.union set_of_points e_where_intersection_is_present in
 	
-	(fun point -> add_terms (internal_matrix_ref point) (acc point)),
+	(fun point -> 
+	  match (internal_matrix_ref point) with 
+	    | Zero -> acc point
+	    | Spine e' -> TermSet.add e' (acc point)
+	    | BetaSpine (b,e') -> failwith "this can't be produced"),
 	more_points)
-      (Hashtbl.find all_spines e) ((fun _ -> Zero), U.Base.Set.empty) in
-  let calc_deriv_main = Util.memoize_on_arg2 calc_deriv_main in
+      (Hashtbl.find all_spines e) 
+      ((fun _ -> TermSet.empty), U.Base.Set.empty) in
+    (fun point -> BetaSpine (U.Base.test_of_point point, d point)), pts in 
   
+  let calc_deriv_main = Util.memoize_on_arg2 calc_deriv_main in
 
-  let rec calculate_deriv all_spines (e:Ast.term) =
-    (* TODO(jnf,ljt,mpm): fill in the type *)
-    try 
-      calc_deriv_main all_spines e
-    with Not_found -> 
-      begin 
-        if (Ast.contains_dups e) then 
-          calculate_deriv (allLRspines e) e
-        else 
-          ((fun _ -> Zero),U.Base.Set.empty)
-      end
-  in
+  let calculate_deriv all_spines (e : deriv_term) = 
+    match e with 
+      | (Zero | Spine Term.Zero) -> (fun _ -> Zero), U.Base.Set.empty
+      | BetaSpine (beta, spine_set) -> 
+	let d,points = 
+	  TermSet.fold 
+	    ( fun sigma (acc_d,acc_points) -> 
+	      let d,points = calc_deriv_main all_spines sigma in
+	      (fun point -> 
+		match (d point) with 
+		  | Zero -> acc_d point
+		  | Spine _ -> failwith "why did deriv produce a Spine and not a BetaSpine?"
+		  | BetaSpine (_,s) -> TermSet.union s (acc_d point)
+	      ),(U.Base.Set.union acc_points points)
+	    ) spine_set ((fun _ -> TermSet.empty), U.Base.Set.empty) in
+	(fun point -> BetaSpine(U.Base.test_of_point point,d point)),points
+      | Spine e -> calc_deriv_main all_spines e in
   
   let calculate_deriv = Util.memoize_on_arg2 calculate_deriv in
 
   let module WorkList = WorkList(struct 
-    type t = (Term.term * Term.term) 
+    type t = (deriv_term * deriv_term) 
     let compare = Pervasives.compare
   end) in
 
@@ -167,8 +184,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
     else
       let q1,q2 = WorkList.hd work_list in
       let rest_work_list = WorkList.tl work_list in
-      let q1_E = U.Base.Set.of_term q1 in
-      let q2_E = U.Base.Set.of_term q2 in
+      let q1_E = U.Base.Set.of_term (deriv_term_to_term q1) in
+      let q2_E = U.Base.Set.of_term (deriv_term_to_term q2) in
       if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
@@ -186,13 +203,13 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	      dot_bundle 
 	      q1'
 	      q2'
-	      (U.Base.Set.of_term q1')
-	      (U.Base.Set.of_term q2');
+	      (U.Base.Set.of_term (deriv_term_to_term q1'))
+	      (U.Base.Set.of_term (deriv_term_to_term q2'));
 	    WorkList.add (q1',q2')
 	      expanded_work_list
 	  )
 	  (U.Base.Set.union q1_points q2_points) rest_work_list in
 	main_loop work_list in
-  main_loop (WorkList.singleton (t1,t2))
+  main_loop (WorkList.singleton (Spine t1,Spine t2))
 
 
