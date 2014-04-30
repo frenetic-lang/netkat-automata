@@ -178,8 +178,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let spines_t2 = allLRspines t2 in
 
   let get_state,update_state,print_states = 
-    (* Dot.init (fun a -> not (U.Base.Set.is_empty a)) *)
-    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())
+    Dot.init (fun a -> not (U.Base.Set.is_empty a))
+    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
   in
 
   let rec main_loop work_list = 
@@ -188,14 +188,15 @@ let check_equivalent (t1:term) (t2:term) : bool =
       (print_states (); true)
     else
       let q1,q2 = WorkList.hd work_list in
+      let q1_term,q2_term = deriv_term_to_term q1, deriv_term_to_term q2 in
       let rest_work_list = WorkList.tl work_list in
-      let q1_E = U.Base.Set.of_term (deriv_term_to_term q1) in
-      let q2_E = U.Base.Set.of_term (deriv_term_to_term q2) in
+      let q1_E = U.Base.Set.of_term q1_term in
+      let q2_E = U.Base.Set.of_term q2_term in
       if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
 	
-	let (dot_bundle : Dot.t) = get_state q1 q2 q1_E q2_E in
+	let (dot_bundle : Dot.t) = get_state (deriv_term_to_term q1) (deriv_term_to_term q2) q1_E q2_E in
 	let q1_matrix,q1_points = calculate_deriv spines_t1 q1 in 
 	let q2_matrix,q2_points = calculate_deriv spines_t2 q2 in 
 	let numpoints = ref 0 in
@@ -204,12 +205,14 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	    numpoints := !numpoints + 1;
 	    let q1' = q1_matrix pt in
 	    let q2' = q2_matrix pt in
+	    let q1'_term = deriv_term_to_term q1' in 
+	    let q2'_term = deriv_term_to_term q2' in
 	    update_state 
 	      dot_bundle 
-	      q1'
-	      q2'
-	      (U.Base.Set.of_term (deriv_term_to_term q1'))
-	      (U.Base.Set.of_term (deriv_term_to_term q2'));
+	      q1'_term
+	      q2'_term
+	      (U.Base.Set.of_term q1'_term)
+	      (U.Base.Set.of_term q2'_term);
 	    WorkList.add (q1',q2')
 	      expanded_work_list
 	  )
