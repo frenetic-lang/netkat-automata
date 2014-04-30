@@ -28,6 +28,7 @@ sig
       val of_term : Ast.term -> t
       val mult : t -> t -> t
     end
-    val test_of_point : point -> Ast.term
+    val test_of_point_left : point -> Ast.term
+    val test_of_point_right : point -> Ast.term
   end
 end

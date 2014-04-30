@@ -140,7 +140,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	more_points)
       (Hashtbl.find all_spines e) 
       ((fun _ -> TermSet.empty), U.Base.Set.empty) in
-    (fun point -> BetaSpine (U.Base.test_of_point point, d point)), pts in 
+    (fun point -> BetaSpine (U.Base.test_of_point_right point, d point)), pts in 
   
   let calc_deriv_main = Util.memoize_on_arg2 calc_deriv_main in
 
@@ -159,7 +159,12 @@ let check_equivalent (t1:term) (t2:term) : bool =
 		  | BetaSpine (_,s) -> TermSet.union s (acc_d point)
 	      ),(U.Base.Set.union acc_points points)
 	    ) spine_set ((fun _ -> TermSet.empty), U.Base.Set.empty) in
-	(fun point -> BetaSpine(U.Base.test_of_point point,d point)),points
+	(fun delta_gamma -> 
+	  let delta = U.Base.test_of_point_left delta_gamma in
+	  let gamma = U.Base.test_of_point_right delta_gamma in
+	  if beta = delta
+	  then BetaSpine(gamma,d delta_gamma)
+	  else Zero),points
       | Spine e -> calc_deriv_main all_spines e in
   
   let calculate_deriv = Util.memoize_on_arg2 calculate_deriv in

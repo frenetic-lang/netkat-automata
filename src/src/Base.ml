@@ -170,7 +170,16 @@ module Univ = functor (U : UnivDescr) -> struct
 	) U.all_fields true
 
 
-    let test_of_point (Point(_,y) : point) : Ast.term = 
+    let test_of_point_left (Point(x,_) : point) : Ast.term = 
+      Ast.Term.Plus
+	(U.FieldSet.fold 
+	   (fun field acc -> 
+	     let v = try Map.find field x with Not_found -> 
+	       failwith "Point doesn't match the spec."  in
+	     Ast.TermSet.add (Ast.Term.Test(U.field_to_string field, U.value_to_string v)) acc)
+	   U.all_fields Ast.TermSet.empty)
+
+    let test_of_point_right (Point(_,y) : point) : Ast.term = 
       Ast.Term.Plus
 	(U.FieldSet.fold 
 	   (fun field acc -> 
