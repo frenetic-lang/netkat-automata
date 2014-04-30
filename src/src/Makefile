@@ -24,7 +24,7 @@ clean:
     done
 
 netkat: $(SOURCES)
-	ocamlc -o netkat -g -I Test -I Parser str.cma $(SOURCES)
+	ocamlopt -o netkat -g -p -I Test -I Parser  $(SOURCES)
 
 netkat-prof: $(SOURCES)
 	ocamlcp -o netkat-prof -g -I Test -I Parser -I Dot $(SOURCES)

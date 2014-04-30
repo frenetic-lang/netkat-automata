@@ -230,13 +230,6 @@ module Univ = functor (U : UnivDescr) -> struct
 	    ) U.all_fields [Point(Map.empty, Map.empty)]
       in
       let pts = (extract_points b) in
-      (*Printf.printf "When asked about this base: %s\nwe extracted these points: %s\n" 
-	(to_string (Base(a,b)))
-	(List.fold_right (Printf.sprintf "%s %s")
-	   (List.map 
-	      (fun (Point(a,b)) -> 
-		Printf.sprintf "<%s;%s>" (assg_to_string a) (assg_to_string b)
-	      ) pts) "");*)
       List.fold_right f pts acc
 
     let project_lhs (Base(a,b)) = 
@@ -266,18 +259,17 @@ module Univ = functor (U : UnivDescr) -> struct
 	 It would be better to invent a normal form which guaranteed no duplicates.
       *)
 
-      let wasted_cycles = ref 0.
-      let total_cycles = ref 1.
+      let wasted_cycles = ref 0
+      let total_cycles = ref 1
 	
       let fold_points (f : (point -> 'a -> 'a)) (st : t) (acc : 'a) : 'a =
-	Printf.printf "Percent wasted so far: %%%f\n" ((!wasted_cycles /. !total_cycles) *. 100.);
 	let seen_points = ref S.empty in
 	fold (fun base acc -> 
 	  fold_points (fun elt acc -> 
-	    total_cycles := !total_cycles +. 1.;
+	    total_cycles := !total_cycles + 1;
 	    let belt = base_of_point elt in 
 	    if S.mem belt (!seen_points)
-	    then (wasted_cycles := !wasted_cycles +. 1.; acc)
+	    then (wasted_cycles := !wasted_cycles + 1; acc)
 	    else (seen_points := S.add belt (!seen_points); 
 		  (f elt acc))) 
 	    base acc
@@ -332,6 +324,8 @@ module Univ = functor (U : UnivDescr) -> struct
             if equal s r then s
             else f (mult s s) s in
 	  f (mult s1 s1) s1
+
+    let of_term = Util.memoize of_term
 
     end (* Base.Set *)	    
 

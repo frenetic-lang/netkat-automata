@@ -100,20 +100,18 @@ let check_equivalent (t1:term) (t2:term) : bool =
     let value_of_string x = x
   end in 
   let module U = Univ(UnivDescr) in 
-
   (* calculate all spines as the first thing in the main algorithm
      and pass them in here *)
-  let rec calculate_deriv all_spines (e:Ast.term) =
-    (* TODO(jnf,ljt,mpm): fill in the type *)
-    try 
-      TermSet.fold 
-	(fun spine_pair (acc,set_of_points) -> 
-	  (* pull out elements of spine pair*)
-	  let e1,e2 = match spine_pair with 
-	    | Times [lspine;rspine] -> lspine,rspine
-	    | _ -> failwith "Dexter LIES" in
 
-	(* calculate e of left spine*)
+  let calc_deriv_main all_spines e = 
+    TermSet.fold 
+      (fun spine_pair (acc,set_of_points) -> 
+	  (* pull out elements of spine pair*)
+	let e1,e2 = match spine_pair with 
+	  | Times [lspine;rspine] -> lspine,rspine
+	  | _ -> failwith "Dexter LIES" in
+	
+	  (* calculate e of left spine*)
 	let corresponding_E = U.Base.Set.of_term e1 in
 	let er_E = U.Base.Set.of_term (Ast.one_dups e2) in
 	let er_E' = U.Base.Set.fold 
@@ -127,10 +125,17 @@ let check_equivalent (t1:term) (t2:term) : bool =
             Zero in 
 	let more_points = 
 	  U.Base.Set.union set_of_points e_where_intersection_is_present in
-
+	
 	(fun point -> add_terms (internal_matrix_ref point) (acc point)),
 	more_points)
-	(Hashtbl.find all_spines e) ((fun _ -> Zero), U.Base.Set.empty)
+      (Hashtbl.find all_spines e) ((fun _ -> Zero), U.Base.Set.empty) in
+  let calc_deriv_main = Util.memoize_on_arg2 calc_deriv_main in
+  
+
+  let rec calculate_deriv all_spines (e:Ast.term) =
+    (* TODO(jnf,ljt,mpm): fill in the type *)
+    try 
+      calc_deriv_main all_spines e
     with Not_found -> 
       begin 
         if (Ast.contains_dups e) then 
@@ -139,6 +144,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
           ((fun _ -> Zero),U.Base.Set.empty)
       end
   in
+  
+  let calculate_deriv = Util.memoize_on_arg2 calculate_deriv in
 
   let module WorkList = WorkList(struct 
     type t = (Term.term * Term.term) 
@@ -149,47 +156,32 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let spines_t2 = allLRspines t2 in
 
   let get_state,update_state,print_states = 
-    Dot.init (fun a -> not (U.Base.Set.is_empty a))
-    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
+    (* Dot.init (fun a -> not (U.Base.Set.is_empty a)) *)
+    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())
   in
 
   let rec main_loop work_list = 
-    Printf.printf "Iterating the work list! \n";
     if WorkList.is_empty work_list
     then 
       (print_states (); true)
     else
       let q1,q2 = WorkList.hd work_list in
       let rest_work_list = WorkList.tl work_list in
-      Printf.printf "calculating E for q1\n%!";
       let q1_E = U.Base.Set.of_term q1 in
-      Printf.printf "calculating E for q2\n%!";
       let q2_E = U.Base.Set.of_term q2 in
-      Printf.printf "The universe: %s\n" 
-	(StringSetMap.to_string univ "%s={%s}" (fun x -> x));
-      (*Printf.printf "q1: %s\n" (Ast.term_to_string q1);
-      Printf.printf "q2: %s\n" (Ast.term_to_string q2);
-      Printf.printf "E of q1: %s\n" (U.Base.Set.to_string q1_E);
-      Printf.printf "E of q2: %s\n" (U.Base.Set.to_string q2_E);*)
-      (*
-	TODO(mpm): Re-write this pretty-printer at some point.
-	Printf.printf "E of q1 in matrix form:\n%s\n" (BaseSet.to_matrix_string q1_E);
-      Printf.printf "E of q2 in matrix form:\n%s\n" (BaseSet.to_matrix_string q2_E);*)
-      Printf.printf "testing equality...\n%!";
       if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
 	
 	let (dot_bundle : Dot.t) = get_state q1 q2 q1_E q2_E in
-	Printf.printf "calculating D of q1\n%!";
 	let q1_matrix,q1_points = calculate_deriv spines_t1 q1 in 
 	let q2_matrix,q2_points = calculate_deriv spines_t2 q2 in 
+	let numpoints = ref 0 in
 	let work_list = U.Base.Set.fold_points
 	  (fun pt expanded_work_list -> 
+	    numpoints := !numpoints + 1;
 	    let q1' = q1_matrix pt in
 	    let q2' = q2_matrix pt in
-	    (*Printf.printf "q1': %s\n" (Ast.term_to_string q1');
-	    Printf.printf "q2': %s\n" (Ast.term_to_string q2');*)
 	    update_state 
 	      dot_bundle 
 	      q1'

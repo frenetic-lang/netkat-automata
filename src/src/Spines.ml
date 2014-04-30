@@ -25,18 +25,18 @@ let rspines (e : term) : TermSet.t =
 (* left spines of a term *)
 let lspines (e : term) : TermSet.t =
   let rec sp (e : term) : TermSet.t =
-      match e with
+    match e with
       | Dup -> TermSet.return One
       | Plus ts -> TermSet.bind ts sp
       | Times l ->
         (match l with
-        | [] -> TermSet.empty
-        | [d] -> sp d
-        | d :: t ->
-          let u = sp d in
-          let v = sp (Times t) in
-          let s = TermSet.map (fun x -> Times [d; x]) v in
-          TermSet.union u s)
+          | [] -> TermSet.empty
+          | [d] -> sp d
+          | d :: t ->
+            let u = sp d in
+            let v = sp (Times t) in
+            let s = TermSet.map (fun x -> Times [d; x]) v in
+            TermSet.union u s)
       | Star d ->
         let s = sp d in
         TermSet.map (fun x -> Times [e; x]) s
