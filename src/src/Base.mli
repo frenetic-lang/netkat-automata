@@ -25,6 +25,7 @@ sig
       val to_string : t -> string
       val fold_points : (point -> 'a -> 'a) -> t -> 'a -> 'a
       val contains_point : t -> point -> bool
+      val filter_alpha : t -> Ast.term -> t
       val of_term : Ast.term -> t
       val mult : t -> t -> t
     end

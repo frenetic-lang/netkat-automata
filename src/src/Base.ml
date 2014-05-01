@@ -171,24 +171,46 @@ module Univ = functor (U : UnivDescr) -> struct
 
 
     let test_of_point_left (Point(x,_) : point) : Ast.term = 
-      Ast.Term.Plus
+      Ast.Term.Times
 	(U.FieldSet.fold 
 	   (fun field acc -> 
 	     let v = try Map.find field x with Not_found -> 
 	       failwith "Point doesn't match the spec."  in
-	     Ast.TermSet.add (Ast.Term.Test(U.field_to_string field, U.value_to_string v)) acc)
-	   U.all_fields Ast.TermSet.empty)
+	     (Ast.Term.Test(U.field_to_string field, U.value_to_string v))::acc)
+	   U.all_fields [])
 
     let test_of_point_right (Point(_,y) : point) : Ast.term = 
-      Ast.Term.Plus
+      Ast.Term.Times
 	(U.FieldSet.fold 
 	   (fun field acc -> 
 	     let v = try Map.find field y with Not_found -> 
 	       failwith "Point doesn't match the spec."  in
-	     Ast.TermSet.add (Ast.Term.Test(U.field_to_string field, U.value_to_string v)) acc)
-	   U.all_fields Ast.TermSet.empty)
+	     (Ast.Term.Test(U.field_to_string field, U.value_to_string v))::acc)
+	   U.all_fields [])
 
-	
+    exception Empty_filter
+
+    (* TODO: is this right? mpm *)
+    let filter_alpha (Base(a1,b1):t) (a2: atom) : t option =
+      try
+	Some (U.FieldSet.fold
+		(fun field (Base(tests, assgs)) ->
+		  let test_1 =
+		    try Map.find field a1 with Not_found -> PosNeg.any field in
+		  let test_2 =
+		    try Map.find field a2 with Not_found -> PosNeg.any field in
+		  let new_test = PosNeg.intersect test_1 test_2 in
+		  if PosNeg.is_empty new_test
+		  then raise Empty_filter;
+		  let new_assg = (try Some (Map.find field b1) with Not_found -> None) in
+		  match new_assg with
+		    | None -> Base(Map.add field new_test tests, assgs)
+		    | Some new_assg ->
+		      Base(Map.add field new_test tests,
+			   Map.add field new_assg assgs))
+		U.all_fields (Base(Map.empty, Map.empty)))
+      with Empty_filter -> None
+
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
         Some (U.FieldSet.fold 
@@ -250,7 +272,7 @@ module Univ = functor (U : UnivDescr) -> struct
       let to_string (bs:t) : string = 
         Printf.sprintf "{%s}" 
           (S.fold (fun x s -> (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
-
+	  
 
       (* TODO: a more efficient multiplication would be nice.*)
       let mult (left : t) (right : t) : t =
@@ -335,6 +357,20 @@ module Univ = functor (U : UnivDescr) -> struct
 	  f (mult s1 s1) s1
 
     let of_term = Util.memoize of_term
+
+    let filter_alpha bs complete_test = 
+      match (elements (of_term complete_test)) with 
+	| [Base(beta,_(*should be beta*))] -> 
+	  fold
+	    (fun b acc -> 
+	      match (filter_alpha b beta) with 
+		| None -> acc
+		| Some r -> add r acc)
+	    bs empty
+	| _ -> Printf.printf "complete test we got as input: %s\n" (Ast.term_to_string complete_test); 
+	  Printf.printf "BaseSet we got: %s \n" (to_string (of_term complete_test));
+	  failwith "in filter_beta, that wasn't a single complete test!"
+
 
     end (* Base.Set *)	    
 

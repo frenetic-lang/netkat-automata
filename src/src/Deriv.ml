@@ -144,6 +144,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
   
   let calc_deriv_main = Util.memoize_on_arg2 calc_deriv_main in
 
+
   let calculate_deriv all_spines (e : deriv_term) = 
     match e with 
       | (Zero | Spine Term.Zero) -> (fun _ -> Zero), U.Base.Set.empty
@@ -159,13 +160,14 @@ let check_equivalent (t1:term) (t2:term) : bool =
 		  | BetaSpine (_,s) -> TermSet.union s (acc_d point)
 	      ),(U.Base.Set.union acc_points points)
 	    ) spine_set ((fun _ -> TermSet.empty), U.Base.Set.empty) in
+	let points = U.Base.Set.filter_alpha points beta in
 	(fun delta_gamma -> 
 	  let delta = U.Base.test_of_point_left delta_gamma in
 	  let gamma = U.Base.test_of_point_right delta_gamma in
 	  if beta = delta
 	  then BetaSpine(gamma,d delta_gamma)
 	  else Zero),points
-      | Spine e -> calc_deriv_main all_spines e in
+      | Spine e -> calc_deriv_main all_spines e in 
   
   let calculate_deriv = Util.memoize_on_arg2 calculate_deriv in
 
@@ -217,6 +219,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	      expanded_work_list
 	  )
 	  (U.Base.Set.union q1_points q2_points) rest_work_list in
+	Printf.printf "iterated over this many points: %u\n" !numpoints;
 	main_loop work_list in
   main_loop (WorkList.singleton (Spine t1,Spine t2))
 
