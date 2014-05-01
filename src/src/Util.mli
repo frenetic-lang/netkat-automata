@@ -51,6 +51,13 @@ sig
   val tl : t -> t
 end
 
+type 'a union_find_ds
+val init_union_find : unit -> 
+(('a union_find_ds ref -> 'a union_find_ds ref -> bool)* 
+	('a -> 'a union_find_ds ref) * 
+	('a union_find_ds ref -> 'a union_find_ds ref -> 
+	 'a union_find_ds ref))
+
 val remove_duplicates : string list -> string list
 val memoize_on_arg2 : ('a -> 'b -> 'c) -> ('a -> 'b -> 'c)
 val memoize : ('a -> 'c) -> ('a  -> 'c)

@@ -180,10 +180,14 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let spines_t2 = allLRspines t2 in
 
   let get_state,update_state,print_states = 
-    (* Dot.init (fun a -> not (U.Base.Set.is_empty a)) *)
-    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())
+    Dot.init (fun a -> not (U.Base.Set.is_empty a))
+    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
   in
 
+  let uf_eq,uf_find,uf_union = 
+     Util.init_union_find () 
+  in
+  
   let rec main_loop work_list = 
     if WorkList.is_empty work_list
     then 
@@ -197,29 +201,35 @@ let check_equivalent (t1:term) (t2:term) : bool =
       if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
-	
-	let (dot_bundle : Dot.t) = get_state (deriv_term_to_term q1) (deriv_term_to_term q2) q1_E q2_E in
-	let q1_matrix,q1_points = calculate_deriv spines_t1 q1 in 
-	let q2_matrix,q2_points = calculate_deriv spines_t2 q2 in 
-	let numpoints = ref 0 in
-	let work_list = U.Base.Set.fold_points
-	  (fun pt expanded_work_list -> 
-	    numpoints := !numpoints + 1;
-	    let q1' = q1_matrix pt in
-	    let q2' = q2_matrix pt in
-	    let q1'_term = deriv_term_to_term q1' in 
-	    let q2'_term = deriv_term_to_term q2' in
-	    update_state 
-	      dot_bundle 
-	      q1'_term
-	      q2'_term
-	      (U.Base.Set.of_term q1'_term)
-	      (U.Base.Set.of_term q2'_term);
-	    WorkList.add (q1',q2')
-	      expanded_work_list
-	  )
-	  (U.Base.Set.union q1_points q2_points) rest_work_list in
-	main_loop work_list in
+	let u,f = uf_find(q1),uf_find(q2) in
+	if false (* uf_eq u f  *)
+	then main_loop rest_work_list
+	else 
+	  (let _ = uf_union u f in
+	   let (dot_bundle : Dot.t) = 
+	     get_state 
+	       (deriv_term_to_term q1) (deriv_term_to_term q2) q1_E q2_E in
+	   let q1_matrix,q1_points = calculate_deriv spines_t1 q1 in 
+	   let q2_matrix,q2_points = calculate_deriv spines_t2 q2 in 
+	   let numpoints = ref 0 in
+	   let work_list = U.Base.Set.fold_points
+	     (fun pt expanded_work_list -> 
+	       numpoints := !numpoints + 1;
+	       let q1' = q1_matrix pt in
+	       let q2' = q2_matrix pt in
+	       let q1'_term = deriv_term_to_term q1' in 
+	       let q2'_term = deriv_term_to_term q2' in
+	       update_state 
+		 dot_bundle 
+		 q1'_term
+		 q2'_term
+		 (U.Base.Set.of_term q1'_term)
+		 (U.Base.Set.of_term q2'_term);
+	       WorkList.add (q1',q2')
+		 expanded_work_list
+	     )
+	     (U.Base.Set.union q1_points q2_points) rest_work_list in
+	   main_loop work_list) in
   main_loop (WorkList.singleton (Spine t1,Spine t2))
 
 
