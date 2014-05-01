@@ -69,7 +69,7 @@ let ss_sanity (e : term) : bool =
 
 
 type deriv_term = 
-  | Spine of Term.term 
+  | Spine of Term.term
   | BetaSpine of Term.term * TermSet.t
   | Zero
 
@@ -202,7 +202,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
       then false
       else
 	let u,f = uf_find(q1),uf_find(q2) in
-	if false (* uf_eq u f  *)
+	if  uf_eq u f  
 	then main_loop rest_work_list
 	else 
 	  (let _ = uf_union u f in
