@@ -180,8 +180,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let spines_t2 = allLRspines t2 in
 
   let get_state,update_state,print_states = 
-    Dot.init (fun a -> not (U.Base.Set.is_empty a))
-    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
+    (* Dot.init (fun a -> not (U.Base.Set.is_empty a)) *)
+    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())
   in
 
   let rec main_loop work_list = 
@@ -219,7 +219,6 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	      expanded_work_list
 	  )
 	  (U.Base.Set.union q1_points q2_points) rest_work_list in
-	Printf.printf "iterated over this many points: %u\n" !numpoints;
 	main_loop work_list in
   main_loop (WorkList.singleton (Spine t1,Spine t2))
 
