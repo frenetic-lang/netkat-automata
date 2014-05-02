@@ -29,7 +29,5 @@ let test (f : Ast.formula) : unit =
   Printf.printf "LHS rspines:\n%s\n" (Ast.termset_to_string u);
   Printf.printf "RHS rspines:\n%s\n" (Ast.termset_to_string v);
   
-  check "ss" (Deriv.ss_sanity s);
-  check "ss" (Deriv.ss_sanity t);
   Printf.printf "Bisimulation result: %b\n"
     (Deriv.check_equivalent (Ast.deMorgan s) (Ast.deMorgan t))

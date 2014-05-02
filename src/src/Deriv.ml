@@ -40,73 +40,19 @@ open Spines
 
 (* the base-case for + is 0; the base-case for * is 1.*)
 
-(* collect subterms *)
-let rec subterms (e : term) : TermSet.t =
-  let open Ast.Term in 
-  match e with
-  | (Assg _ | Test _ | Not _ | Zero | One | Dup) -> TermSet.singleton e
-  | Plus ts ->
-    let f x t = TermSet.union t (subterms x) in
-    TermSet.fold f ts (TermSet.singleton e)
-  | Times l ->
-    let u = List.map subterms l in
-    let f ts x = TermSet.union ts x in
-	  List.fold_left f (TermSet.singleton e) u
-  | Star d ->
-    let s = subterms d in
-    TermSet.add e s
+module Deriv = functor(UDesc: UnivDescr) -> struct 
 
-let spines_of_subterms (e : term) : TermSet.t =
-  let u = subterms e in
-  TermSet.bind u rspines
-  
-(* sanity check -- all spines of subterms of spines of subterms *)
-(* must already be spines of subterms *)
-(* the above is not a typo *)
-let ss_sanity (e : term) : bool =
-  let ss = spines_of_subterms e in
-  TermSet.for_all (fun x -> TermSet.subset (spines_of_subterms x) ss) ss
+  module U = Univ(UDesc)
 
-
-type deriv_term = 
-  | Spine of Term.term
-  | BetaSpine of Term.term * TermSet.t
-  | Zero
-
-let deriv_term_to_term = function 
-  | Spine e -> e
-  | BetaSpine (b,e) -> Term.Times[b;Term.Plus e]
-  | Zero -> Term.Zero
-
-let check_equivalent (t1:term) (t2:term) : bool = 
-
-  (* TODO: this is a heuristic.  Which I can spell, hooray.  *)
-  let univ = StringSetMap.union (values_in_term t1) (values_in_term t2) in 
-  let univ = List.fold_left (fun u x -> StringSetMap.add x "☃" u) univ (StringSetMap.keys univ) in
-  let module UnivDescr = struct
-    type field = string
-    type value = string
-    module FieldSet = Set.Make(String)
-    module ValueSet = StringSetMap.Values
-    let field_compare = Pervasives.compare
-    let value_compare = Pervasives.compare
-    let all_fields = 
-      (* TODO: fix me when SSM is eliminated *)
-      List.fold_right FieldSet.add (StringSetMap.keys univ) FieldSet.empty
-    let all_values f = 
-      try 
-        StringSetMap.find_all f univ
-      with Not_found -> 
-        ValueSet.empty
-    let field_to_string x = x
-    let value_to_string x = x
-    let field_of_id x = x
-    let value_of_id x = x
-    let value_of_string x = x
-  end in 
-  let module U = Univ(UnivDescr) in 
-  (* calculate all spines as the first thing in the main algorithm
-     and pass them in here *)
+  type deriv_term = 
+    | Spine of Term.term
+    | BetaSpine of Term.term * TermSet.t
+    | Zero
+	
+  let deriv_term_to_term = function 
+    | Spine e -> e
+    | BetaSpine (b,e) -> Term.Times[b;Term.Plus e]
+    | Zero -> Term.Zero
 
   let calc_deriv_main all_spines (e : Term.term) = 
     let d,pts = TermSet.fold 
@@ -140,11 +86,11 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	more_points)
       (Hashtbl.find all_spines e) 
       ((fun _ -> TermSet.empty), U.Base.Set.empty) in
-    (fun point -> BetaSpine (U.Base.test_of_point_right point, d point)), pts in 
-  
-  let calc_deriv_main = Util.memoize_on_arg2 calc_deriv_main in
-
-
+    (fun point -> BetaSpine (U.Base.test_of_point_right point, d point)), pts
+      
+  let calc_deriv_main = Util.memoize_on_arg2 calc_deriv_main
+    
+    
   let calculate_deriv all_spines (e : deriv_term) = 
     match e with 
       | (Zero | Spine Term.Zero) -> (fun _ -> Zero), U.Base.Set.empty
@@ -167,27 +113,57 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	  if beta = delta
 	  then BetaSpine(gamma,d delta_gamma)
 	  else Zero),points
-      | Spine e -> calc_deriv_main all_spines e in 
-  
-  let calculate_deriv = Util.memoize_on_arg2 calculate_deriv in
-
-  let module WorkList = WorkList(struct 
+      | Spine e -> calc_deriv_main all_spines e
+	
+  let calculate_deriv = Util.memoize_on_arg2 calculate_deriv
+    
+  module WorkList = WorkList(struct 
     type t = (deriv_term * deriv_term) 
     let compare = Pervasives.compare
-  end) in
-
-  let spines_t1 = allLRspines t1 in
-  let spines_t2 = allLRspines t2 in
-
+  end)
+    
   let get_state,update_state,print_states = 
     Dot.init (fun a -> not (U.Base.Set.is_empty a))
-    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
-  in
-
-  let uf_eq,uf_find,uf_union = 
-     Util.init_union_find () 
-  in
+  (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
+      
+    
+end
+    
+let check_equivalent (t1:term) (t2:term) : bool = 
   
+  (* TODO: this is a heuristic.  Which I can spell, hooray.  *)
+  let univ = StringSetMap.union (values_in_term t1) (values_in_term t2) in 
+  let univ = List.fold_left (fun u x -> StringSetMap.add x "☃" u) univ (StringSetMap.keys univ) in
+  let module UnivDescr = struct
+    type field = string
+    type value = string
+    module FieldSet = Set.Make(String)
+    module ValueSet = StringSetMap.Values
+    let field_compare = Pervasives.compare
+    let value_compare = Pervasives.compare
+    let all_fields = 
+      (* TODO: fix me when SSM is eliminated *)
+      List.fold_right FieldSet.add (StringSetMap.keys univ) FieldSet.empty
+    let all_values f = 
+      try 
+	StringSetMap.find_all f univ
+      with Not_found -> 
+	ValueSet.empty
+    let field_to_string x = x
+    let value_to_string x = x
+    let field_of_id x = x
+    let value_of_id x = x
+    let value_of_string x = x
+  end in   
+
+  let module InnerDeriv = Deriv(UnivDescr) in
+  let open InnerDeriv in
+  let uf_eq,uf_find,uf_union = 
+    Util.init_union_find ()  in
+  
+  let spines_t1 = allLRspines t1 in
+  let spines_t2 = allLRspines t2 in
+    
   let rec main_loop work_list = 
     if WorkList.is_empty work_list
     then 
@@ -231,5 +207,3 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	     (U.Base.Set.union q1_points q2_points) rest_work_list in
 	   main_loop work_list) in
   main_loop (WorkList.singleton (Spine t1,Spine t2))
-
-
