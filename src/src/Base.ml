@@ -356,8 +356,6 @@ module Univ = functor (U : UnivDescr) -> struct
             else f (mult s s) s in
 	  f (mult s1 s1) s1
 
-    let of_term = Util.memoize of_term
-
     let filter_alpha bs complete_test = 
       match (elements (of_term complete_test)) with 
 	| [Base(beta,_(*should be beta*))] -> 
