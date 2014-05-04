@@ -11,7 +11,8 @@ module Bisimulation = functor(UDesc: UnivDescr) -> struct
     
   module WorkList = WorkList(struct 
     type t = (Deriv.deriv_term * Deriv.deriv_term) 
-    let compare = Pervasives.compare
+    let compare = (fun (a1,b1) (a2,b2) -> 
+      Pervasives.compare ((Deriv.to_term a1),(Deriv.to_term b1)) ((Deriv.to_term a2),(Deriv.to_term b2)))
   end)
     
   let get_state,update_state,print_states = 

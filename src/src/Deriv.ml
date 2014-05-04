@@ -63,6 +63,9 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
     | Spine (e,_,_) -> e
     | BetaSpine (b,e,_,_) -> Term.Times[b;Term.Plus e]
     | Zero _ -> Term.Zero
+
+  let compare e1 e2 = 
+    Pervasives.compare (to_term e1) (to_term e2)
       
       
   let run_e trm : U.Base.Set.t = match trm with 
