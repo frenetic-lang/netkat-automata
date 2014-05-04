@@ -1,0 +1,7 @@
+Reachability: initial-packet;network;final-packet != drop
+Loop-freedom: each switch increments counter; test if counter can be arbitrarily large (it shouldn't be).
+Bad: I have no idea how to do arithmetic.  Approximate it with lots of test-set-plus-1?
+Waypointing: set passed-waypoint field to 0.  Annotate waypoint with passed-waypoint:=1.  Test = same thing with passed-waypoint = 1 at the end.
+Airgap: tag each half of the network with a different field.  make sure packet can't come out with both tags.
+
+Everything except loop-freedom is good here.
