@@ -9,7 +9,7 @@
 export SHELL = /bin/bash
 export PATH = /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
 
-SOURCES = Util.mli Util.ml Ast.mli Ast.ml Dot.ml Parser.mli Lexer.ml Parser.ml Normalize.mli Normalize.ml Base.mli Base.ml Spines.mli Spines.ml Deriv.mli Deriv.ml Test.mli Test.ml Repl.mli Repl.ml
+SOURCES = Util.mli Util.ml Ast.mli Ast.ml Dot.ml Parser.mli Lexer.ml Parser.ml Normalize.mli Normalize.ml Base.mli Base.ml Spines.mli Spines.ml Deriv.mli Deriv.ml Bisimulation.mli Bisimulation.ml Test.mli Test.ml Repl.mli Repl.ml
 
 all: netkat
 

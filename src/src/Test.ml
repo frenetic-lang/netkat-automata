@@ -1,6 +1,7 @@
 open Util
 open Ast
 open Base
+open Bisimulation
 
 module S = StringSetMap
 type base = S.t * S.t
@@ -30,4 +31,4 @@ let test (f : Ast.formula) : unit =
   Printf.printf "RHS rspines:\n%s\n" (Ast.termset_to_string v);
   
   Printf.printf "Bisimulation result: %b\n"
-    (Deriv.check_equivalent (Ast.deMorgan s) (Ast.deMorgan t))
+    (Bisimulation.check_equivalent (Ast.deMorgan s) (Ast.deMorgan t))
