@@ -189,5 +189,5 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	  dm := D_Matrix((fun _ -> ret));
 	  ret)) 
     
-  let make_deriv_term = make_spine
+  let make_term = (fun e -> make_spine (Spines.allLRspines e) e)
 end

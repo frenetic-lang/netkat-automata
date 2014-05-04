@@ -2,7 +2,6 @@
 open Ast
 open Base
 open Util
-open Spines
 
 module Bisimulation = functor(UDesc: UnivDescr) -> struct 
     
@@ -55,9 +54,6 @@ let check_equivalent (t1:term) (t2:term) : bool =
     Util.init_union_find ()  in
   let uf_find e = uf_find (Deriv.to_term e) in 
   
-  let spines_t1 = allLRspines t1 in
-  let spines_t2 = allLRspines t2 in
-    
   let rec main_loop work_list = 
     if WorkList.is_empty work_list
     then 
@@ -99,4 +95,4 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	     )
 	     (U.Base.Set.union q1_points q2_points) rest_work_list in
 	   main_loop work_list) in
-  main_loop (WorkList.singleton (Deriv.make_deriv_term spines_t1 t1, Deriv.make_deriv_term spines_t2 t2))
+  main_loop (WorkList.singleton (Deriv.make_term t1, Deriv.make_term t2))
