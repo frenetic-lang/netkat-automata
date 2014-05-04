@@ -44,143 +44,162 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 
   module U = Univ(UDesc)
 
-  type e_matrix = | E_Matrix of (unit -> U.Base.Set.t)
-  and d_matrix = | D_Matrix of (unit -> 
-				 ((U.Base.point -> deriv_term) * U.Base.Set.t))
-
-  and deriv_term = 
-    | Spine of Term.term * e_matrix ref * d_matrix ref
-    | BetaSpine of Term.term * TermSet.t * e_matrix ref * d_matrix ref
-    | Zero of e_matrix ref * d_matrix ref
+  module type DerivMain = sig
+    type deriv_term 
+    val run_e : deriv_term -> U.Base.Set.t
+    val run_d : deriv_term -> ((U.Base.point -> deriv_term) * U.Base.Set.t)
+    val make_deriv_term : (Ast.Term.term, Ast.TermSet.t) Hashtbl.t -> Ast.Term.term -> deriv_term
+    val to_term : deriv_term -> Ast.term
+  end
+  module DerivMain : DerivMain = struct 
+    type e_matrix = | E_Matrix of (unit -> U.Base.Set.t)
+    and d_matrix = | D_Matrix of (unit -> 
+				  ((U.Base.point -> deriv_term) * U.Base.Set.t))
 	
-  let deriv_term_to_term = function 
-    | Spine (e,_,_) -> e
-    | BetaSpine (b,e,_,_) -> Term.Times[b;Term.Plus e]
-    | Zero _ -> Term.Zero
-
-  let default_e_matrix trm =
-    (E_Matrix (fun _ -> match trm with 
-      | (Spine (_,em,_) | BetaSpine (_,_,em,_) | Zero(em,_)) -> 
-	let ret = ( U.Base.Set.of_term (deriv_term_to_term trm)) in
-	em := (E_Matrix (fun _ -> ret));
-	ret))
-
-  let default_d_matrix = ref (fun _ _ -> failwith "dummy1")
-    
-  let default_e_zero = ref (E_Matrix (fun _ -> U.Base.Set.empty))
-
-  let default_d_zero = ref (D_Matrix(fun _ -> (fun _ -> failwith "dummy2"),U.Base.Set.empty))
-
-  let _ = default_d_zero := (D_Matrix (fun _ -> 
-    (fun _ -> Zero(default_e_zero,default_d_zero)),
-    U.Base.Set.empty))
-
-  let run_e trm : U.Base.Set.t = match trm with 
-    | (Spine(_,e,_) | Zero(e,_) | BetaSpine(_,_,e,_)) -> 
-      (match (!e) with 
-	| E_Matrix e -> e ())
-
-  let run_d trm = match trm with 
-    | (Spine(_,_,d) | Zero(_,d) | BetaSpine(_,_,_,d)) -> 
-      (match (!d) with 
-	| D_Matrix d -> d ())
-
-  let make_spine all_spines e2 = 
-    let em_fun = ref (E_Matrix (fun _ -> failwith "dummy3")) in 
-    let d_fun = ref (D_Matrix (fun _ -> failwith "dummy4")) in 
-    let ret = (Spine (e2,em_fun ,d_fun)) in 
-    em_fun := (default_e_matrix ret);
-    d_fun := ((!default_d_matrix) all_spines ret);
-    ret
-
-  let make_zero _ = 
-    (Zero (default_e_zero ,default_d_zero))
-
-  let make_betaspine all_spines beta tm = 
-    let em_fun = ref (E_Matrix (fun _ -> failwith "dummy5")) in 
-    let d_fun = ref (D_Matrix (fun _ -> failwith "dummy6")) in 
-    let ret = BetaSpine (beta, tm,em_fun,d_fun) in
-    em_fun := default_e_matrix ret;
-    d_fun := !default_d_matrix all_spines ret;
-    ret
-
-    
-  let calc_deriv_main all_spines (e : Term.term) : ((U.Base.point -> deriv_term) * U.Base.Set.t)  = 
-    let d,pts = TermSet.fold 
-      (fun spine_pair (acc,set_of_points) -> 
-	(* pull out elements of spine pair*)
-	let e1,e2 = match spine_pair with 
-	  | Term.Times [lspine;rspine] -> lspine,rspine
-	  | _ -> failwith "Dexter LIES" in
-	
-	(* calculate e of left spine*)
-	let corresponding_E = U.Base.Set.of_term e1 in
-	let er_E = U.Base.Set.of_term (Ast.one_dups e2) in
-	let er_E' = U.Base.Set.fold 
-	  (fun base acc -> U.Base.Set.add (U.Base.project_lhs base) acc)
-	  er_E U.Base.Set.empty in
-	let e_where_intersection_is_present =  U.Base.Set.mult corresponding_E er_E' in
-	let internal_matrix_ref point = 
-	  if U.Base.Set.contains_point e_where_intersection_is_present point then
-	    make_spine all_spines e2
-	  (* mul_terms (U.Base.test_of_point point) e2 *)
-	  else 
-	    make_zero ()
-	in 
-	let more_points = 
-	  U.Base.Set.union set_of_points e_where_intersection_is_present in
-	
-	(fun point -> 
-	  match (internal_matrix_ref point) with 
-	    | Zero (_,_)-> acc point
-	    | Spine (e',_,_) -> TermSet.add e' (acc point)
-	    | BetaSpine (b,e',_,_) -> failwith "this can't be produced"),
-	more_points)
-      (Hashtbl.find all_spines e) 
-      ((fun _ -> TermSet.empty), U.Base.Set.empty) in
-    (fun point -> 
-      make_betaspine all_spines (U.Base.test_of_point_right point) (d point)
-    ), pts
-      
-    
-  let calculate_deriv all_spines (e : deriv_term) = 
-    match e with 
-      | (Zero _ | Spine (Term.Zero,_,_)) -> 
-	(fun _ -> Zero(default_e_zero, default_d_zero)), 
-	U.Base.Set.empty
-      | BetaSpine (beta, spine_set,_,_) -> 
-	let d,points = 
-	  TermSet.fold 
-	    ( fun sigma (acc_d,acc_points) -> 
-	      let d,points = calc_deriv_main all_spines sigma in
-	      (fun point -> 
-		match (d point) with 
-		  | Zero _ -> acc_d point
-		  | Spine _ -> failwith "why did deriv produce a Spine and not a BetaSpine?"
-		  | BetaSpine (_,s,_,_) -> TermSet.union s (acc_d point)
-	      ),(U.Base.Set.union acc_points points)
-	    ) spine_set ((fun _ -> TermSet.empty), U.Base.Set.empty) in
-	let points = U.Base.Set.filter_alpha points beta in
-	(fun delta_gamma -> 
-	  let delta = U.Base.test_of_point_left delta_gamma in
-	  let gamma = U.Base.test_of_point_right delta_gamma in
-	  if beta = delta
-	  then 
-	    make_betaspine all_spines gamma (d delta_gamma)
-	  else Zero(default_e_zero,default_d_zero)),points
-      | Spine (e,_,_) -> 
-	calc_deriv_main all_spines e
+    and deriv_term = 
+      | Spine of Term.term (* actual term *) * 
+	(* for speedy Base.Set calculation *) e_matrix ref * 
+      (* for speedy Deriv calculation*) d_matrix ref
+      | BetaSpine of Term.term * TermSet.t * 
+	(* for speedy Base.Set calculation *) e_matrix ref * 
+	(* for speedy Deriv calculation*) d_matrix ref
+      | Zero of e_matrix ref * d_matrix ref
 	  
-  let _ = default_d_matrix := (fun asp trm -> 
-    D_Matrix (fun _ -> 
-      match trm with 
-	| (Spine (_,_,dm) | BetaSpine (_,_,_,dm) | Zero(_,dm)) -> 
-	  let ret = calculate_deriv asp trm in
-	  dm := D_Matrix((fun _ -> ret));
+
+  (* transition function *)
+    let to_term = function 
+      | Spine (e,_,_) -> e
+      | BetaSpine (b,e,_,_) -> Term.Times[b;Term.Plus e]
+      | Zero _ -> Term.Zero
+	
+	
+    let run_e trm : U.Base.Set.t = match trm with 
+      | (Spine(_,e,_) | Zero(e,_) | BetaSpine(_,_,e,_)) -> 
+	(match (!e) with 
+	  | E_Matrix e -> e ())
+	  
+    let run_d trm = match trm with 
+      | (Spine(_,_,d) | Zero(_,d) | BetaSpine(_,_,_,d)) -> 
+	(match (!d) with 
+	  | D_Matrix d -> d ())
+	  
+    let default_e_matrix trm =
+      (E_Matrix (fun _ -> match trm with 
+	| (Spine (_,em,_) | BetaSpine (_,_,em,_) | Zero(em,_)) -> 
+	  let ret = ( U.Base.Set.of_term (to_term trm)) in
+	  em := (E_Matrix (fun _ -> ret));
 	  ret))
+    
+    let default_d_matrix = ref (fun _ _ -> failwith "dummy1")
+    
+    let default_e_zero = ref (E_Matrix (fun _ -> U.Base.Set.empty))
+
+    let default_d_zero = ref (D_Matrix(fun _ -> (fun _ -> failwith "dummy2"),U.Base.Set.empty))
+
+    let _ = default_d_zero := (D_Matrix (fun _ -> 
+      (fun _ -> Zero(default_e_zero,default_d_zero)),
+      U.Base.Set.empty))
+
+    let make_spine all_spines e2 = 
+      let em_fun = ref (E_Matrix (fun _ -> failwith "dummy3")) in 
+      let d_fun = ref (D_Matrix (fun _ -> failwith "dummy4")) in 
+      let ret = (Spine (e2,em_fun ,d_fun)) in 
+      em_fun := (default_e_matrix ret);
+      d_fun := ((!default_d_matrix) all_spines ret);
+      ret
+
+    let make_zero _ = 
+      (Zero (default_e_zero ,default_d_zero))
+
+    let make_betaspine all_spines beta tm = 
+      let em_fun = ref (E_Matrix (fun _ -> failwith "dummy5")) in 
+      let d_fun = ref (D_Matrix (fun _ -> failwith "dummy6")) in 
+      let ret = BetaSpine (beta, tm,em_fun,d_fun) in
+      em_fun := default_e_matrix ret;
+      d_fun := !default_d_matrix all_spines ret;
+      ret
+
+    
+    let calc_deriv_main all_spines (e : Term.term) : ((U.Base.point -> deriv_term) * U.Base.Set.t)  = 
+      let d,pts = TermSet.fold 
+	(fun spine_pair (acc,set_of_points) -> 
+	(* pull out elements of spine pair*)
+	  let e1,e2 = match spine_pair with 
+	    | Term.Times [lspine;rspine] -> lspine,rspine
+	    | _ -> failwith "Dexter LIES" in
+	  
+	(* calculate e of left spine*)
+	  let corresponding_E = U.Base.Set.of_term e1 in
+	  let er_E = U.Base.Set.of_term (Ast.one_dups e2) in
+	  let er_E' = U.Base.Set.fold 
+	    (fun base acc -> U.Base.Set.add (U.Base.project_lhs base) acc)
+	    er_E U.Base.Set.empty in
+	  let e_where_intersection_is_present =  U.Base.Set.mult corresponding_E er_E' in
+	  let internal_matrix_ref point = 
+	    if U.Base.Set.contains_point e_where_intersection_is_present point then
+	      make_spine all_spines e2
+	    (* mul_terms (U.Base.test_of_point point) e2 *)
+	    else 
+	      make_zero ()
+	  in 
+	  let more_points = 
+	    U.Base.Set.union set_of_points e_where_intersection_is_present in
+	  
+	  (fun point -> 
+	    match (internal_matrix_ref point) with 
+	      | Zero (_,_)-> acc point
+	      | Spine (e',_,_) -> TermSet.add e' (acc point)
+	      | BetaSpine (b,e',_,_) -> failwith "this can't be produced"),
+	  more_points)
+	(Hashtbl.find all_spines e) 
+	((fun _ -> TermSet.empty), U.Base.Set.empty) in
+      (fun point -> 
+	make_betaspine all_spines (U.Base.test_of_point_right point) (d point)
+      ), pts
+	
+	
+    let calculate_deriv all_spines (e : deriv_term) = 
+      match e with 
+	| (Zero _ | Spine (Term.Zero,_,_)) -> 
+	  (fun _ -> Zero(default_e_zero, default_d_zero)), 
+	  U.Base.Set.empty
+	| BetaSpine (beta, spine_set,_,_) -> 
+	  let d,points = 
+	    TermSet.fold 
+	      ( fun sigma (acc_d,acc_points) -> 
+		let d,points = calc_deriv_main all_spines sigma in
+		(fun point -> 
+		  match (d point) with 
+		    | Zero _ -> acc_d point
+		    | Spine _ -> failwith "why did deriv produce a Spine and not a BetaSpine?"
+		    | BetaSpine (_,s,_,_) -> TermSet.union s (acc_d point)
+		),(U.Base.Set.union acc_points points)
+	      ) spine_set ((fun _ -> TermSet.empty), U.Base.Set.empty) in
+	  let points = U.Base.Set.filter_alpha points beta in
+	  (fun delta_gamma -> 
+	    let delta = U.Base.test_of_point_left delta_gamma in
+	    let gamma = U.Base.test_of_point_right delta_gamma in
+	    if beta = delta
+	    then 
+	      make_betaspine all_spines gamma (d delta_gamma)
+	    else Zero(default_e_zero,default_d_zero)),points
+	| Spine (e,_,_) -> 
+	  calc_deriv_main all_spines e
+	  
+    let _ = default_d_matrix := (fun asp trm -> 
+      D_Matrix (fun _ -> 
+	match trm with 
+	  | (Spine (_,_,dm) | BetaSpine (_,_,_,dm) | Zero(_,dm)) -> 
+	    let ret = calculate_deriv asp trm in
+	    dm := D_Matrix((fun _ -> ret));
+	    ret)) 
+
+    let make_deriv_term = make_spine
+  end
+    
 
   module WorkList = WorkList(struct 
-    type t = (deriv_term * deriv_term) 
+    type t = (DerivMain.deriv_term * DerivMain.deriv_term) 
     let compare = Pervasives.compare
   end)
     
@@ -222,7 +241,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let open InnerDeriv in
   let uf_eq,uf_find,uf_union = 
     Util.init_union_find ()  in
-  let uf_find e = uf_find (deriv_term_to_term e) in 
+  let uf_find e = uf_find (DerivMain.to_term e) in 
   
   let spines_t1 = allLRspines t1 in
   let spines_t2 = allLRspines t2 in
@@ -234,8 +253,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
     else
       let q1,q2 = WorkList.hd work_list in
       let rest_work_list = WorkList.tl work_list in
-      let q1_E = run_e q1 in 
-      let q2_E = run_e q2 in 
+      let q1_E = DerivMain.run_e q1 in 
+      let q2_E = DerivMain.run_e q2 in 
       if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
@@ -246,26 +265,26 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	  (let _ = uf_union u f in
 	   let (dot_bundle : Dot.t) = 
 	     get_state 
-	       (deriv_term_to_term q1) (deriv_term_to_term q2) q1_E q2_E in
-	   let q1_matrix,q1_points = run_d q1 in 
-	   let q2_matrix,q2_points = run_d q2 in 
+	       (DerivMain.to_term q1) (DerivMain.to_term q2) q1_E q2_E in
+	   let q1_matrix,q1_points = DerivMain.run_d q1 in 
+	   let q2_matrix,q2_points = DerivMain.run_d q2 in 
 	   let numpoints = ref 0 in
 	   let work_list = U.Base.Set.fold_points
 	     (fun pt expanded_work_list -> 
 	       numpoints := !numpoints + 1;
 	       let q1' = q1_matrix pt in
 	       let q2' = q2_matrix pt in
-	       let q1'_term = deriv_term_to_term q1' in 
-	       let q2'_term = deriv_term_to_term q2' in
+	       let q1'_term = DerivMain.to_term q1' in 
+	       let q2'_term = DerivMain.to_term q2' in
 	       update_state 
 		 dot_bundle 
 		 q1'_term
 		 q2'_term
-		 (run_e q1')
-		 (run_e q2');
+		 (DerivMain.run_e q1')
+		 (DerivMain.run_e q2');
 	       WorkList.add (q1',q2')
 		 expanded_work_list
 	     )
 	     (U.Base.Set.union q1_points q2_points) rest_work_list in
 	   main_loop work_list) in
-  main_loop (WorkList.singleton (make_spine spines_t1 t1, make_spine spines_t2 t2))
+  main_loop (WorkList.singleton (DerivMain.make_deriv_term spines_t1 t1, DerivMain.make_deriv_term spines_t2 t2))
