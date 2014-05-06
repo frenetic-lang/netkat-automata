@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 OCamlVersion: >= 4.01.0
-Name:        netkat
+Name:        netkat_decide
 Version:     0.0.1
 Synopsis:    The NetKAT Coalgebraic Decision Procedure
 Authors:     https://github.com/cornell-pl/netkat/contributors
@@ -11,23 +11,22 @@ BuildTools:
 
 Library netkat_decide
   Path: src
-  Pack: true
   InternalModules: 
-    Base,
-    Bisimulation,
-    Dot,
-    Normalize,
-    Repl,
-    Spines,
-    Test,
-    Util
+    Decide_Base,
+    Decide_Deriv,
+    Decide_Dot,
+    Decide_Normalize,
+    Decide_Repl,
+    Decide_Spines,
+    Decide_Test,
+    Decide_Util
   Modules:
-    Ast,
-    Deriv
+    Decide_Ast,
+    Decide_Bisimulation
 
 Executable netkat
   Path: src
-  MainIs: Repl.ml
+  MainIs: Decide_Repl.ml
   Install: false
   BuildDepends:
     str

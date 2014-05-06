@@ -1,6 +1,6 @@
 %{
-open Ast
-open Ast.Term
+open Decide_Ast
+open Decide_Ast.Term
 %}
 
 %token <string> VAR
@@ -18,8 +18,8 @@ open Ast.Term
 %nonassoc NOT STAR /* highest precedence */
 
 %start formula_main term_main  /* entry points */
-%type <Ast.formula> formula_main
-%type <Ast.term> term_main
+%type <Decide_Ast.formula> formula_main
+%type <Decide_Ast.term> term_main
 
 %%
 
