@@ -9,6 +9,22 @@ Plugins:     META (0.3)
 BuildTools:
   ocamlbuild
 
+Library netkat_decide
+  Path: src
+  Pack: true
+  InternalModules: 
+    Base,
+    Bisimulation,
+    Dot,
+    Normalize,
+    Repl,
+    Spines,
+    Test,
+    Util
+  Modules:
+    Ast,
+    Deriv
+
 Executable netkat
   Path: src
   MainIs: Repl.ml
