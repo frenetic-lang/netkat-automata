@@ -33,9 +33,9 @@ term_main:
 ;
 
 term:
-  | VAR ASSG STRING { Assg ($1, $3) }
-  | VAR EQ STRING   { Test ($1, $3) }
-  | VAR NEQ STRING  { Not (Test ($1, $3)) }
+  | VAR ASSG STRING { Assg (int_of_string $1, int_of_string $3) }
+  | VAR EQ STRING   { Test (int_of_string $1, int_of_string $3) }
+  | VAR NEQ STRING  { Not (Test (int_of_string $1, int_of_string $3)) }
   | ZERO            { Zero }
   | ONE             { One }
   | DUP             { Dup }
