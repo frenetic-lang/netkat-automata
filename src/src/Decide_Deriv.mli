@@ -2,10 +2,13 @@ open Decide_Base
 
 module Deriv : functor (U:UnivDescr) -> 
 sig
-  type deriv_term 
-  val compare : deriv_term -> deriv_term -> int
-  val run_e : deriv_term -> Univ(U).Base.Set.t
-  val run_d : deriv_term -> ((Univ(U).Base.point -> deriv_term) * Univ(U).Base.Set.t)
-  val make_term : Decide_Ast.Term.term -> deriv_term
-  val to_term : deriv_term -> Decide_Ast.term
+  module DerivTerm : sig
+    type t 
+    val compare : t -> t -> int
+    val to_term : t -> Decide_Ast.term
+    val make_term : Decide_Ast.Term.term -> t
+  end
+  val run_e : DerivTerm.t -> Univ(U).Base.Set.t
+  val run_d : DerivTerm.t -> ((Univ(U).Base.point -> DerivTerm.t) * Univ(U).Base.Set.t)
+
 end

@@ -1,11 +1,11 @@
 exception Empty
 
-type id = int
+type id = string
 
 module rec Term : sig
   type term =
-  | Assg of id * int
-  | Test of id * int
+  | Assg of id * string
+  | Test of id * string
   | Dup
   | Plus of TermSet.t
   | Times of term list
@@ -29,8 +29,8 @@ type formula =
 
 (* AST Utilities *)
 val contains_dups : term -> bool
-val values_in_term : term -> Decide_Util.IntSetMap.t
-val values_in_formula : formula -> Decide_Util.IntSetMap.t
+val values_in_term : term -> Decide_Util.StringSetMap.t
+val values_in_formula : formula -> Decide_Util.StringSetMap.t
 val terms_in_formula : formula -> term * term
 val simplify : term -> term
 val simplify_formula : formula -> formula

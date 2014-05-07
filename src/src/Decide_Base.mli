@@ -12,7 +12,7 @@ module type UnivDescr = sig
   val field_of_id : Decide_Ast.id -> field
   val value_of_id : Decide_Ast.id -> value
   val id_of_field : field -> Decide_Ast.id
-  val int_of_value : value -> int
+  val string_of_value : value -> string
   val value_of_string : string -> value
 end
 

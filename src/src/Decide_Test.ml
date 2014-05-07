@@ -3,7 +3,7 @@ open Decide_Ast
 open Decide_Base
 open Decide_Bisimulation
 
-module S = IntSetMap
+module S = StringSetMap
 type base = S.t * S.t
 
 let display_term (t : term) =

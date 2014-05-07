@@ -1,11 +1,11 @@
 exception Quit
 
-module IntSetMap : sig 
+module StringSetMap : sig 
     type t
-    type elt = int
+    type elt = string
     module Values : Set.S with type elt = elt
     type eltSet = Values.t
-    type key = int
+    type key = string
     val empty : t
     val add : key -> elt -> t -> t
     val add_all : key -> eltSet -> t -> t
@@ -24,12 +24,10 @@ module IntSetMap : sig
     val fold_key : (elt -> 'b -> 'b) -> key -> t -> 'b -> 'b
     val filter : (key -> elt -> bool) -> t -> t
     val union : t -> t -> t
-    val inter : t -> t -> t
     val consis : key -> elt -> t -> bool
     val single_mapping : key -> t -> bool
     val for_all : (key -> elt -> bool) -> t -> bool
     val is_empty : t -> bool
-    val val_inter : eltSet -> eltSet -> eltSet
     val val_equal : eltSet -> eltSet -> bool
     val val_is_empty : eltSet -> bool
     val val_empty : eltSet
@@ -61,3 +59,5 @@ val init_union_find : unit ->
 val remove_duplicates : 'a list -> 'a list
 val memoize_on_arg2 : ('a -> 'b -> 'c) -> ('a -> 'b -> 'c)
 val memoize : ('a -> 'c) -> ('a  -> 'c)
+val snowman : string
+

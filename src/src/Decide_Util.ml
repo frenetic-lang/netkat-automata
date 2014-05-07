@@ -230,7 +230,7 @@ module Int = struct
   let compare = compare
 end
 
-module IntSetMap = SetMapF (Int) (Int)
+module StringSetMap = SetMapF (String) (String)
   
 (*****************************************************
  * Stream of strings in length-lexicographic order --
@@ -519,3 +519,5 @@ let memoize f =
        Hashtbl.replace hash b ret;
        ret
       ))
+
+let snowman = "☃"

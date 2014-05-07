@@ -2,7 +2,7 @@ open Decide_Util
 
 exception Empty
 
-module S = IntSetMap
+module S = StringSetMap
 
 let utf8 = ref false 
 
@@ -10,12 +10,12 @@ let utf8 = ref false
  * syntax
  ***********************************************)
 
-type id = int
+type id = string
 
 module rec Term : sig
   type term =
-  | Assg of id * int
-  | Test of id * int
+  | Assg of id * string
+  | Test of id * string
   | Dup
   | Plus of TermSet.t
   | Times of term list
@@ -74,8 +74,8 @@ let rec term_to_string (t : term) : string =
     let s = term_to_string x in
     if out_precedence t <= out_precedence x then s else "(" ^ s ^ ")" in
 	match t with
-	| Assg (var, value) -> Printf.sprintf "%d:=%d" var value
-	| Test (var, value) -> Printf.sprintf "%d=%d" var value
+	| Assg (var, value) -> Printf.sprintf "%s:=%s" var value
+	| Test (var, value) -> Printf.sprintf "%s=%s" var value
 	| Dup -> "dup"
 	| Plus x -> assoc_to_string " + " "0" (List.map protect (TermSet.elements x))
 	| Times x -> assoc_to_string ";" "1" (List.map protect x)

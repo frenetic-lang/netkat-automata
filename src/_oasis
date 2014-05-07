@@ -15,7 +15,6 @@ Library netkat_decide
     Decide_Base,
     Decide_Deriv,
     Decide_Dot,
-    Decide_Normalize,
     Decide_Repl,
     Decide_Spines,
     Decide_Test,
