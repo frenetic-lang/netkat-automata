@@ -331,7 +331,7 @@ module Univ = functor (U : UnivDescr) -> struct
       let of_term t0 = 
       Printf.printf "beginning to calculate E\n%!";
 	let of_term : (Decide_Ast.term -> t) ref  = ref (fun _ -> failwith "dummy") in 
-	of_term := Decide_Util.memoize (fun (t0:Decide_Ast.term)  -> 
+	of_term := Decide_Ast.memoize (fun (t0:Decide_Ast.term)  -> 
 	  (* to negate a test x=v, we allow x to have any value except v *)
 	  let negate (x : U.field) (v : U.value) =
 	    singleton(Base(Map.add x (PosNeg.Neg(x,U.ValueSet.singleton v)) Map.empty,Map.empty))
@@ -365,7 +365,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		| Star (_,x) ->
 		  let s = !of_term x in
 		  let s1 = add (Base(Map.empty, Map.empty)) s in
-		  let rec f (s : t) (r : t) : t =
+		  let rec f s r  =
 		    if equal s r then s
 		    else f (mult s s) s in
 		  f (mult s1 s1) s1 );
@@ -374,7 +374,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	ret
 	    
 
-    let of_term = Decide_Util.memoize of_term
+    let of_term = Decide_Ast.memoize of_term
 
     let filter_alpha bs (beta : complete_test) = 
       fold

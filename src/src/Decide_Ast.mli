@@ -16,18 +16,18 @@ module rec Term : sig
     val extra_val : t
   end
   type uid
-  type term =
+  type t =
     | Assg of uid * Field.t * Value.t
     | Test of uid * Field.t * Value.t
     | Dup of uid 
     | Plus of uid * TermSet.t
-    | Times of uid * term list
-    | Not of uid * term
-    | Star of uid * term
+    | Times of uid * t list
+    | Not of uid * t
+    | Star of uid * t
     | Zero of uid
     | One of uid
-  val compare : term -> term -> int
-  val to_string : term -> string 
+  val compare : t -> t -> int
+  val to_string : t -> string 
 
 end and TermSet : sig
   include Set.S
@@ -35,27 +35,27 @@ end and TermSet : sig
   val from_list : elt list -> t
   val bind : t -> (elt -> t) -> t
   val return : elt -> t
-end with type elt = Term.term 
+end with type elt = Term.t 
 
 module rec InitialTerm : sig
-  type term =
+  type t =
     | Assg of Term.Field.t * Term.Value.t
     | Test of Term.Field.t * Term.Value.t
     | Dup 
     | Plus of  InitialTermSet.t
-    | Times of term list
-    | Not of term
-    | Star of term
+    | Times of t list
+    | Not of t
+    | Star of t
     | Zero 
     | One 
-  val to_term : term -> Term.term
+  val to_term : t -> Term.t
 end and InitialTermSet : sig
   include Set.S
   val from_list : elt list -> t
-end with type elt = InitialTerm.term 
+end with type elt = InitialTerm.t 
 
 
-type term = Term.term
+type term = Term.t
 
 module UnivMap : sig 
   type t = Decide_Util.SetMapF(Term.Field)(Term.Value).t
@@ -63,8 +63,8 @@ end
 
 
 type formula = 
-  | Eq of InitialTerm.term * InitialTerm.term 
-  | Le of InitialTerm.term * InitialTerm.term
+  | Eq of InitialTerm.t * InitialTerm.t 
+  | Le of InitialTerm.t * InitialTerm.t
 
 (* AST Utilities *)
 val contains_dups : term -> bool
@@ -93,3 +93,8 @@ module Decide_Spines : sig
     val lrspines : term -> TermSet.t 
     val allLRspines : term -> (term, TermSet.t) Hashtbl.t
 end
+
+
+
+val memoize : (Term.t -> 'a) -> (Term.t -> 'a) 
+val memoize_on_arg2 : ('a -> Term.t -> 'c) -> ('a -> Term.t -> 'c)

@@ -497,31 +497,5 @@ module UnionFind = functor(Ord : Map.OrderedType) -> struct
 end
       
 
-let memoize_on_arg2 f = 
-  let hash = Hashtbl.create 0 in 
-  (fun a b -> 
-    try let ret = Hashtbl.find hash b in
-	(hits := !hits + 1;
-	 ret)
-    with Not_found -> 
-      (misses := !misses + 1;
-       let ret = f a b in 
-       Hashtbl.replace hash b ret;
-       ret
-      ))
 
-
-
-let memoize f = 
-  let hash = Hashtbl.create 0 in 
-  (fun b -> 
-    try let ret = Hashtbl.find hash b in
-	(hits := !hits + 1;
-	 ret)
-    with Not_found -> 
-      (misses := !misses + 1;
-       let ret = f b in 
-       Hashtbl.replace hash b ret;
-       ret
-      ))
 

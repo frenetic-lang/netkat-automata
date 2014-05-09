@@ -19,7 +19,7 @@ open Decide_Ast.InitialTerm
 
 %start formula_main term_main  /* entry points */
 %type <Decide_Ast.formula> formula_main
-%type <Decide_Ast.InitialTerm.term> term_main
+%type <Decide_Ast.InitialTerm.t> term_main
 
 %%
 

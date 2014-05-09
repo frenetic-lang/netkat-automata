@@ -51,7 +51,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 				((U.Base.point -> t) * U.Base.Set.t))
 	
     and t = 
-      | Spine of Term.term (* actual term *) * 
+      | Spine of Term.t (* actual term *) * 
 	(* for speedy Base.Set calculation *) e_matrix ref * 
       (* for speedy Deriv calculation*) d_matrix ref
       | BetaSpine of U.Base.complete_test * TermSet.t * 
@@ -60,7 +60,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       | Zero of e_matrix ref * d_matrix ref
 
     val compare : t -> t -> int
-    val make_term : Decide_Ast.Term.term -> t
+    val make_term : Decide_Ast.Term.t -> t
     val make_spine : spines_map -> Decide_Ast.term -> t
     val make_zero : unit -> t
     val make_betaspine : spines_map -> U.Base.complete_test -> Decide_Ast.TermSet.t -> t
@@ -72,7 +72,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 				((U.Base.point -> t) * U.Base.Set.t))
 	
     and t = 
-      | Spine of Term.term (* actual term *) * 
+      | Spine of Term.t (* actual term *) * 
 	(* for speedy Base.Set calculation *) e_matrix ref * 
       (* for speedy Deriv calculation*) d_matrix ref
       | BetaSpine of U.Base.complete_test * TermSet.t * 
@@ -177,7 +177,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       
     
       
-  let calc_deriv_main all_spines (e : Term.term) : ((U.Base.point -> t) * U.Base.Set.t)  = 
+  let calc_deriv_main all_spines (e : Term.t) : ((U.Base.point -> t) * U.Base.Set.t)  = 
     let d,pts = TermSet.fold 
       (fun spine_pair (acc,set_of_points) -> 
 	(* pull out elements of spine pair*)
@@ -214,7 +214,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       make_betaspine all_spines (U.Base.point_rhs point) (d point)
     ), pts
 
-  let calc_deriv_main = Decide_Util.memoize_on_arg2 calc_deriv_main
+  let calc_deriv_main = Decide_Ast.memoize_on_arg2 calc_deriv_main
       
   let calculate_deriv all_spines (e : t) : ((U.Base.point -> t) * U.Base.Set.t) = 
     match e with 

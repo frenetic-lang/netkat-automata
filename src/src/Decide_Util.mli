@@ -65,6 +65,6 @@ sig
 end
 
 val remove_duplicates : 'a list -> 'a list
-val memoize_on_arg2 : ('a -> 'b -> 'c) -> ('a -> 'b -> 'c)
-val memoize : ('a -> 'c) -> ('a  -> 'c)
+
+
 

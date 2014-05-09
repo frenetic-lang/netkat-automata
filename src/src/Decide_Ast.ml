@@ -25,33 +25,23 @@ let utf8 = ref false
     end
       
     type uid
-    type term =
+    type t =
       | Assg of uid * Field.t * Value.t
       | Test of uid * Field.t * Value.t
       | Dup of uid 
       | Plus of uid * TermSet.t
-      | Times of uid * term list
-      | Not of uid * term
-      | Star of uid * term
+      | Times of uid * t list
+      | Not of uid * t
+      | Star of uid * t
       | Zero of uid
       | One of uid
-  val to_string : term -> string
-  val compare : term -> term -> int
+  val to_string : t -> string
+  val compare : t -> t -> int
   val uid_of_int : int -> uid
+  val ts_elements : (TermSet.t -> t list) ref
   end = struct 
-    type field = string
-    type value = string
     type uid = int	
-    type term =
-      | Assg of uid * field * value
-      | Test of uid * field * value
-      | Dup of uid 
-      | Plus of uid * TermSet.t
-      | Times of uid * term list
-      | Not of uid * term
-      | Star of uid * term
-      | Zero of uid
-      | One of uid
+
     module Field = struct 
       type t = string
       let compare = Pervasives.compare
@@ -65,11 +55,27 @@ let utf8 = ref false
       let of_string x = x
       let extra_val = "☃"
     end
-    let int_to_uid (x : int) : uid = x
+
     let compare = Pervasives.compare
-    let rec to_string (t : term) : string =
+
+    type t =
+      | Assg of uid * Field.t * Value.t
+      | Test of uid * Field.t * Value.t
+      | Dup of uid 
+      | Plus of uid * TermSet.t
+      | Times of uid * t list
+      | Not of uid * t
+      | Star of uid * t
+      | Zero of uid
+      | One of uid
+
+    let int_to_uid (x : int) : uid = x
+
+    let ts_elements : (TermSet.t -> t list) ref  = ref (fun _ -> failwith "module issues")
+
+    let rec to_string (t : t) : string =
       (* higher precedence binds tighter *)
-      let out_precedence (t : term) : int =
+      let out_precedence (t : t) : int =
 	match t with
 	  | Plus _ -> 0
 	  | Times _ -> 1
@@ -77,7 +83,7 @@ let utf8 = ref false
 	  | Star _ -> 3
 	  | _ -> 4 (* assignments and primitive tests *) in
       (* parenthesize as dictated by surrounding precedence *)
-      let protect (x : term) : string =
+      let protect (x : t) : string =
 	let s = to_string x in
 	if out_precedence t <= out_precedence x then s else "(" ^ s ^ ")" in
       let assoc_to_string (op : string) (ident : string) (s : string list) : string =
@@ -88,13 +94,12 @@ let utf8 = ref false
 	| Assg (_, var, value) -> Printf.sprintf "%s:=%s" (Field.to_string var) (Value.to_string value)
 	| Test (_, var, value) -> Printf.sprintf "%s=%s" (Field.to_string var) (Value.to_string value)
 	| Dup _ -> "dup"
-	| Plus (_,x) -> assoc_to_string " + " "0" (List.map protect (TermSet.elements x))
+	| Plus (_,x) -> assoc_to_string " + " "0" (List.map protect ( !ts_elements x ))
 	| Times (_,x) -> assoc_to_string ";" "1" (List.map protect x)
 	| Not (_,x) -> (if !utf8 then "¬" else "~") ^ (protect x)
 	| Star (_,x) -> (protect x) ^ "*"
 	| Zero _ -> "drop"
 	| One _ -> "pass"
-
     let uid_of_int x = x
 
   end
@@ -105,11 +110,8 @@ let utf8 = ref false
   val from_list : elt list -> t
   val bind : t -> (elt -> t) -> t
   val return : elt -> t
-end with type elt = Term.term = struct
-  include Set.Make (struct
-    type t = Term.term
-    let compare = Pervasives.compare
-  end)
+end with type elt = Term.t = struct
+  include Set.Make (Term)
   let map (f : elt -> elt) (ts : t) : t =
     fold (fun x -> add (f x)) ts empty
   let from_list (tl : elt list) : t =
@@ -117,35 +119,39 @@ end with type elt = Term.term = struct
   let bind (ts : t) (f : elt -> t) : t =
     fold (fun x t -> union (f x) t) ts empty
   let return = singleton
+  (* Fingers crossed...*)
+  let _ = Term.ts_elements := Obj.magic elements
 end
 
 
 
 module rec InitialTerm : sig
-  type term =
+  type t =
   | Assg of Term.Field.t * Term.Value.t
   | Test of Term.Field.t * Term.Value.t
   | Dup
   | Plus of InitialTermSet.t
-  | Times of term list
-  | Not of term
-  | Star of term
+  | Times of t list
+  | Not of t
+  | Star of t
   | Zero
   | One
-  val to_term : term -> Term.term
-  val of_term : Term.term -> term
+  val to_term : t -> Term.t
+  val of_term : Term.t -> t
+  val compare : t -> t -> int
 end = struct 
-  type term =
+  type t =
     | Assg of Term.Field.t * Term.Value.t
     | Test of Term.Field.t * Term.Value.t
     | Dup
     | Plus of InitialTermSet.t
-    | Times of term list
-    | Not of term
-    | Star of term
+    | Times of t list
+    | Not of t
+    | Star of t
     | Zero
     | One
-
+	
+  let compare = Pervasives.compare
 
   let of_term e = 
     let module TTerm = InitialTerm in 
@@ -179,7 +185,7 @@ end = struct
 	Hashtbl.replace hash e (id,Some new_e) in 
       get_uid,set_term
 	
-    let to_term (e : InitialTerm.term) : Term.term = 
+    let to_term (e : InitialTerm.t) : Term.t = 
       let rec rf e = 
 	let module TTerm = InitialTerm in 
 	let id,e' = get_uid e in 
@@ -209,7 +215,7 @@ end = struct
       rf e
 
 	  
-  let make_term (e : InitialTerm.term) : Term.term = 
+  let make_term (e : InitialTerm.t) : Term.t = 
     match get_uid e with 
       | (_,Some e) -> e
       | _ -> to_term e
@@ -223,11 +229,8 @@ and InitialTermSet : sig
   val from_list : elt list -> t
   val bind : t -> (elt -> t) -> t
   val return : elt -> t
-end with type elt = InitialTerm.term = struct
-  include Set.Make (struct
-    type t = InitialTerm.term
-    let compare = Pervasives.compare
-  end)
+end with type elt = InitialTerm.t = struct
+  include Set.Make (InitialTerm)
   let map (f : elt -> elt) (ts : t) : t =
     fold (fun x -> add (f x)) ts empty
   let from_list (tl : elt list) : t =
@@ -240,14 +243,14 @@ end
   
 
 open Term
-type term = Term.term
+type term = Term.t
 
 let make_term = InitialTerm.to_term
 
 module UnivMap = Decide_Util.SetMapF (Field) (Value)
  
-type formula = Eq of InitialTerm.term * InitialTerm.term 
-	       | Le of InitialTerm.term * InitialTerm.term
+type formula = Eq of InitialTerm.t * InitialTerm.t
+	       | Le of InitialTerm.t * InitialTerm.t
 
 (***********************************************
  * output
@@ -358,21 +361,21 @@ let rec contains_a_neg term =
  ***********************************************)
 
 (* flatten terms *)
-let flatten_sum (t : InitialTerm.term list) : InitialTerm.term =
+let flatten_sum (t : InitialTerm.t list) : InitialTerm.t =
   let open InitialTerm in 
-  let f (x : InitialTerm.term) = match x with Plus (v) -> (InitialTermSet.elements v) | (Zero ) -> [] | _ -> [x] in
+  let f (x : InitialTerm.t) = match x with Plus (v) -> (InitialTermSet.elements v) | (Zero ) -> [] | _ -> [x] in
   let t1 = List.concat (List.map f t) in
   let t2 = InitialTermSet.from_list t1 in
   match InitialTermSet.elements t2 with [] -> InitialTerm.Zero | [x] -> ( x) | _ ->  (InitialTerm.Plus t2)
     
-let flatten_product (t : InitialTerm.term list) : InitialTerm.term =
+let flatten_product (t : InitialTerm.t list) : InitialTerm.t =
   let open InitialTerm in 
   let f x = match x with Times (v) -> v | One  -> [] | _ -> [x] in
   let t1 = List.concat (List.map f t) in
   if List.exists (fun x -> match x with Zero  -> true | _ -> false) t1 then ( InitialTerm.Zero)
   else match t1 with [] -> ( InitialTerm.One) | [x] -> x | _ ->  (InitialTerm.Times  t1)
     
-let flatten_not (t : InitialTerm.term) : InitialTerm.term =
+let flatten_not (t : InitialTerm.t) : InitialTerm.t =
   let open InitialTerm in 
   match t with
   | Not (y) -> y
@@ -382,7 +385,7 @@ let flatten_not (t : InitialTerm.term) : InitialTerm.term =
 
 let is_test_tt t = 
   let open InitialTerm in
-  let rec is_test (t : InitialTerm.term) : bool =
+  let rec is_test (t : InitialTerm.t) : bool =
     match t with
       | Assg _ -> false
       | Test _ -> true
@@ -395,7 +398,7 @@ let is_test_tt t =
   is_test t
 
     
-let flatten_star (t : InitialTerm.term) : InitialTerm.term =
+let flatten_star (t : InitialTerm.t) : InitialTerm.t =
   let open InitialTerm in
   
   let t1 = match t with
@@ -406,7 +409,7 @@ let flatten_star (t : InitialTerm.term) : InitialTerm.term =
   | Star _ -> t1
   | _ -> (InitialTerm.Star t1)
     
-let rec simplify_tt (t : InitialTerm.term) : InitialTerm.term =
+let rec simplify_tt (t : InitialTerm.t) : InitialTerm.t =
   let open InitialTerm in 
   match t with
   | Plus (x) -> flatten_sum (List.map simplify_tt (InitialTermSet.elements x))
@@ -425,7 +428,7 @@ let simplify_formula (e : formula) : formula =
 
 (* set dups to 0 *)
 let zero_dups (t : term) : term =
-  let rec zero (t : InitialTerm.term) =
+  let rec zero (t : InitialTerm.t) =
     let open InitialTerm in 
 	match t with 
 	  | (Assg _ | Test _ | Zero | One ) -> t
@@ -467,7 +470,7 @@ let contains_dups (t : term) : bool =
 (* apply De Morgan laws to push negations down to the leaves *)
 let deMorgan (t : term) : term =
   let open InitialTerm in
-  let rec dM (t : InitialTerm.term) : InitialTerm.term =
+  let rec dM (t : InitialTerm.t) : InitialTerm.t =
     let f x = dM (Not x) in
     match t with 
       | (Assg _ | Test _ | Zero | One | Dup) -> t
@@ -498,7 +501,7 @@ module Decide_Spines = struct
 (* right spines of a term *)
   let rspines (e : term) : TermSet.t =
     let open InitialTerm in 
-    let rec sp (e : InitialTerm.term) : InitialTermSet.t =
+    let rec sp (e : InitialTerm.t) : InitialTermSet.t =
       match e with
 	| Dup  -> InitialTermSet.return One
 	| Plus ts -> InitialTermSet.bind ts sp
@@ -521,7 +524,7 @@ module Decide_Spines = struct
 (* left spines of a term *)
   let lspines (e : term) : TermSet.t =
     let open InitialTerm in 
-    let rec sp (e : InitialTerm.term) : InitialTermSet.t =
+    let rec sp (e : InitialTerm.t) : InitialTermSet.t =
       match e with
 	| Dup -> InitialTermSet.return One
 	| Plus ts -> InitialTermSet.bind ts sp
@@ -597,3 +600,35 @@ module Decide_Spines = struct
     TermSet.iter f ts
       
 end  
+
+let hits = ref 0 
+let misses = ref 1 
+
+module TermMap = Map.Make(Term)
+
+let memoize (f : Term.t -> 'a) = 
+  let hash = Hashtbl.create 0 in 
+  (fun b -> 
+    try let ret = Hashtbl.find hash b in
+	(hits := !hits + 1;
+	 ret)
+    with Not_found -> 
+      (misses := !misses + 1;
+       let ret = f b in 
+       Hashtbl.replace hash b ret;
+       ret
+      ))
+
+
+let memoize_on_arg2 f = 
+  let hash = Hashtbl.create 0 in 
+  (fun a b -> 
+    try let ret = Hashtbl.find hash b in
+	(hits := !hits + 1;
+	 ret)
+    with Not_found -> 
+      (misses := !misses + 1;
+       let ret = f a b in 
+       Hashtbl.replace hash b ret;
+       ret
+      ))
