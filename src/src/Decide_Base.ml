@@ -329,7 +329,6 @@ module Univ = functor (U : UnivDescr) -> struct
     (* of_term : Ast.term -> Set.t *)
     (* this calculates the E matrix *)
       let of_term t0 = 
-      Printf.printf "beginning to calculate E\n%!";
 	let of_term : (Decide_Ast.term -> t) ref  = ref (fun _ -> failwith "dummy") in 
 	of_term := Decide_Ast.memoize (fun (t0:Decide_Ast.term)  -> 
 	  (* to negate a test x=v, we allow x to have any value except v *)
@@ -370,9 +369,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		    else f (mult s s) s in
 		  f (mult s1 s1) s1 );
 	let ret = !of_term t0 in 
-	Printf.printf "done!\n%!";
-	ret
-	    
+	ret 
 
     let of_term = Decide_Ast.memoize of_term
 
@@ -383,6 +380,9 @@ module Univ = functor (U : UnivDescr) -> struct
 	    | None -> acc
 	    | Some r -> add r acc)
 	bs empty
+
+    (* TODO: is this right? *)
+
 
     let print_debugging_info () = 
       Printf.printf "Total iterations of fold_points: %d\n" !total_cycles;

@@ -102,8 +102,14 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	| Spine (tm,em,_) -> 
 	  let ret = U.Base.Set.of_term tm in 
 	  em := (E_Matrix (fun _ -> ret)); ret
-	| BetaSpine (beta,tms,em,_) -> 
-	  failwith "write something special in base for this"
+	| BetaSpine (beta,ts,em,_) -> 
+	  let ret = U.Base.Set.filter_alpha 
+	    (Decide_Ast.TermSet.fold 
+	       (fun t -> U.Base.Set.union (U.Base.Set.of_term t)) 
+	       ts U.Base.Set.empty) 
+	    beta in 
+	  em := (E_Matrix (fun _ -> ret));
+	  ret
 	| Zero(em,_) -> 
 	  let ret = U.Base.Set.empty in
 	  em := (E_Matrix (fun _ -> ret));
@@ -179,6 +185,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
     
       
   let calc_deriv_main all_spines (e : Term.t) : ((U.Base.point -> t) * U.Base.Set.t)  = 
+    Printf.printf "in calc_deriv_main \n";
     let d,pts = TermSet.fold 
       (fun spine_pair (acc,set_of_points) -> 
 	(* pull out elements of spine pair*)

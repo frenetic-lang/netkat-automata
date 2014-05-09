@@ -190,6 +190,8 @@ end = struct
 	try Hashtbl.find hash e 
 	with Not_found -> 
 	  let (this_counter : Term.uid) = Term.uid_of_int (!counter) in
+	  if !counter > 1073741822
+	  then failwith "about to overflow the integers!";
 	  counter := !counter + 1;
 	  Hashtbl.replace hash e (this_counter,None);
 	  this_counter,None

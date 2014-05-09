@@ -69,6 +69,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	   let (dot_bundle : Decide_Dot.t) = 
 	     get_state 
 	       q1 q2 q1_E q2_E in
+	   Printf.printf "taking deriv of : \n%s\n\n%s\n" (Deriv.DerivTerm.to_string q1) (Deriv.DerivTerm.to_string q2);
 	   let q1_matrix,q1_points = Deriv.run_d q1 in 
 	   let q2_matrix,q2_points = Deriv.run_d q2 in 
 	   let numpoints = ref 0 in
