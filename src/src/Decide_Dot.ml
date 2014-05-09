@@ -1,7 +1,7 @@
 
 type t = bool * bool * int * int
 
-let init base_set_non_empty =
+let init term_to_string base_set_non_empty =
   
   
   let f1 = open_out "/tmp/fsm1.dot" in 
@@ -11,14 +11,14 @@ let init base_set_non_empty =
   let edges1, edges2 = ref [], ref [] in 
   
   let get_state1 t f = 
-    let s = Decide_Ast.term_to_string t in 
+    let s = term_to_string t in 
     try fst (List.assoc s !states1)
     with Not_found -> 
       incr cell1;
       states1 := (s,(!cell1,f))::!states1;
       !cell1 in
   let get_state2 t f = 
-    let s = Decide_Ast.term_to_string t in 
+    let s = term_to_string t in 
     try fst (List.assoc s !states2)
     with Not_found -> 
       incr cell2;

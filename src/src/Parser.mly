@@ -1,6 +1,6 @@
 %{
 open Decide_Ast
-open Decide_Ast.Term
+open Decide_Ast.InitialTerm
 %}
 
 %token <string> VAR
@@ -19,7 +19,7 @@ open Decide_Ast.Term
 
 %start formula_main term_main  /* entry points */
 %type <Decide_Ast.formula> formula_main
-%type <Decide_Ast.term> term_main
+%type <Decide_Ast.InitialTerm.term> term_main
 
 %%
 
@@ -33,14 +33,14 @@ term_main:
 ;
 
 term:
-  | VAR ASSG STRING { Assg ( $1,  $3) }
-  | VAR EQ STRING   { Test ( $1,  $3) }
-  | VAR NEQ STRING  { Not (Test ( $1,  $3)) }
+  | VAR ASSG STRING { Assg ( Decide_Ast.Term.Field.of_string $1, Decide_Ast.Term.Value.of_string  $3) }
+  | VAR EQ STRING   { Test ( Decide_Ast.Term.Field.of_string $1, Decide_Ast.Term.Value.of_string $3) }
+  | VAR NEQ STRING  { Not (Test ( Decide_Ast.Term.Field.of_string  $1, Decide_Ast.Term.Value.of_string $3)) }
   | ZERO            { Zero }
   | ONE             { One }
   | DUP             { Dup }
   | LPAREN term RPAREN { $2 }
-  | term PLUS term  { Plus (TermSet.from_list [$1; $3]) }
+  | term PLUS term  { Plus (InitialTermSet.from_list [$1; $3]) }
   | term TIMES term { Times [$1; $3] }
   | term STAR       { Star $1 }
   | NOT term        { Not $2 }

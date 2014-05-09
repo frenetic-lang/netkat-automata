@@ -53,6 +53,13 @@ let rec repl (state : state) : unit =
   print_string "? ";
   let input = read_line() in
   if input = "quit" then raise Quit;
+  let input = if input = "load" 
+    then (print_string ": ";
+	  match (load (read_line ())) with 
+	    | Some s -> s
+	    | None -> failwith "file load didn't work"
+    ) 
+    else input in
   Printf.printf "processing...\n%!";
   process input;
   repl state

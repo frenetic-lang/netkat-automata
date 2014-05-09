@@ -441,55 +441,60 @@ end
 let hits = ref 0 
 let misses = ref 1 
 
-type 'a union_find_ds = 
-  | Intermediate_node of int * ('a union_find_ds ref) * int (* depth*)
-  | Root_node of int * int ref (*label + maxdepth*)
-  | Leaf_node of 'a * ('a union_find_ds ref);;
-
-let init_union_find _ : 
-    (('a union_find_ds ref -> 'a union_find_ds ref -> bool)* 
-	('a -> 'a union_find_ds ref) * 
-	('a union_find_ds ref -> 'a union_find_ds ref -> 
-	 'a union_find_ds ref)) = 
-  let hash = Hashtbl.create 0 in 
-  let fresh_int = ref 0 in
-  let rec get_parent = function 
-    | Intermediate_node (l,p,d) -> 
-      (
-	match !p with 
+module UnionFind = functor(Ord : Map.OrderedType) -> struct
+  module FindMap = Map.Make(Ord)
+  type union_find_ds = 
+    | Intermediate_node of int * (union_find_ds ref) * int (* depth*)
+    | Root_node of int * int ref (*label + maxdepth*)
+    | Leaf_node of Ord.t * (union_find_ds ref);;
+  
+  let init_union_find _ : 
+      ((union_find_ds ref -> union_find_ds ref -> bool)* 
+	  (Ord.t -> union_find_ds ref) * 
+	  (union_find_ds ref -> union_find_ds ref -> 
+	   union_find_ds ref)) = 
+    let hash = ref FindMap.empty in 
+    let fresh_int = ref 0 in
+    let rec get_parent = function 
+      | Intermediate_node (l,p,d) -> 
+	(
+	  match !p with 
+	    | Root_node _ -> p
+	    | _ -> get_parent !p)
+      | Leaf_node (_,p) -> 
+	(match !p with 
 	  | Root_node _ -> p
+	  | Leaf_node _ -> failwith "leaf can't point to leaf!!! bad!!!"
 	  | _ -> get_parent !p)
-    | Leaf_node (_,p) -> 
-      (match !p with 
-	| Root_node _ -> p
-	| Leaf_node _ -> failwith "leaf can't point to leaf!!! bad!!!"
-	| _ -> get_parent !p)
-    | _ -> failwith "you have already gotten the parent."
-  in
-  let eq a b = 
-    match (!a,!b) with 
-      | (Root_node (l1,_),Root_node (l2,_)) -> l1 = l2
-      | _ -> failwith "equality only defined on roots" in
-  let find e = 
-    try get_parent(Hashtbl.find hash e)
-    with Not_found -> 
-      Hashtbl.replace hash e 
-	(let cntr = !fresh_int in 
-	 fresh_int := !fresh_int + 1;
-	 Leaf_node(e, ref (Root_node (cntr, ref 1)))
-	); get_parent(Hashtbl.find hash e) in
-  let union c1 c2 = 
-    match (!c1,!c2) with 
-      | (Root_node (l1,d1), Root_node (l2,d2)) -> 
-	if l1 = l2 then c1
-	else if !d2 < !d1 then (*c1 is new root*)
-	  (c2:= Intermediate_node (l2,c1,!d2); c1)
-	else if !d1 > !d2 then 
-	  (c1:= Intermediate_node (l1,c2,!d1); c2)
-	else 
-	  (d1:= !d1 + 1; c2:= Intermediate_node(l2,c1,!d2); c1)
-      | _ -> failwith "call union on the root nodes please." in
-  eq,find,union
+      | _ -> failwith "you have already gotten the parent."
+    in
+    let eq a b = 
+      match (!a,!b) with 
+	| (Root_node (l1,_),Root_node (l2,_)) -> l1 = l2
+	| _ -> failwith "equality only defined on roots" in
+    let find e = 
+      try get_parent(FindMap.find e !hash)
+      with Not_found -> 
+	hash := (FindMap.add e 
+		   (let cntr = !fresh_int in 
+		    fresh_int := !fresh_int + 1;
+		    Leaf_node(e, ref (Root_node (cntr, ref 1)))
+		   ) !hash); 
+	get_parent(FindMap.find e !hash) in
+    let union c1 c2 = 
+      match (!c1,!c2) with 
+	| (Root_node (l1,d1), Root_node (l2,d2)) -> 
+	  if l1 = l2 then c1
+	  else if !d2 < !d1 then (*c1 is new root*)
+	    (c2:= Intermediate_node (l2,c1,!d2); c1)
+	  else if !d1 > !d2 then 
+	    (c1:= Intermediate_node (l1,c2,!d1); c2)
+	  else 
+	    (d1:= !d1 + 1; c2:= Intermediate_node(l2,c1,!d2); c1)
+	| _ -> failwith "call union on the root nodes please." in
+    eq,find,union
+      
+end
       
 
 let memoize_on_arg2 f = 
@@ -520,4 +525,3 @@ let memoize f =
        ret
       ))
 
-let snowman = "☃"

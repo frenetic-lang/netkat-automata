@@ -1,11 +1,13 @@
 exception Quit
 
-module StringSetMap : sig 
+module SetMapF :
+  functor (K : Map.OrderedType) ->
+  functor (V : Set.OrderedType) -> sig
     type t
-    type elt = string
+    type elt = V.t
     module Values : Set.S with type elt = elt
     type eltSet = Values.t
-    type key = string
+    type key = K.t
     val empty : t
     val add : key -> elt -> t -> t
     val add_all : key -> eltSet -> t -> t
@@ -17,6 +19,7 @@ module StringSetMap : sig
     val size : key -> t -> int
     val keys : t -> key list
     val bindings : t -> (key * elt list) list
+    (* val iter : (elt -> unit) -> key -> t -> unit     *)
     val iter : (key -> elt -> unit) -> t -> unit
     val compare : t -> t -> int
     val equal : t -> t -> bool
@@ -24,10 +27,12 @@ module StringSetMap : sig
     val fold_key : (elt -> 'b -> 'b) -> key -> t -> 'b -> 'b
     val filter : (key -> elt -> bool) -> t -> t
     val union : t -> t -> t
+    val inter : t -> t -> t
     val consis : key -> elt -> t -> bool
     val single_mapping : key -> t -> bool
     val for_all : (key -> elt -> bool) -> t -> bool
     val is_empty : t -> bool
+    val val_inter : eltSet -> eltSet -> eltSet
     val val_equal : eltSet -> eltSet -> bool
     val val_is_empty : eltSet -> bool
     val val_empty : eltSet
@@ -37,7 +42,7 @@ module StringSetMap : sig
     val maps_to_empty : key -> t -> bool
     val to_string : t -> (key -> string -> string, unit, string) format ->
       (elt list -> string list) -> string
-end
+  end
 
 module WorkList : functor (K:Set.OrderedType) -> 
 sig
@@ -49,15 +54,17 @@ sig
   val tl : t -> t
 end
 
-type 'a union_find_ds
-val init_union_find : unit -> 
-(('a union_find_ds ref -> 'a union_find_ds ref -> bool)* 
-	('a -> 'a union_find_ds ref) * 
-	('a union_find_ds ref -> 'a union_find_ds ref -> 
-	 'a union_find_ds ref))
+module UnionFind : functor(Ord : Map.OrderedType) -> 
+sig
+  type union_find_ds
+  val init_union_find : unit -> 
+    ((union_find_ds ref -> union_find_ds ref -> bool)* 
+	(Ord.t -> union_find_ds ref) * 
+	(union_find_ds ref -> union_find_ds ref -> 
+	 union_find_ds ref))
+end
 
 val remove_duplicates : 'a list -> 'a list
 val memoize_on_arg2 : ('a -> 'b -> 'c) -> ('a -> 'b -> 'c)
 val memoize : ('a -> 'c) -> ('a  -> 'c)
-val snowman : string
 

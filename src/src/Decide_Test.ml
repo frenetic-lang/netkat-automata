@@ -3,9 +3,6 @@ open Decide_Ast
 open Decide_Base
 open Decide_Bisimulation
 
-module S = StringSetMap
-type base = S.t * S.t
-
 let display_term (t : term) =
   Printf.printf "%s\n" (Decide_Ast.term_to_string t)
 
@@ -31,4 +28,4 @@ let test (f : Decide_Ast.formula) : unit =
   Printf.printf "RHS rspines:\n%s\n" (Decide_Ast.termset_to_string v);
   
   Printf.printf "Bisimulation result: %b\n"
-    (Decide_Bisimulation.check_equivalent (Decide_Ast.deMorgan s) (Decide_Ast.deMorgan t))
+    (Decide_Bisimulation.check_equivalent s t )

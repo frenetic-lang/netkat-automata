@@ -1,19 +1,10 @@
 module type UnivDescr = sig
-  type field
-  type value
+  type field = Decide_Ast.Term.Field.t
+  type value = Decide_Ast.Term.Value.t
   module FieldSet : Set.S with type elt = field
   module ValueSet : Set.S with type elt = value
-  val field_compare : field -> field -> int
-  val value_compare : value -> value -> int
   val all_fields : FieldSet.t
   val all_values : field -> ValueSet.t
-  val field_to_string : field -> string
-  val value_to_string : value -> string
-  val field_of_id : Decide_Ast.id -> field
-  val value_of_id : Decide_Ast.id -> value
-  val id_of_field : field -> Decide_Ast.id
-  val string_of_value : value -> string
-  val value_of_string : string -> value
 end
 
 module Univ : functor (U:UnivDescr) ->
@@ -21,17 +12,25 @@ sig
   module Base : sig
     type t
     type point
+    val compare_point : point -> point -> int
+    type complete_test 
+    val point_rhs : point -> complete_test
+    val point_lhs : point -> complete_test
+    val compare_complete_test : complete_test -> complete_test -> int
+    val complete_test_to_string : complete_test -> string
+
     val project_lhs : t -> t
     module Set : sig 
       include Set.S with type elt = t
       val to_string : t -> string
       val fold_points : (point -> 'a -> 'a) -> t -> 'a -> 'a
       val contains_point : t -> point -> bool
-      val filter_alpha : t -> Decide_Ast.term -> t
+      val filter_alpha : t -> complete_test -> t
       val of_term : Decide_Ast.term -> t
       val mult : t -> t -> t
+
+    (* debugging *)
+      val print_debugging_info : unit -> unit
     end
-    val test_of_point_left : point -> Decide_Ast.term
-    val test_of_point_right : point -> Decide_Ast.term
   end
 end

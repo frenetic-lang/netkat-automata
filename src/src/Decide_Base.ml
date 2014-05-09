@@ -1,33 +1,25 @@
 module type UnivDescr = sig 
-  type value 
-  type field
+  type field = Decide_Ast.Term.Field.t
+  type value = Decide_Ast.Term.Value.t
   module FieldSet : Set.S with type elt = field
   module ValueSet : Set.S with type elt = value
-  val field_compare : field -> field -> int
-  val value_compare : value -> value -> int
   val all_fields : FieldSet.t
   val all_values : field -> ValueSet.t
-  val field_to_string : field -> string
-  val value_to_string : value -> string
-  val field_of_id : Decide_Ast.id -> field
-  val value_of_id : Decide_Ast.id -> value
-  val id_of_field : field -> Decide_Ast.id
-  val string_of_value : value -> string
-  val value_of_string : string -> value
 end
 
 let collection_to_string fold elt_to_string sep c =
   fold (fun x acc ->if acc = "" then acc ^ elt_to_string x else acc ^ sep ^ elt_to_string x) c ""
 
 module Univ = functor (U : UnivDescr) -> struct 
-  
+
+    		  
   let values_to_string (vs:U.ValueSet.t) : string = 
     Printf.sprintf "{%s}"
-      (collection_to_string U.ValueSet.fold U.value_to_string ", " vs)
+      (collection_to_string U.ValueSet.fold Decide_Ast.Term.Value.to_string ", " vs)
 
   let fields_to_string (vs:U.FieldSet.t) : string = 
     Printf.sprintf "{%s}"
-      (collection_to_string U.FieldSet.fold U.field_to_string ", " vs)
+      (collection_to_string U.FieldSet.fold Decide_Ast.Term.Field.to_string ", " vs)
 
   module PosNeg = struct
     type t = 
@@ -38,6 +30,11 @@ module Univ = functor (U : UnivDescr) -> struct
         values_to_string s
       | Neg (f,s) -> 
         values_to_string (U.ValueSet.diff (U.all_values f) s)
+
+    let empty (f:U.field) : t = Pos(f, U.ValueSet.empty)
+      
+    let singleton (f: U.field) (e : U.ValueSet.elt) : t = 
+      Pos(f,U.ValueSet.singleton e)
 
     let any (f:U.field) : t = Neg(f, U.ValueSet.empty) 
 
@@ -87,10 +84,7 @@ module Univ = functor (U : UnivDescr) -> struct
   end (* PosNeg *)
   module Base = struct
 
-    module Map = Map.Make(struct
-      type t = U.field 
-      let compare = U.field_compare 
-    end)      
+    module Map = Map.Make(Decide_Ast.Term.Field)
     type atom = PosNeg.t Map.t
     type assg = U.ValueSet.elt Map.t
                 
@@ -104,19 +98,19 @@ module Univ = functor (U : UnivDescr) -> struct
 	in
         Printf.sprintf "%s%s=%s"
           (if acc = "" then acc else acc ^ ", ") 
-          (U.field_to_string f)
+          (Decide_Ast.Term.Field.to_string f)
           pnstr)
         U.all_fields ""
         
     let assg_to_string (b:assg) : string = 
       U.FieldSet.fold (fun f acc -> 
 	let vstr = 
-	  try U.value_to_string (Map.find f b)
+	  try Decide_Ast.Term.Value.to_string (Map.find f b)
 	  with Not_found -> "_"
 	in
         Printf.sprintf "%s%s:=%s"
           (if acc = "" then acc else acc ^ ", ") 
-          (U.field_to_string f)
+          (Decide_Ast.Term.Field.to_string f)
           vstr)
         U.all_fields ""
         
@@ -124,11 +118,23 @@ module Univ = functor (U : UnivDescr) -> struct
       Map.compare PosNeg.compare a1 a2
 
     let assg_compare (b1:assg) (b2:assg) : int = 
-      Map.compare U.value_compare b1 b2
+      Map.compare Decide_Ast.Term.Value.compare b1 b2
 
     type t = Base of atom * assg 
     (* must be a Pos * completely-filled-in thing*)
     type point = Point of assg * assg
+
+    let compare_point (Point(al,ar)) (Point (bl,br)) = 
+      (* TODO: is this what I want? *)
+      Pervasives.compare (assg_compare al bl) (assg_compare ar br)
+	
+    type complete_test = assg
+
+    let compare_complete_test = assg_compare 
+    let complete_test_to_string = assg_to_string
+
+    let point_rhs (Point(r,_)) = r
+    let point_lhs (Point(_,l)) = l
 
     let to_string (Base(a,b) : t) : string =
       Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
@@ -171,13 +177,14 @@ module Univ = functor (U : UnivDescr) -> struct
 	) U.all_fields true
 
 
+(*
     let test_of_point_left (Point(x,_) : point) : Decide_Ast.term = 
       Decide_Ast.Term.Times
 	(U.FieldSet.fold 
 	   (fun field acc -> 
 	     let v = try Map.find field x with Not_found -> 
 	       failwith "Point doesn't match the spec."  in
-	     (Decide_Ast.Term.Test(U.id_of_field field, U.string_of_value v))::acc)
+	     (Decide_Ast.Term.Test(field, v))::acc)
 	   U.all_fields [])
 
     let test_of_point_right (Point(_,y) : point) : Decide_Ast.term = 
@@ -188,19 +195,24 @@ module Univ = functor (U : UnivDescr) -> struct
 	       failwith "Point doesn't match the spec."  in
 	     (Decide_Ast.Term.Test(U.id_of_field field, U.string_of_value v))::acc)
 	   U.all_fields [])
+*)
 
     exception Empty_filter
 
     (* TODO: is this right? mpm *)
-    let filter_alpha (Base(a1,b1):t) (a2: atom) : t option =
+    let filter_alpha (Base(a1,b1):t) (a2: complete_test) : t option =
       try
 	Some (U.FieldSet.fold
 		(fun field (Base(tests, assgs)) ->
 		  let test_1 =
 		    try Map.find field a1 with Not_found -> PosNeg.any field in
 		  let test_2 =
-		    try Map.find field a2 with Not_found -> PosNeg.any field in
-		  let new_test = PosNeg.intersect test_1 test_2 in
+		    try Map.find field a2 with Not_found -> failwith "complete test has missing field!" in
+		  let new_test = 
+		    if PosNeg.contains test_1 test_2 
+		    then PosNeg.singleton field test_2
+		    else PosNeg.empty field
+		  in
 		  if PosNeg.is_empty new_test
 		  then raise Empty_filter;
 		  let new_assg = (try Some (Map.find field b1) with Not_found -> None) in
@@ -316,59 +328,67 @@ module Univ = functor (U : UnivDescr) -> struct
 
     (* of_term : Ast.term -> Set.t *)
     (* this calculates the E matrix *)
-    let rec of_term (t0:Decide_Ast.term) : t = 
-      (* to negate a test x=v, we allow x to have any value except v *)
-      let negate (x : U.field) (v : U.value) =
-	singleton(Base(Map.add x (PosNeg.Neg(x,U.ValueSet.singleton v)) Map.empty,Map.empty))
-      in
-      let t0 = Decide_Ast.zero_dups t0 in (* may only normalize dup-free terms *)
-      let t0 = Decide_Ast.deMorgan t0 in
-      let open Decide_Ast.Term in 
-      match t0 with 
-        | One -> 
-          singleton (Base(Map.empty, Map.empty))
-        | Zero -> 
-          empty
-        | Assg(field,v) -> 
-          singleton (Base(Map.empty, Map.add (U.field_of_id field) (U.value_of_id v) Map.empty))
-	| Test(field,v) ->  
-	  let field = U.field_of_id field in
-	  let v = U.value_of_id v in
-	  singleton (Base(Map.add field (PosNeg.Pos (field,U.ValueSet.singleton v)) Map.empty, Map.empty))
-        | Dup -> 
-          empty
-        | Plus ts ->
-          Decide_Ast.TermSet.fold (fun t acc -> union (of_term t) acc) ts empty 
-        | Times tl -> 
-          List.fold_right (fun t acc ->  mult (of_term t) acc) tl
-	    (singleton (Base (Map.empty, Map.empty)))
-	| Not x -> begin
-	  match x with
-	    | Zero -> singleton (Base(Map.empty,Map.empty))
-	    | One -> empty
-	    | Test (x,v) -> negate (U.field_of_id x) (U.value_of_id v)
-	    | _ -> failwith "De Morgan law should have been applied"
-	end
-	| Star x ->
-	  let s = of_term x in
-	  let s1 = add (Base(Map.empty, Map.empty)) s in
-	  let rec f (s : t) (r : t) : t =
-            if equal s r then s
-            else f (mult s s) s in
-	  f (mult s1 s1) s1
+      let of_term t0 = 
+      Printf.printf "beginning to calculate E\n%!";
+	let of_term : (Decide_Ast.term -> t) ref  = ref (fun _ -> failwith "dummy") in 
+	of_term := Decide_Util.memoize (fun (t0:Decide_Ast.term)  -> 
+	  (* to negate a test x=v, we allow x to have any value except v *)
+	  let negate (x : U.field) (v : U.value) =
+	    singleton(Base(Map.add x (PosNeg.Neg(x,U.ValueSet.singleton v)) Map.empty,Map.empty))
+	  in
+	  let t0 = Decide_Ast.zero_dups t0 in (* may only normalize dup-free terms *)
+	  let t0 = Decide_Ast.deMorgan t0 in
+	  let open Decide_Ast.Term in 
+	      match t0 with 
+		| One _ -> 
+		  singleton (Base(Map.empty, Map.empty))
+		| Zero _ -> 
+		  empty
+		| Assg(_,field,v) -> 
+		  singleton (Base(Map.empty, Map.add field v Map.empty))
+		| Test(_,field,v) ->  
+		  singleton (Base(Map.add field (PosNeg.Pos (field,U.ValueSet.singleton v)) Map.empty, Map.empty))
+		| Dup _ -> 
+		  empty
+		| Plus (_,ts) ->
+		  Decide_Ast.TermSet.fold (fun t acc -> union (!of_term t) acc) ts empty 
+		| Times (_,tl) -> 
+		  List.fold_right (fun t acc ->  mult (!of_term t) acc) tl
+		    (singleton (Base (Map.empty, Map.empty)))
+		| Not (_,x) -> begin
+		  match x with
+		    | Zero _ -> singleton (Base(Map.empty,Map.empty))
+		    | One _ -> empty
+		    | Test (_,x,v) -> negate x v
+		    | _ -> failwith "De Morgan law should have been applied"
+		end
+		| Star (_,x) ->
+		  let s = !of_term x in
+		  let s1 = add (Base(Map.empty, Map.empty)) s in
+		  let rec f (s : t) (r : t) : t =
+		    if equal s r then s
+		    else f (mult s s) s in
+		  f (mult s1 s1) s1 );
+	let ret = !of_term t0 in 
+	Printf.printf "done!\n%!";
+	ret
+	    
 
-    let filter_alpha bs complete_test = 
-      match (elements (of_term complete_test)) with 
-	| [Base(beta,_(*should be beta*))] -> 
-	  fold
-	    (fun b acc -> 
-	      match (filter_alpha b beta) with 
-		| None -> acc
-		| Some r -> add r acc)
-	    bs empty
-	| _ -> Printf.printf "complete test we got as input: %s\n" (Decide_Ast.term_to_string complete_test); 
-	  Printf.printf "BaseSet we got: %s \n" (to_string (of_term complete_test));
-	  failwith "in filter_beta, that wasn't a single complete test!"
+    let of_term = Decide_Util.memoize of_term
+
+    let filter_alpha bs (beta : complete_test) = 
+      fold
+	(fun b acc -> 
+	  match (filter_alpha b beta) with 
+	    | None -> acc
+	    | Some r -> add r acc)
+	bs empty
+
+    let print_debugging_info () = 
+      Printf.printf "Total iterations of fold_points: %d\n" !total_cycles;
+      Printf.printf "Total wasted cycles in fold_points: %d\n" !wasted_cycles;
+      (Printf.printf "Percent wasted cycles: %d\n" ((!wasted_cycles * 100) / !total_cycles))
+      
 
 
     end (* Base.Set *)	    
