@@ -11,9 +11,13 @@ module Bisimulation = functor(UDesc: UnivDescr) -> struct
   module WorkList = WorkList(struct 
     type t = (Deriv.DerivTerm.t * Deriv.DerivTerm.t) 
     let compare = (fun (a1,b1) (a2,b2) -> 
-      Pervasives.compare (Deriv.DerivTerm.compare a1 a2) (Deriv.DerivTerm.compare b1 b2))
+      match (Deriv.DerivTerm.compare a1 a2) with 
+	| 0 -> (Deriv.DerivTerm.compare b1 b2)
+	| k -> k)
   end)
     
+  let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (Deriv.DerivTerm.to_string a) (Deriv.DerivTerm.to_string b)
+
   let get_state,update_state,print_states = 
     Decide_Dot.init Deriv.DerivTerm.to_string (fun a -> not (U.Base.Set.is_empty a))
   (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
@@ -45,8 +49,12 @@ let check_equivalent (t1:term) (t2:term) : bool =
   let module InnerBsm = Bisimulation(UnivDescr) in
   let open InnerBsm in
   let uf_eq,uf_find,uf_union = 
-    let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
+    (fun _ _ -> false),
+    (fun _ -> Obj.magic ref 1),
+    (fun a _ -> a)
+    (* let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
     UF.init_union_find ()  
+    *) 
   in
       
   let rec main_loop work_list = 
@@ -84,6 +92,11 @@ let check_equivalent (t1:term) (t2:term) : bool =
 		 q2'
 		 (Deriv.run_e q1')
 		 (Deriv.run_e q2');
+	       Printf.printf "adding things to the work list!\n";
+	       Printf.printf "we're adding: %s\n\n\n%s\n" (Deriv.DerivTerm.to_string q1') (Deriv.DerivTerm.to_string q2');
+	       Printf.printf "The worklist has seen so far : \n%s\n\n" 
+		 (List.fold_right (fun x -> Printf.sprintf "%s\n%s" (print_wl_pair x)) 
+		    (WorkList.all_seen_items expanded_work_list) "");
 	       WorkList.add (q1',q2')
 		 expanded_work_list
 	     )

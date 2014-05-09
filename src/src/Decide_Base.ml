@@ -125,8 +125,9 @@ module Univ = functor (U : UnivDescr) -> struct
     type point = Point of assg * assg
 
     let compare_point (Point(al,ar)) (Point (bl,br)) = 
-      (* TODO: is this what I want? *)
-      Pervasives.compare (assg_compare al bl) (assg_compare ar br)
+      match (assg_compare al bl) with 
+	| 0 -> (assg_compare ar br)
+	| k -> k
 	
     type complete_test = assg
 

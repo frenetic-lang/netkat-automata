@@ -202,7 +202,9 @@ struct
   let add (e : K.t) (wl : t)  : t = 
     let set,worklist = wl in
     if S.mem e set
-    then wl
+    then (
+      Printf.printf "The worklist is getting something it has already seen!\n";
+      wl)
     else S.add e set,e::worklist
 
   let singleton (e : K.t ) : t = 
@@ -218,6 +220,9 @@ struct
     List.hd wl
 
   let tl (set,wl) : t = set, List.tl wl
+
+  let all_seen_items (set,_) = 
+    S.elements set
     
 end
 

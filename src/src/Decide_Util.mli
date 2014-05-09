@@ -52,6 +52,7 @@ sig
   val is_empty : t -> bool
   val hd : t -> K.t
   val tl : t -> t
+  val all_seen_items : t -> K.t list
 end
 
 module UnionFind : functor(Ord : Map.OrderedType) -> 
