@@ -8,18 +8,23 @@ module type UnivDescr = sig
 end
 
 let collection_to_string fold elt_to_string sep c =
-  fold (fun x acc ->if acc = "" then acc ^ elt_to_string x else acc ^ sep ^ elt_to_string x) c ""
+  fold (fun x acc ->
+    if acc = "" 
+    then acc ^ elt_to_string x 
+    else acc ^ sep ^ elt_to_string x) c ""
 
 module Univ = functor (U : UnivDescr) -> struct 
 
     		  
   let values_to_string (vs:U.ValueSet.t) : string = 
     Printf.sprintf "{%s}"
-      (collection_to_string U.ValueSet.fold Decide_Ast.Term.Value.to_string ", " vs)
+      (collection_to_string 
+	 U.ValueSet.fold Decide_Ast.Term.Value.to_string ", " vs)
 
   let fields_to_string (vs:U.FieldSet.t) : string = 
     Printf.sprintf "{%s}"
-      (collection_to_string U.FieldSet.fold Decide_Ast.Term.Field.to_string ", " vs)
+      (collection_to_string 
+	 U.FieldSet.fold Decide_Ast.Term.Field.to_string ", " vs)
 
   module PosNeg = struct
     type t = 
@@ -132,10 +137,23 @@ module Univ = functor (U : UnivDescr) -> struct
     type complete_test = assg
 
     let compare_complete_test = assg_compare 
-    let complete_test_to_string = assg_to_string
+    let complete_test_to_string b =       
+      U.FieldSet.fold (fun f acc -> 
+	let vstr = 
+	  try Decide_Ast.Term.Value.to_string (Map.find f b)
+	  with Not_found -> "_"
+	in
+        Printf.sprintf "%s%s=%s"
+          (if acc = "" then acc else acc ^ ", ") 
+          (Decide_Ast.Term.Field.to_string f)
+          vstr)
+        U.all_fields ""
 
-    let point_rhs (Point(r,_)) = r
-    let point_lhs (Point(_,l)) = l
+    let point_to_string (Point(x,y)) = 
+      Printf.sprintf "<%s,%s>" (complete_test_to_string x) (assg_to_string y)
+
+    let point_rhs (Point(_,r)) = r
+    let point_lhs (Point(l,_)) = l
 
     let to_string (Base(a,b) : t) : string =
       Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
@@ -170,7 +188,8 @@ module Univ = functor (U : UnivDescr) -> struct
 	    failwith "Point doesn't match the spec." in
 	  let y = try Map.find field y with Not_found -> 
 	    failwith "Point doesn't match the spec." in
-	  let a = try Map.find field a with Not_found -> (PosNeg.any field) in
+	  let a = try Map.find field a with Not_found -> 
+	    (PosNeg.any field) in
 	  PosNeg.contains a x && 
 	    (try y = (Map.find field b)
 	     with Not_found -> y = x)
@@ -178,25 +197,15 @@ module Univ = functor (U : UnivDescr) -> struct
 	) U.all_fields true
 
 
-(*
-    let test_of_point_left (Point(x,_) : point) : Decide_Ast.term = 
-      Decide_Ast.Term.Times
+
+    let completetest_to_term_test x : Decide_Ast.InitialTerm.t = 
+      Decide_Ast.InitialTerm.Times
 	(U.FieldSet.fold 
 	   (fun field acc -> 
 	     let v = try Map.find field x with Not_found -> 
 	       failwith "Point doesn't match the spec."  in
-	     (Decide_Ast.Term.Test(field, v))::acc)
+	     (Decide_Ast.InitialTerm.Test(field, v))::acc)
 	   U.all_fields [])
-
-    let test_of_point_right (Point(_,y) : point) : Decide_Ast.term = 
-      Decide_Ast.Term.Times
-	(U.FieldSet.fold 
-	   (fun field acc -> 
-	     let v = try Map.find field y with Not_found -> 
-	       failwith "Point doesn't match the spec."  in
-	     (Decide_Ast.Term.Test(U.id_of_field field, U.string_of_value v))::acc)
-	   U.all_fields [])
-*)
 
     exception Empty_filter
 
@@ -206,9 +215,11 @@ module Univ = functor (U : UnivDescr) -> struct
 	Some (U.FieldSet.fold
 		(fun field (Base(tests, assgs)) ->
 		  let test_1 =
-		    try Map.find field a1 with Not_found -> PosNeg.any field in
+		    try Map.find field a1 with Not_found -> 
+		      PosNeg.any field in
 		  let test_2 =
-		    try Map.find field a2 with Not_found -> failwith "complete test has missing field!" in
+		    try Map.find field a2 with Not_found -> 
+		      failwith "complete test has missing field!" in
 		  let new_test = 
 		    if PosNeg.contains test_1 test_2 
 		    then PosNeg.singleton field test_2
@@ -216,7 +227,8 @@ module Univ = functor (U : UnivDescr) -> struct
 		  in
 		  if PosNeg.is_empty new_test
 		  then raise Empty_filter;
-		  let new_assg = (try Some (Map.find field b1) with Not_found -> None) in
+		  let new_assg = (try Some (Map.find field b1) 
+		    with Not_found -> None) in
 		  match new_assg with
 		    | None -> Base(Map.add field new_test tests, assgs)
 		    | Some new_assg ->
@@ -229,8 +241,10 @@ module Univ = functor (U : UnivDescr) -> struct
       try 
         Some (U.FieldSet.fold 
           (fun field (Base(a,b)) ->
-            let pn1 = try Map.find field a1 with Not_found -> PosNeg.any field in 
-            let pn2 = try Map.find field a2 with Not_found -> PosNeg.any field in           
+            let pn1 = try Map.find field a1 with Not_found -> 
+	      PosNeg.any field in 
+            let pn2 = try Map.find field a2 with Not_found -> 
+	      PosNeg.any field in           
             let o1 = try Some (Map.find field b1) with Not_found -> None in 
             let o2 = try Some (Map.find field b2) with Not_found -> None in 
             let pn',o' = 
@@ -239,9 +253,12 @@ module Univ = functor (U : UnivDescr) -> struct
                   (pn1, o2)
                 | (Some v1, None) when PosNeg.contains pn2 v1 -> 
                   (pn1, o1)
-                | (None, Some v2) when not (PosNeg.is_empty (PosNeg.intersect pn1 pn2)) -> 
+                | (None, Some v2) when not 
+		    (PosNeg.is_empty 
+		       (PosNeg.intersect pn1 pn2)) -> 
                   (PosNeg.intersect pn1 pn2, o2)
-                | None, None when not (PosNeg.is_empty (PosNeg.intersect pn1 pn2)) -> 
+                | None, None when not (PosNeg.is_empty 
+					 (PosNeg.intersect pn1 pn2)) -> 
                   (PosNeg.intersect pn1 pn2, None) 
                 | _ -> 
                   raise Empty_mult in 
@@ -253,7 +270,8 @@ module Univ = functor (U : UnivDescr) -> struct
       with Empty_mult -> 
         None
 
-    let fold_points (f : (point -> 'a -> 'a)) (Base(a,b) : t) (acc : 'a) : 'a =
+    let fold_points (f : (point -> 'a -> 'a)) (Base(a,b) : t) (acc : 'a) 
+	: 'a =
       let extract_points bse : point list = 
 	  U.FieldSet.fold
 	    (fun field partial_list -> 
@@ -285,7 +303,9 @@ module Univ = functor (U : UnivDescr) -> struct
 
       let to_string (bs:t) : string = 
         Printf.sprintf "{%s}" 
-          (S.fold (fun x s -> (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
+          (S.fold 
+	     (fun x s -> 
+	       (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
 	  
 
       (* TODO: a more efficient multiplication would be nice.*)
@@ -300,8 +320,10 @@ module Univ = functor (U : UnivDescr) -> struct
       let contains_point (st : t) (pt : point) : bool = 
 	fold (fun e acc -> (contains_point pt e) || acc) st false
 	
-      (* we're dealing with duplicates right now by rememering and skipping points.  
-	 It would be better to invent a normal form which guaranteed no duplicates.
+      (* we're dealing with duplicates right now by 
+	 rememering and skipping points.  
+	 It would be better to invent a normal form 
+	 which guaranteed no duplicates.
       *)
 
       let wasted_cycles = ref 0
@@ -330,13 +352,17 @@ module Univ = functor (U : UnivDescr) -> struct
     (* of_term : Ast.term -> Set.t *)
     (* this calculates the E matrix *)
       let of_term t0 = 
-	let of_term : (Decide_Ast.term -> t) ref  = ref (fun _ -> failwith "dummy") in 
+	let of_term : (Decide_Ast.term -> t) ref  = 
+	  ref (fun _ -> failwith "dummy") in 
 	of_term := Decide_Ast.memoize (fun (t0:Decide_Ast.term)  -> 
 	  (* to negate a test x=v, we allow x to have any value except v *)
 	  let negate (x : U.field) (v : U.value) =
-	    singleton(Base(Map.add x (PosNeg.Neg(x,U.ValueSet.singleton v)) Map.empty,Map.empty))
+	    singleton(Base(Map.add x 
+			     (PosNeg.Neg(x,U.ValueSet.singleton v)) 
+			     Map.empty,Map.empty))
 	  in
-	  let t0 = Decide_Ast.zero_dups t0 in (* may only normalize dup-free terms *)
+	  let t0 = Decide_Ast.zero_dups t0 in 
+	  (* may only normalize dup-free terms *)
 	  let t0 = Decide_Ast.deMorgan t0 in
 	  let open Decide_Ast.Term in 
 	      match t0 with 
@@ -347,11 +373,15 @@ module Univ = functor (U : UnivDescr) -> struct
 		| Assg(_,field,v) -> 
 		  singleton (Base(Map.empty, Map.add field v Map.empty))
 		| Test(_,field,v) ->  
-		  singleton (Base(Map.add field (PosNeg.Pos (field,U.ValueSet.singleton v)) Map.empty, Map.empty))
+		  singleton 
+		    (Base(Map.add field 
+			    (PosNeg.Pos (field,U.ValueSet.singleton v)) 
+			    Map.empty, Map.empty))
 		| Dup _ -> 
 		  empty
 		| Plus (_,ts) ->
-		  Decide_Ast.TermSet.fold (fun t acc -> union (!of_term t) acc) ts empty 
+		  Decide_Ast.TermSet.fold 
+		    (fun t acc -> union (!of_term t) acc) ts empty 
 		| Times (_,tl) -> 
 		  List.fold_right (fun t acc ->  mult (!of_term t) acc) tl
 		    (singleton (Base (Map.empty, Map.empty)))
@@ -387,8 +417,10 @@ module Univ = functor (U : UnivDescr) -> struct
 
     let print_debugging_info () = 
       Printf.printf "Total iterations of fold_points: %d\n" !total_cycles;
-      Printf.printf "Total wasted cycles in fold_points: %d\n" !wasted_cycles;
-      (Printf.printf "Percent wasted cycles: %d\n" ((!wasted_cycles * 100) / !total_cycles))
+      Printf.printf "Total wasted cycles in fold_points: %d\n" 
+	!wasted_cycles;
+      (Printf.printf "Percent wasted cycles: %d\n" 
+	 ((!wasted_cycles * 100) / !total_cycles))
       
 
 

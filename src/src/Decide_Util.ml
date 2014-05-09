@@ -203,7 +203,6 @@ struct
     let set,worklist = wl in
     if S.mem e set
     then (
-      Printf.printf "The worklist is getting something it has already seen!\n";
       wl)
     else S.add e set,e::worklist
 

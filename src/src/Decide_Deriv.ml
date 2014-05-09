@@ -60,13 +60,14 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	(* for speedy Deriv calculation*) d_matrix ref
       | Zero of e_matrix ref * d_matrix ref
 
+    val to_string : t -> string 
     val compare : t -> t -> int
     val make_term : Decide_Ast.Term.t -> t
     val make_spine : spines_map -> Decide_Ast.term -> t
     val make_zero : unit -> t
-    val make_betaspine : spines_map -> U.Base.complete_test -> Decide_Ast.TermSet.t -> t
+    val make_betaspine : spines_map -> 
+      U.Base.complete_test -> Decide_Ast.TermSet.t -> t
     val default_d_matrix : (spines_map -> t -> d_matrix) ref
-    val to_string : t -> string 
   end = struct 
     type e_matrix = | E_Matrix of (unit -> U.Base.Set.t)
     and d_matrix = | D_Matrix of (unit -> 
@@ -81,14 +82,31 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	(* for speedy Deriv calculation*) d_matrix ref
       | Zero of e_matrix ref * d_matrix ref
 
+
+    let derivterm_to_term e = 
+      let f = function 
+	| Spine (d,_,_) -> Decide_Ast.InitialTerm.of_term d
+	| BetaSpine (b,tms,_,_) -> 
+	  let open Decide_Ast.InitialTerm in
+	      let tms = Decide_Ast.TermSet.fold 
+		(fun x -> Decide_Ast.InitialTermSet.add (of_term x))
+		tms Decide_Ast.InitialTermSet.empty in 
+	      Times [(U.Base.completetest_to_term_test b); (Plus tms)]
+	| Zero _ -> Decide_Ast.InitialTerm.Zero 
+	  in
+	  Decide_Ast.InitialTerm.to_term (f e)
 	
+
     let compare e1 e2 = 
-      match e1,e2 with 
+      (* TODO: enable when debugged *)
+      Pervasives.compare (derivterm_to_term e1) (derivterm_to_term e2)
+      (* match e1,e2 with 
 	| (Zero _,_) -> -1
 	| (Spine _, BetaSpine _) -> -1 
 	| (BetaSpine _, Spine _) -> 1
 	| (_,Zero _) -> 1
-	| (Spine (tm1,_,_), Spine (tm2,_,_)) -> Decide_Ast.Term.compare tm1 tm2
+	| (Spine (tm1,_,_), Spine (tm2,_,_)) -> 
+	  Decide_Ast.Term.compare tm1 tm2
 	| (BetaSpine (b1,s1,_,_),BetaSpine (b2,s2,_,_)) -> 
 	  (match U.Base.compare_complete_test b1 b2 with 
 	    | -1 -> -1
@@ -96,8 +114,21 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	    | 0 -> TermSet.compare s1 s2
 	    | _ -> failwith "value out of range for compare"
 	  )
+      *)
+	  
 
     let default_e_matrix trm =
+      (E_Matrix (fun _ -> match trm with 
+	| Spine (_,em,_)
+	| BetaSpine (_,_,em,_)
+	| Zero (em,_)
+	  -> 
+	  let ret = U.Base.Set.of_term (derivterm_to_term trm) in 
+	  em := (E_Matrix (fun _ -> ret)); ret
+
+       ))
+    (* TODO: enable when debugged *)
+    (*
       (E_Matrix (fun _ -> match trm with 
 	| Spine (tm,em,_) -> 
 	  let ret = U.Base.Set.of_term tm in 
@@ -114,12 +145,14 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	  let ret = U.Base.Set.empty in
 	  em := (E_Matrix (fun _ -> ret));
 	  ret))
-	
+	*)
+
     let default_d_matrix = ref (fun _ _ -> failwith "dummy1")
       
     let default_e_zero = ref (E_Matrix (fun _ -> U.Base.Set.empty))
       
-    let default_d_zero = ref (D_Matrix(fun _ -> (fun _ -> failwith "dummy2"),U.Base.Set.empty))
+    let default_d_zero = 
+      ref (D_Matrix(fun _ -> (fun _ -> failwith "dummy2"),U.Base.Set.empty))
       
     let _ = default_d_zero := (D_Matrix (fun _ -> 
       (fun _ -> Zero(default_e_zero,default_d_zero)),
@@ -153,7 +186,12 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       | Spine (t,_,_) -> Decide_Ast.Term.to_string t
       | BetaSpine (b,t,_,_) -> 
 	Printf.sprintf "%s;(%s)" (U.Base.complete_test_to_string b) 
-	  (Decide_Ast.TermSet.fold (fun x -> Printf.sprintf "%s + %s" (Decide_Ast.Term.to_string x)) t "pass")
+	  (Decide_Ast.TermSet.fold 
+	     (fun x acc -> 
+	       if acc = "" 
+	       then (Decide_Ast.Term.to_string x)
+	       else Printf.sprintf "%s + %s" 
+		 (Decide_Ast.Term.to_string x) acc) t "")
       
   end
   and DerivTermSet : sig
@@ -184,8 +222,8 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       
     
       
-  let calc_deriv_main all_spines (e : Term.t) : ((U.Base.point -> t) * U.Base.Set.t)  = 
-    Printf.printf "in calc_deriv_main \n";
+  let calc_deriv_main all_spines (e : Term.t) : 
+      ((U.Base.point -> t) * U.Base.Set.t)  = 
     let d,pts = TermSet.fold 
       (fun spine_pair (acc,set_of_points) -> 
 	(* pull out elements of spine pair*)
@@ -199,9 +237,11 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	let er_E' = U.Base.Set.fold 
 	  (fun base acc -> U.Base.Set.add (U.Base.project_lhs base) acc)
 	  er_E U.Base.Set.empty in
-	let e_where_intersection_is_present =  U.Base.Set.mult corresponding_E er_E' in
+	let e_where_intersection_is_present =  
+	  U.Base.Set.mult corresponding_E er_E' in
 	let internal_matrix_ref point = 
-	  if U.Base.Set.contains_point e_where_intersection_is_present point then
+	  if U.Base.Set.contains_point 
+	    e_where_intersection_is_present point then
 	    make_spine all_spines e2
 	  (* mul_terms (U.Base.test_of_point point) e2 *)
 	  else 
@@ -224,7 +264,8 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 
   let calc_deriv_main = Decide_Ast.memoize_on_arg2 calc_deriv_main
       
-  let calculate_deriv all_spines (e : t) : ((U.Base.point -> t) * U.Base.Set.t) = 
+  let calculate_deriv all_spines (e : t) : 
+      ((U.Base.point -> t) * U.Base.Set.t) = 
     match e with 
       | (Zero _ | Spine (Term.Zero _,_,_)) -> 
 	(fun _ -> (make_zero ())), 
@@ -237,7 +278,9 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	      (fun point -> 
 		match (d point) with 
 		  | Zero _ -> acc_d point
-		  | Spine _ -> failwith "why did deriv produce a Spine and not a BetaSpine?"
+		  | Spine _ -> 
+		    failwith 
+		      "why did deriv produce a Spine and not a BetaSpine?"
 		  | BetaSpine (_,s,_,_) -> TermSet.union s (acc_d point)
 	      ),(U.Base.Set.union acc_points points)
 	    ) spine_set ((fun _ -> TermSet.empty), U.Base.Set.empty) in
@@ -247,8 +290,10 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	  let gamma = U.Base.point_rhs delta_gamma in
 	  if (U.Base.compare_complete_test beta delta) = 0
 	  then 
-	    make_betaspine all_spines gamma (d delta_gamma)
-	  else make_zero ()),points
+	    (
+	      make_betaspine all_spines gamma (d delta_gamma))
+	  else (
+		make_zero ())),points
       | Spine (e,_,_) -> 
 	calc_deriv_main all_spines e
 	  

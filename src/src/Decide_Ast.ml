@@ -67,21 +67,24 @@ let utf8 = ref false
       | Zero of uid
       | One of uid
 
-    let extract_uid = function 
-      | Assg (id,_,_)
-      | Test (id,_,_)
-      | Dup id 
-      | Plus (id,_)
-      | Times (id,_)
-      | Not (id,_)
-      | Star (id,_)
-      | Zero (id)
-      | One (id)
-	-> id
+    let extract_uid _ = failwith "enable when debugged"
+      (* TODO: enable when debugged *)
+      (* function 
+	| Assg (id,_,_)
+	| Test (id,_,_)
+	| Dup id 
+	| Plus (id,_)
+	| Times (id,_)
+	| Not (id,_)
+	| Star (id,_)
+	| Zero (id)
+	| One (id)
+	  -> id *)
       
 
-    let compare a b = 
-      Pervasives.compare (extract_uid a) (extract_uid b)
+    let compare a b = (* TODO: enable when debugged *)
+      (* Pervasives.compare (extract_uid a) (extract_uid b) *)
+      Pervasives.compare a b
 
     let int_to_uid (x : int) : uid = x
 
@@ -204,7 +207,11 @@ end = struct
     let to_term (e : InitialTerm.t) : Term.t = 
       let rec rf e = 
 	let module TTerm = InitialTerm in 
-	let id,e' = get_uid e in 
+	let id,e' = 
+	  (* TODO: enable when debugged *)
+	  (* get_uid e *)
+	  Term.uid_of_int 0,None
+	in 
 	match e' with 
 	  | Some e -> e
 	  | None -> (
@@ -229,12 +236,6 @@ end = struct
 			     set_term e e'; e')
       in 
       rf e
-
-	  
-  let make_term (e : InitialTerm.t) : Term.t = 
-    match get_uid e with 
-      | (_,Some e) -> e
-      | _ -> to_term e
     
 end
 
@@ -584,8 +585,10 @@ end
 let hits = ref 0 
 let misses = ref 1 
 
-let memoize (f : Term.t -> 'a) = 
-  let hash = ref TermMap.empty in 
+let memoize (f : Term.t -> 'a) = f
+
+  (* TODO: enable when debugged *)
+(*  let hash = ref TermMap.empty in 
   (fun b -> 
     try let ret = TermMap.find b !hash in
 	(hits := !hits + 1;
@@ -596,10 +599,12 @@ let memoize (f : Term.t -> 'a) =
        hash := TermMap.add b ret !hash;
        ret
       ))
+*)
 
+let memoize_on_arg2 f = f
 
-let memoize_on_arg2 f = 
-  let hash = ref TermMap.empty in 
+  (* TODO: enable when debugged *)
+(*  let hash = ref TermMap.empty in 
   (fun a b -> 
     try let ret = TermMap.find b !hash in
 	(hits := !hits + 1;
@@ -610,3 +615,4 @@ let memoize_on_arg2 f =
        hash := TermMap.add b ret !hash;
        ret
       ))
+*)

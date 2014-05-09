@@ -13,11 +13,13 @@ sig
     type t
     type point
     val compare_point : point -> point -> int
+    val point_to_string : point -> string
     type complete_test 
     val point_rhs : point -> complete_test
     val point_lhs : point -> complete_test
     val compare_complete_test : complete_test -> complete_test -> int
     val complete_test_to_string : complete_test -> string
+    val completetest_to_term_test : complete_test -> Decide_Ast.InitialTerm.t
 
     val project_lhs : t -> t
     module Set : sig 

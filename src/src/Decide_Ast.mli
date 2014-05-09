@@ -49,6 +49,7 @@ module rec InitialTerm : sig
     | Zero 
     | One 
   val to_term : t -> Term.t
+  val of_term : Term.t -> t
 end and InitialTermSet : sig
   include Set.S
   val from_list : elt list -> t
