@@ -87,11 +87,12 @@ val term_to_string : term -> string
 val termset_to_string : TermSet.t -> string
 val formula_to_string : formula -> string
 
+
 module Decide_Spines : sig 
     val lspines : term -> TermSet.t
     val rspines : term -> TermSet.t
     val lrspines : term -> TermSet.t 
-    val allLRspines : term -> (term, TermSet.t) Hashtbl.t
+    val allLRspines : term -> TermSet.t Map.Make(Term).t
 end
 
 

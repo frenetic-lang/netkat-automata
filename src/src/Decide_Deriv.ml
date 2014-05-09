@@ -43,7 +43,8 @@ open Decide_Spines
 module Deriv = functor(UDesc: UnivDescr) -> struct 
 
   module U = Univ(UDesc)
-  type spines_map = (Decide_Ast.term, Decide_Ast.TermSet.t) Hashtbl.t  
+  module TermMap = Map.Make(Decide_Ast.Term)
+  type spines_map = Decide_Ast.TermSet.t TermMap.t
 
   module rec DerivTerm : sig
     type e_matrix = | E_Matrix of (unit -> U.Base.Set.t)
@@ -208,7 +209,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	    | Spine (e',_,_) -> TermSet.add e' (acc point)
 	    | BetaSpine (b,e',_,_) -> failwith "this can't be produced"),
 	more_points)
-      (Hashtbl.find all_spines e) 
+      (TermMap.find e all_spines) 
       ((fun _ -> TermSet.empty), U.Base.Set.empty) in
     (fun point -> 
       make_betaspine all_spines (U.Base.point_rhs point) (d point)

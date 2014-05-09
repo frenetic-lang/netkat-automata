@@ -56,8 +56,6 @@ let utf8 = ref false
       let extra_val = "☃"
     end
 
-    let compare = Pervasives.compare
-
     type t =
       | Assg of uid * Field.t * Value.t
       | Test of uid * Field.t * Value.t
@@ -68,6 +66,22 @@ let utf8 = ref false
       | Star of uid * t
       | Zero of uid
       | One of uid
+
+    let extract_uid = function 
+      | Assg (id,_,_)
+      | Test (id,_,_)
+      | Dup id 
+      | Plus (id,_)
+      | Times (id,_)
+      | Not (id,_)
+      | Star (id,_)
+      | Zero (id)
+      | One (id)
+	-> id
+      
+
+    let compare a b = 
+      Pervasives.compare (extract_uid a) (extract_uid b)
 
     let int_to_uid (x : int) : uid = x
 
@@ -269,44 +283,6 @@ let termset_to_string (ts : TermSet.t) : string =
   let m = List.map term_to_string l in
   String.concat "\n" m
 
-(***********************************************
- * coterms
- ***********************************************)
-
-(* coterm representation - a function from positions to subterms *)
-(* a position is an integer list where the head gives the *)
-(* child number of this term relative to its parent *)
-(* The tail is the position of the parent, [] is the root *)
-
-type coterm = (int list, term) Hashtbl.t
-
-let coterm (t : term) : coterm =
-  let h = Hashtbl.create 11 in
-  let rec siblings n pos s =
-    match s with
-    | [] -> ()
-    | x :: r ->
-      subterms (n :: pos) x;
-      siblings (n+1) pos r
-  and subterms (pos : int list) (t : term) : unit =
-    Hashtbl.add h pos t;
-    match t with
-    | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> ()
-    | Plus (_,x) -> siblings 0 pos (TermSet.elements x)
-    | Times (_,x) -> siblings 0 pos x
-    | Not (_,x) -> subterms (0 :: pos) x
-    | Star (_,x) -> subterms (0 :: pos) x in
-  subterms [] t; h
-
-let pos_to_string (pos : int list) : string =
-  match pos with
-  | [] -> "e"
-  | _ -> String.concat "" (List.map string_of_int pos)
-
-let coterm_to_string (h : coterm) : string =
-  let f pos t r = Printf.sprintf "%s: %s" (pos_to_string pos) (term_to_string t) :: r in
-  let s = Hashtbl.fold (fun pos t r -> f pos t r) h [] in
-  String.concat "\n" s
   
 (***********************************************
  * utilities
@@ -496,6 +472,8 @@ let mul_terms (t1 : term) (t2 : term) : term =
 
 (* SPINES *)
 
+module TermMap = Map.Make(Term)
+
 module Decide_Spines = struct 
 
 (* right spines of a term *)
@@ -579,11 +557,11 @@ module Decide_Spines = struct
     in InitialTermSet.fold (fun x -> TermSet.add (make_term x)) (lrspines (InitialTerm.of_term e)) TermSet.empty
 	
   (* get all lrspines of e and all lrspines of rspines of e *)
-  let allLRspines (e : term) : (term, TermSet.t) Hashtbl.t =
+  let allLRspines (e : term) : TermSet.t TermMap.t =
     let allLR = TermSet.add e (rspines e) in
-    let h = Hashtbl.create 11 in
-    let f d = Hashtbl.add h d (lrspines d) in
-    TermSet.iter f allLR; h
+    let h = ref TermMap.empty in
+    let f d = h := TermMap.add d (lrspines d) !h in
+    TermSet.iter f allLR; !h
       
   (* (* remove dups of lspines *)                                            *)
   (* let remove_dups_from_Lspines (h : (term, TermSet.t) Hashtbl.t) : unit = *)
@@ -604,31 +582,29 @@ end
 let hits = ref 0 
 let misses = ref 1 
 
-module TermMap = Map.Make(Term)
-
 let memoize (f : Term.t -> 'a) = 
-  let hash = Hashtbl.create 0 in 
+  let hash = ref TermMap.empty in 
   (fun b -> 
-    try let ret = Hashtbl.find hash b in
+    try let ret = TermMap.find b !hash in
 	(hits := !hits + 1;
 	 ret)
     with Not_found -> 
       (misses := !misses + 1;
        let ret = f b in 
-       Hashtbl.replace hash b ret;
+       hash := TermMap.add b ret !hash;
        ret
       ))
 
 
 let memoize_on_arg2 f = 
-  let hash = Hashtbl.create 0 in 
+  let hash = ref TermMap.empty in 
   (fun a b -> 
-    try let ret = Hashtbl.find hash b in
+    try let ret = TermMap.find b !hash in
 	(hits := !hits + 1;
 	 ret)
     with Not_found -> 
       (misses := !misses + 1;
        let ret = f a b in 
-       Hashtbl.replace hash b ret;
+       hash := TermMap.add b ret !hash;
        ret
       ))
