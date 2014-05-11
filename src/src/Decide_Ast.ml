@@ -37,13 +37,14 @@ let utf8 = ref false
       | One of uid
   val to_string : t -> string
   val to_string_sexpr : t -> string
+  val old_compare : (t -> t -> int) ref
   val compare : t -> t -> int
   val uid_of_int : int -> uid
   val int_of_uid : uid -> int
   val ts_elements : (TermSet.t -> t list) ref
   end = struct 
     type uid = int	
-
+	
     module Field = struct 
       type t = string
       let compare = String.compare
@@ -131,14 +132,19 @@ let utf8 = ref false
     let uid_of_int x = x
     let int_of_uid x = x
 
+    let old_compare : (t -> t -> int) ref = ref (fun _ _ -> failwith "dummy")
+
     let compare a b = 
-      match Pervasives.compare (extract_uid a) (extract_uid b), Pervasives.compare (to_string_sexpr a) (to_string_sexpr b)
+      match Pervasives.compare (extract_uid a) (extract_uid b), !old_compare a b
       with 
 	| 0,0 -> 0 
 	| 0,_ -> Printf.printf "about to fail: Terms %s and %s had uid %u\n"
 	  (to_string a) (to_string b) (extract_uid a);
 	  failwith "new said equal, old said not"
-	| _,0 -> failwith "old said equal, new said not"
+	| _,0 -> 
+	  Printf.printf "about to fail: Terms %s and %s had uid %u\n"
+	    (to_string a) (to_string b) (extract_uid a);
+	  failwith "old said equal, new said not"
 	| a,_ -> a
 
   end
@@ -193,70 +199,6 @@ end = struct
 	
   let rec compare a b = 
     match a,b with 
-      | Zero,Zero -> 0
-      | Zero,_ -> -1 
-      | _,Zero -> 1
-      | One,One -> 0
-      | One,_ -> -1
-      | _,One -> 1
-      | Dup,Dup -> 0
-      | Dup,_ -> 1
-      | _,Dup -> -1
-      | Assg (f1,v1),Assg(f2,v2) -> 
-	(match Term.Field.compare f1 f2 with 
-	  | 0 -> Term.Value.compare v1 v2
-	  | k -> k)
-      | Assg _, _ -> -1
-      | _, Assg _ -> 1
-      | Test (f1,v1),Test(f2,v2) -> 
-	(match Term.Field.compare f1 f2 with 
-	  | 0 -> Term.Value.compare v1 v2
-	  | k -> k)
-      | Test _, _ -> -1
-      | _, Test _ -> 1
-      | Times tl1, Times tl2 -> 
-	let len1 = List.length tl1 in 
-	let len2 = List.length tl2 in
-	if len1 = len2
-	then List.fold_right2 
-	  (fun l r acc -> 
-	    if acc = 0 
-	    then compare l r
-	    else acc) (tl1) ( tl2) 0
-	else if len1 < len2
-	then -1
-	else 1
-      | Times _, _ -> -1
-      | _, Times _ -> 1
-      | Plus ts1, Plus ts2 -> 
-	let cardinal1 = InitialTermSet.cardinal ts1 in
-	let cardinal2 = InitialTermSet.cardinal ts2 in
-	if cardinal2 = cardinal1
-	then 
-	  let my_answer = List.fold_right2
-	    (fun l r acc -> 
-	      if acc = 0 
-	      then Pervasives.compare l r
-	      else acc) 
-	    (List.fast_sort Pervasives.compare (InitialTermSet.elements ts1)) 
-	    (List.fast_sort Pervasives.compare (InitialTermSet.elements ts2)) 0 in 
-	  let their_answer = InitialTermSet.compare ts1 ts2 in 
-	  if my_answer <> their_answer
-	  then Printf.printf "I hate ocaml!\n";
-	  (*assert (my_answer = their_answer);*)
-	  my_answer
-	else if cardinal1 < cardinal2 
-	then -1
-	else 1
-      | Plus _, _ -> -1
-      | _, Plus _ -> 1
-      | Not a, Not b -> compare a b
-      | Not _, _ -> -1
-      | _, Not _ -> 1
-      | Star a, Star b -> compare a b
-
-  let rec compare a b = 
-    match a,b with 
     | Plus ts1, Plus ts2 -> 
       let cardinal1 = InitialTermSet.cardinal ts1 in
       let cardinal2 = InitialTermSet.cardinal ts2 in
@@ -284,8 +226,13 @@ end = struct
       else if len1 < len2
       then -1
       else 1
-
+    | Star a,Star b -> 
+      compare a b
+    | Not a, Not b -> 
+      compare a b
     | _ -> Pervasives.compare a b
+
+
 
   let of_term e = 
     let module TTerm = InitialTerm in 
@@ -303,6 +250,7 @@ end = struct
 	| Term.One _ -> TTerm.One
     in rf e
 
+  let _ = Term.old_compare := (fun a b -> compare (of_term a) (of_term b))
 
   let rec to_string (t : t) : string =
       (* higher precedence binds tighter *)
@@ -376,9 +324,8 @@ end = struct
 	    id,trm
 	with Not_found -> 
 	  let (this_counter : Term.uid) = Term.uid_of_int (!counter) in
-	  if !counter > 1073741822
+	  if !counter > 107374182
 	  then failwith "about to overflow the integers!";
-	  Printf.printf "Assigning term %s id number %u\n" (to_string e) !counter;
 	  counter := !counter + 1;
 	  hash := Map.add e (this_counter,None) !hash;
 	  this_counter,None
