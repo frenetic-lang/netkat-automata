@@ -1,5 +1,7 @@
 exception Quit
 
+val debug_mode : bool
+
 module SetMapF :
   functor (K : Map.OrderedType) ->
   functor (V : Set.OrderedType) -> sig

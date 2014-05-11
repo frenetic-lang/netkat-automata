@@ -135,17 +135,21 @@ let utf8 = ref false
     let old_compare : (t -> t -> int) ref = ref (fun _ _ -> failwith "dummy")
 
     let compare a b = 
-      match Pervasives.compare (extract_uid a) (extract_uid b), !old_compare a b
-      with 
-	| 0,0 -> 0 
-	| 0,_ -> Printf.printf "about to fail: Terms %s and %s had uid %u\n"
-	  (to_string a) (to_string b) (extract_uid a);
-	  failwith "new said equal, old said not"
-	| _,0 -> 
-	  Printf.printf "about to fail: Terms %s and %s had uid %u\n"
+      let myres = Pervasives.compare (extract_uid a) (extract_uid b) in 
+      if Decide_Util.debug_mode 
+      then 
+	match myres, !old_compare a b
+	with 
+	  | 0,0 -> 0 
+	  | 0,_ -> Printf.printf "about to fail: Terms %s and %s had uid %u\n"
 	    (to_string a) (to_string b) (extract_uid a);
-	  failwith "old said equal, new said not"
-	| a,_ -> a
+	    failwith "new said equal, old said not"
+	  | _,0 -> 
+	    Printf.printf "about to fail: Terms %s and %s had uid %u\n"
+	      (to_string a) (to_string b) (extract_uid a);
+	    failwith "old said equal, new said not"
+	  | a,_ -> a
+      else myres
 
   end
 
@@ -300,28 +304,21 @@ end = struct
       let hash = ref Map.empty in 
       let get_uid e = 
 	try let (id : Term.uid),trm = Map.find e !hash in 
-	    (* TODO: enable when debugged *)
-	    (match trm with 
-	      | Some e' -> 
-		(match Map.find (of_term e') !hash with 
-		  | id',Some e'' when (id' = id && (Term.to_string_sexpr e') = (Term.to_string_sexpr e'')) -> ()
-		  | id', Some e'' -> 
-		    Printf.printf "id: %u.  id': %u. e':  %s.  e'': %s."
-		      (Term.int_of_uid id) (Term.int_of_uid id') (Term.to_string_sexpr e') (Term.to_string_sexpr e'')
-		    ;
-		     failwith "hash collision?!?!"
-		  | _ -> failwith "get_uid new sanity check fails hard!");
-	      | None -> ());
-		(*if (0 <> (compare e (of_term e')))
-		then (Printf.printf "terms %s and %s (of-term of %s) have a hash collision?\nWell, they compared %u\n"  
-			(to_string_sexpr e)
-			(Term.to_string_sexpr e')
-			(to_string_sexpr (of_term e'))
-			(compare e (of_term e'))
-		     ;
-		      failwith "sanity check failed in get_uid")
-	      | None -> ());*)
-	    id,trm
+	    (if debug_mode
+	     then 
+		((match trm with 
+		  | Some e' -> 
+		    (match Map.find (of_term e') !hash with 
+		      | id',Some e'' when (id' = id && (Term.to_string_sexpr e') = (Term.to_string_sexpr e'')) -> ()
+		      | id', Some e'' -> 
+			Printf.printf "id: %u.  id': %u. e':  %s.  e'': %s."
+			  (Term.int_of_uid id) (Term.int_of_uid id') (Term.to_string_sexpr e') (Term.to_string_sexpr e'')
+			;
+			failwith "hash collision?!?!"
+		      | _ -> failwith "get_uid new sanity check fails hard!");
+		  | None -> ());id,trm)
+	     else 
+	      id,trm)
 	with Not_found -> 
 	  let (this_counter : Term.uid) = Term.uid_of_int (!counter) in
 	  if !counter > 107374182
@@ -339,10 +336,10 @@ end = struct
       let rec rf e = 
 	let module TTerm = InitialTerm in 
 	let id,e' = 
-	  (* TODO: enable when debugged *)
-	  (* get_uid e *)
-	  let r,_ = get_uid e in 
-	  r,None
+	  if debug_mode 
+	  then let r,_ = get_uid e in 
+	       r,None
+	  else get_uid e
 	in 
 	match e' with 
 	  | Some e -> e
@@ -718,44 +715,57 @@ end
 let hits = ref 0 
 let misses = ref 1 
 
-let memoize (f : Term.t -> 'a) = f
-
-  (* TODO: enable when debugged *)
-(*  let hash = ref TermMap.empty in 
-  (fun b -> 
-    try let ret = TermMap.find b !hash in
-	(hits := !hits + 1;
-	 ret)
-    with Not_found -> 
-      (misses := !misses + 1;
-       let ret = f b in 
-       hash := TermMap.add b ret !hash;
-       ret
-      ))
-*)
-
-let memoize_on_arg2 f = f
-
-  (* TODO: enable when debugged *)
-(*  let hash = ref TermMap.empty in 
-  (fun a b -> 
-    try let ret = TermMap.find b !hash in
-	(hits := !hits + 1;
-	 ret)
-    with Not_found -> 
-      (misses := !misses + 1;
-       let ret = f a b in 
-       hash := TermMap.add b ret !hash;
-       ret
-      ))
-*)
+let memoize (f : Term.t -> 'a) =
+  let hash_version = 
+    let hash = ref TermMap.empty in 
+    (fun b -> 
+      try let ret = TermMap.find b !hash in
+	  (hits := !hits + 1;
+	   ret)
+      with Not_found -> 
+	(misses := !misses + 1;
+	 let ret = f b in 
+	 hash := TermMap.add b ret !hash;
+	 ret
+	)) in 
+  if debug_mode 
+  then (fun x -> 
+    let hv = hash_version x in 
+    let fv = f x in 
+    assert (hv = fv);
+    hv)
+  else hash_version
 
 
+let memoize_on_arg2 f =
+  let hash_version = 
+    let hash = ref TermMap.empty in 
+    (fun a b -> 
+      try let ret = TermMap.find b !hash in
+	  (hits := !hits + 1;
+	   ret)
+      with Not_found -> 
+	(misses := !misses + 1;
+	 let ret = f a b in 
+	 hash := TermMap.add b ret !hash;
+	 ret
+	)) in
+  if debug_mode
+  then (fun x y -> 
+    let hv = hash_version x y in 
+    let fv = f x y in 
+    assert (hv = fv);
+    hv)
+  else hash_version
 
-(* TODO: enable when debugged *)
+
 let _ = 
-  let value = (InitialTerm.Plus(InitialTermSet.add 
-		      (InitialTerm.Test(Term.Field.of_string "x", Term.Value.of_string "3")) 
-		      (InitialTermSet.singleton 
-			 (InitialTerm.Not (InitialTerm.Test(Term.Field.of_string "x", Term.Value.of_string "3")))))) in
-  assert (0 = (InitialTerm.compare value value))
+  if debug_mode
+  then 
+    let value = (InitialTerm.Plus(InitialTermSet.add 
+				    (InitialTerm.Test(Term.Field.of_string "x", Term.Value.of_string "3")) 
+				    (InitialTermSet.singleton 
+				       (InitialTerm.Not (InitialTerm.Test(Term.Field.of_string "x", Term.Value.of_string "3")))))) in
+    assert (0 = (InitialTerm.compare value value))
+  else ()
+      

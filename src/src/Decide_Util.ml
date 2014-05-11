@@ -1,5 +1,7 @@
 exception Quit
 exception Undo
+
+let debug_mode = true
   
 let output_endline (out : out_channel) (s : string) : unit =
   output_string out s;
