@@ -732,7 +732,10 @@ let memoize (f : Term.t -> 'a) =
   then (fun x -> 
     let hv = hash_version x in 
     let fv = f x in 
-    assert (hv = fv);
+    (try 
+      assert (hv = fv);
+    with Invalid_argument _ -> 
+      Printf.printf "warning: memoize assert could not run: Invalid argument exception!\n");
     hv)
   else hash_version
 
@@ -753,8 +756,11 @@ let memoize_on_arg2 f =
   if debug_mode
   then (fun x y -> 
     let hv = hash_version x y in 
-    let fv = f x y in 
-    assert (hv = fv);
+    let fv = f x y in
+    (try 
+      assert (hv = fv);
+    with Invalid_argument _ -> 
+      Printf.printf "warning: memoize assert could not run: Invalid argument exception!\n");
     hv)
   else hash_version
 
