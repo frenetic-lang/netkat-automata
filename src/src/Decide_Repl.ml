@@ -60,8 +60,17 @@ let rec repl (state : state) : unit =
 	    | None -> failwith "file load didn't work"
     ) 
     else input in
-  Printf.printf "processing...\n%!";
-  process input;
+  print_string "process or serialize: ";
+  (match read_line() with 
+    | "process" ->
+      Printf.printf "processing...\n%!";
+      process input;
+    | "serialize" -> 
+      print_string "where: ";
+      let file = read_line () in 
+      let formula = parse input in 
+      Decide_Ast.serialize_formula formula file 
+    | _ -> repl state);
   repl state
 
 let main () =

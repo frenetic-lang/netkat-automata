@@ -46,17 +46,47 @@ let utf8 = ref false
     type uid = int	
 	
     module Field = struct 
-      type t = string
-      let compare = String.compare
-      let to_string x = x
-      let of_string x = x
+      type t = int
+      let compare = Pervasives.compare
+      let of_string,to_string = 
+	let stringtoint = Hashtbl.create 11 in 
+	let inttostring = Hashtbl.create 11 in 
+	let counter = ref 0 in 
+	let of_string (x : string) : t = 
+	  try Hashtbl.find stringtoint x 
+	  with Not_found -> 
+	    let id = !counter in 
+	    counter := !counter + 1 ;
+	    Hashtbl.replace stringtoint x id;
+	    Hashtbl.replace inttostring id x;
+	    id in 
+	let to_string (x : t) : string = 
+	  Hashtbl.find inttostring x in 
+	of_string,to_string
     end
+
     module Value = struct 
-      type t = string
-      let compare = String.compare
-      let to_string x = x
-      let of_string x = x
-      let extra_val = "☃"
+      type t = int
+      let compare = Pervasives.compare
+      let of_string,to_string = 
+	let stringtoint = Hashtbl.create 11 in 
+	let inttostring = Hashtbl.create 11 in 
+	let snowman =  "☃" in
+	Hashtbl.replace stringtoint snowman (-1);
+	Hashtbl.replace inttostring (-1) snowman;
+	let counter = ref 0 in 
+	let of_string (x : string) : t = 
+	  try Hashtbl.find stringtoint x 
+	  with Not_found -> 
+	    let id = !counter in 
+	    counter := !counter + 1 ;
+	    Hashtbl.replace stringtoint x id;
+	    Hashtbl.replace inttostring id x;
+	    id in 
+	let to_string (x : t) : string = 
+	  Hashtbl.find inttostring x in 
+	of_string,to_string
+      let extra_val = -1
     end
 
     type t =
@@ -83,7 +113,8 @@ let utf8 = ref false
 	| One (id)
 	  -> id 
 
-    let ts_elements : (TermSet.t -> t list) ref  = ref (fun _ -> failwith "module issues")
+    let ts_elements : (TermSet.t -> t list) ref  = 
+      ref (fun _ -> failwith "module issues")
       
   
     let rec to_string (t : t) : string =
@@ -99,15 +130,19 @@ let utf8 = ref false
       let protect (x : t) : string =
 	let s = to_string x in
 	if out_precedence t <= out_precedence x then s else "(" ^ s ^ ")" in
-      let assoc_to_string (op : string) (ident : string) (s : string list) : string =
+      let assoc_to_string (op : string) (ident : string) (s : string list) 
+	  : string =
 	match s with
 	  | [] -> ident
 	  | _ -> String.concat op s in
       match t with
-	| Assg (_, var, value) -> Printf.sprintf "%s:=%s" (Field.to_string var) (Value.to_string value)
-	| Test (_, var, value) -> Printf.sprintf "%s=%s" (Field.to_string var) (Value.to_string value)
+	| Assg (_, var, value) -> Printf.sprintf "%s:=%s" 
+	  (Field.to_string var) (Value.to_string value)
+	| Test (_, var, value) -> Printf.sprintf "%s=%s" 
+	  (Field.to_string var) (Value.to_string value)
 	| Dup _ -> "dup"
-	| Plus (_,x) -> assoc_to_string " + " "0" (List.map protect ( !ts_elements x ))
+	| Plus (_,x) -> assoc_to_string " + " "0" (List.map protect 
+						     ( !ts_elements x ))
 	| Times (_,x) -> assoc_to_string ";" "1" (List.map protect x)
 	| Not (_,x) -> (if !utf8 then "¬" else "~") ^ (protect x)
 	| Star (_,x) -> (protect x) ^ "*"
@@ -116,14 +151,22 @@ let utf8 = ref false
 
 
   let rec to_string_sexpr = function 
-    | Assg ( _, var, value) -> Printf.sprintf "(%s:=%s)" (Field.to_string var) (Value.to_string value)
-    | Test ( _, var, value) -> Printf.sprintf "(%s=%s)" (Field.to_string var) (Value.to_string value)
+    | Assg ( _, var, value) -> Printf.sprintf "(%s:=%s)"
+      (Field.to_string var) (Value.to_string value)
+    | Test ( _, var, value) -> Printf.sprintf "(%s=%s)"
+      (Field.to_string var) (Value.to_string value)
     | Dup _ -> "dup"
     | Plus (_,x) -> 
-      Printf.sprintf "(+ %s)" (List.fold_right (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) (!ts_elements x) "")
+      Printf.sprintf "(+ %s)" 
+	(List.fold_right 
+	   (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) 
+	   (!ts_elements x) "")
     | Times (_, x) -> 
-      Printf.sprintf "(; %s)" (List.fold_right (Printf.sprintf "%s %s") (List.map to_string_sexpr x) "")
-    | Not (_, x) -> (if !utf8 then "¬" else "~") ^ (Printf.sprintf "(%s)" (to_string_sexpr x))
+      Printf.sprintf "(; %s)" 
+	(List.fold_right 
+	   (Printf.sprintf "%s %s") (List.map to_string_sexpr x) "")
+    | Not (_, x) -> (if !utf8 then "¬" else "~") ^ 
+      (Printf.sprintf "(%s)" (to_string_sexpr x))
     | Star (_, x) -> (Printf.sprintf "(%s)" (to_string_sexpr x)) ^ "*"
     | Zero _ -> "drop"
     | One _ -> "pass"
@@ -141,8 +184,9 @@ let utf8 = ref false
 	match myres, !old_compare a b
 	with 
 	  | 0,0 -> 0 
-	  | 0,_ -> Printf.printf "about to fail: Terms %s and %s had uid %u\n"
-	    (to_string a) (to_string b) (extract_uid a);
+	  | 0,_ -> 
+	    Printf.printf "about to fail: Terms %s and %s had uid %u\n"
+	      (to_string a) (to_string b) (extract_uid a);
 	    failwith "new said equal, old said not"
 	  | _,0 -> 
 	    Printf.printf "about to fail: Terms %s and %s had uid %u\n"
@@ -188,6 +232,7 @@ module rec InitialTerm : sig
   val to_term : t -> Term.t
   val of_term : Term.t -> t
   val compare : t -> t -> int
+  val to_string_ocaml : t -> string
 
 end = struct 
   type t =
@@ -246,7 +291,8 @@ end = struct
 	| Term.Test (_,k,v)-> TTerm.Test (k,v)
 	| Term.Dup _ -> TTerm.Dup
 	| Term.Plus (_,ts)-> TTerm.Plus 
-	  (TermSet.fold (fun x -> InitialTermSet.add (rf x)) ts InitialTermSet.empty)
+	  (TermSet.fold (fun x -> InitialTermSet.add (rf x)) 
+	     ts InitialTermSet.empty)
 	| Term.Times (_,tl)-> TTerm.Times (List.map rf tl)
 	| Term.Not (_,tm)-> TTerm.Not (rf tm)
 	| Term.Star (_,tm)-> TTerm.Star (rf tm)
@@ -269,15 +315,19 @@ end = struct
     let protect (x : t) : string =
       let s = to_string x in
       if out_precedence t <= out_precedence x then s else "(" ^ s ^ ")" in
-    let assoc_to_string (op : string) (ident : string) (s : string list) : string =
+    let assoc_to_string (op : string) (ident : string) (s : string list) 
+	: string =
       match s with
 	| [] -> ident
 	| _ -> String.concat op s in
     match t with
-      | Assg ( var, value) -> Printf.sprintf "%s:=%s" (Term.Field.to_string var) (Term.Value.to_string value)
-      | Test ( var, value) -> Printf.sprintf "%s=%s" (Term.Field.to_string var) (Term.Value.to_string value)
+      | Assg ( var, value) -> Printf.sprintf "%s:=%s" 
+	(Term.Field.to_string var) (Term.Value.to_string value)
+      | Test ( var, value) -> Printf.sprintf "%s=%s" 
+	(Term.Field.to_string var) (Term.Value.to_string value)
       | Dup  -> "dup"
-      | Plus (x) -> assoc_to_string " + " "0" (List.map protect ( InitialTermSet.elements x ))
+      | Plus (x) -> assoc_to_string " + " "0" 
+	(List.map protect ( InitialTermSet.elements x ))
       | Times (x) -> assoc_to_string ";" "1" (List.map protect x)
       | Not (x) -> (if !utf8 then "¬" else "~") ^ (protect x)
       | Star (x) -> (protect x) ^ "*"
@@ -285,19 +335,47 @@ end = struct
       | One  -> "pass"
 
   let rec to_string_sexpr = function 
-    | Assg ( var, value) -> Printf.sprintf "(%s:=%s)" (Term.Field.to_string var) (Term.Value.to_string value)
-    | Test ( var, value) -> Printf.sprintf "(%s=%s)" (Term.Field.to_string var) (Term.Value.to_string value)
+    | Assg ( var, value) -> Printf.sprintf "(%s:=%s)" 
+      (Term.Field.to_string var) (Term.Value.to_string value)
+    | Test ( var, value) -> Printf.sprintf "(%s=%s)" 
+      (Term.Field.to_string var) (Term.Value.to_string value)
     | Dup  -> "dup"
     | Plus (x) -> 
-      Printf.sprintf "(+ %s)" (InitialTermSet.fold (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) x "")
+      Printf.sprintf "(+ %s)" 
+	(InitialTermSet.fold 
+	   (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) x "")
     | Times (x) -> 
-      Printf.sprintf "(; %s)" (List.fold_right (Printf.sprintf "%s %s") (List.map to_string_sexpr x) "")
-    | Not (x) -> (if !utf8 then "¬" else "~") ^ (Printf.sprintf "(%s)" (to_string_sexpr x))
+      Printf.sprintf "(; %s)" 
+	(List.fold_right 
+	   (Printf.sprintf "%s %s") (List.map to_string_sexpr x) "")
+    | Not (x) -> (if !utf8 then "¬" else "~") ^ 
+      (Printf.sprintf "(%s)" (to_string_sexpr x))
     | Star (x) -> (Printf.sprintf "(%s)" (to_string_sexpr x)) ^ "*"
     | Zero  -> "drop"
     | One  -> "pass"
 
 
+  let rec to_string_ocaml = function 
+    | Assg ( var, value) -> Printf.sprintf "(%s:=%s)" 
+      (Term.Field.to_string var) (Term.Value.to_string value)
+    | Test ( var, value) -> Printf.sprintf "(%s=%s)" 
+      (Term.Field.to_string var) (Term.Value.to_string value)
+    | Dup  -> "dup"
+    | Plus (x) -> 
+      Printf.sprintf "(+ %s)" 
+	(InitialTermSet.fold 
+	   (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) x "")
+    | Times (x) -> 
+      Printf.sprintf "(; %s)" (List.fold_right (Printf.sprintf "%s %s") 
+				 (List.map to_string_sexpr x) "")
+    | Not (x) -> (if !utf8 then "¬" else "~") ^ (Printf.sprintf "(%s)" 
+						   (to_string_sexpr x))
+    | Star (x) -> (Printf.sprintf "(%s)" (to_string_sexpr x)) ^ "*"
+    | Zero  -> "drop"
+    | One  -> "pass"
+
+
+  let to_term = 
     let get_uid,set_term = 
       let counter = ref 0 in 
       let module Map = Map.Make(InitialTerm) in 
@@ -309,16 +387,21 @@ end = struct
 		((match trm with 
 		  | Some e' -> 
 		    (match Map.find (of_term e') !hash with 
-		      | id',Some e'' when (id' = id && (Term.to_string_sexpr e') = (Term.to_string_sexpr e'')) -> ()
+		      | id',Some e'' when (id' = id && 
+			  (Term.to_string_sexpr e') = 
+			  (Term.to_string_sexpr e'')) -> ()
 		      | id', Some e'' -> 
 			Printf.printf "id: %u.  id': %u. e':  %s.  e'': %s."
-			  (Term.int_of_uid id) (Term.int_of_uid id') (Term.to_string_sexpr e') (Term.to_string_sexpr e'')
+			  (Term.int_of_uid id) (Term.int_of_uid id') 
+			  (Term.to_string_sexpr e') 
+			  (Term.to_string_sexpr e'')
 			;
 			failwith "hash collision?!?!"
-		      | _ -> failwith "get_uid new sanity check fails hard!");
+		      | _ -> 
+			failwith "get_uid new sanity check fails hard!");
 		  | None -> ());id,trm)
 	     else 
-	      id,trm)
+		id,trm)
 	with Not_found -> 
 	  let (this_counter : Term.uid) = Term.uid_of_int (!counter) in
 	  if !counter > 107374182
@@ -330,8 +413,8 @@ end = struct
       let set_term e new_e= 
 	let id,_ = get_uid e in 
 	hash := Map.add e (id,Some new_e) !hash in 
-      get_uid,set_term
-	
+      get_uid,set_term in
+    
     let to_term (e : InitialTerm.t) : Term.t = 
       let rec rf e = 
 	let module TTerm = InitialTerm in 
@@ -351,20 +434,31 @@ end = struct
 				    set_term e e'; e'
 	      | TTerm.Dup -> let e' = Term.Dup(id) in 
 			     set_term e e'; e'
-	      | TTerm.Plus (ts) -> let e' = Term.Plus(id, InitialTermSet.fold (fun x -> TermSet.add (rf x) ) ts TermSet.empty) in 
-				   set_term e e'; e'
-	      | TTerm.Times (tl) -> let e' = Term.Times(id, List.map rf tl) in 
-				    set_term e e'; e'
-	      | TTerm.Not tm -> let e' = Term.Not (id, rf tm) in 
-				set_term e e'; e'
-	      | TTerm.Star tm -> let e' = Term.Star (id, rf tm) in 
-				 set_term e e'; e'
-	      | TTerm.Zero -> let e' = Term.Zero id in 
-			      set_term e e'; e'
-	      | TTerm.One -> let e' = Term.One id in 
-			     set_term e e'; e')
+	      | TTerm.Plus (ts) -> 
+		let e' = 
+		  Term.Plus(id, 
+			    InitialTermSet.fold 
+			      (fun x -> TermSet.add (rf x) ) 
+			      ts TermSet.empty) in 
+		set_term e e'; e'
+	      | TTerm.Times (tl) -> 
+		let e' = Term.Times(id, List.map rf tl) in 
+		set_term e e'; e'
+	      | TTerm.Not tm -> 
+		let e' = Term.Not (id, rf tm) in 
+		set_term e e'; e'
+	      | TTerm.Star tm -> 
+		let e' = Term.Star (id, rf tm) in 
+		set_term e e'; e'
+	      | TTerm.Zero -> 
+		let e' = Term.Zero id in 
+		set_term e e'; e'
+	      | TTerm.One -> 
+		let e' = Term.One id in 
+		set_term e e'; e')
       in 
-      rf e
+      rf e in
+    to_term
     
 end
 
@@ -408,13 +502,29 @@ let term_to_string = Term.to_string
 
 let formula_to_string (e : formula) : string =
   match e with
-  | Eq (s,t) -> Term.to_string (make_term s) ^ " == " ^ Term.to_string (make_term t)
-  | Le (s,t) -> Term.to_string (make_term s) ^ " <= " ^ Term.to_string (make_term t)
+  | Eq (s,t) -> Term.to_string (make_term s) ^ " == " ^ 
+    Term.to_string (make_term t)
+  | Le (s,t) -> Term.to_string (make_term s) ^ " <= " ^ 
+    Term.to_string (make_term t)
 
 let termset_to_string (ts : TermSet.t) : string =
   let l = TermSet.elements ts in
   let m = List.map term_to_string l in
   String.concat "\n" m
+
+let serialize_formula formula file = 
+  let file = open_out file in 
+  Printf.fprintf file "%s" 
+    (match formula with 
+      | Eq (s,t) -> 
+	Printf.sprintf "Decide_Ast.Eq (%s,%s)" 
+	  (InitialTerm.to_string_ocaml s)
+	  (InitialTerm.to_string_ocaml t)
+      | Le (s,t) -> 
+	Printf.sprintf "Decide_Ast.Le (%s,%s)" 
+	  (InitialTerm.to_string_ocaml s)
+	  (InitialTerm.to_string_ocaml t)
+    )
 
   
 (***********************************************
@@ -459,8 +569,10 @@ let rec contains_a_neg term =
   match term with 
     | (Assg _ | Test _ | Dup _ | Zero _ | One _) -> false
     | Not _ -> true
-    | Times (_,x) -> List.fold_left (fun acc x -> acc || (contains_a_neg x)) false x
-    | Plus (_,x) -> TermSet.fold (fun x acc -> acc || (contains_a_neg x)) x false 
+    | Times (_,x) -> List.fold_left 
+      (fun acc x -> acc || (contains_a_neg x)) false x
+    | Plus (_,x) -> TermSet.fold 
+      (fun x acc -> acc || (contains_a_neg x)) x false 
     | Star (_,x) -> contains_a_neg x
 
 
@@ -472,17 +584,21 @@ let rec contains_a_neg term =
 (* flatten terms *)
 let flatten_sum (t : InitialTerm.t list) : InitialTerm.t =
   let open InitialTerm in 
-  let f (x : InitialTerm.t) = match x with Plus (v) -> (InitialTermSet.elements v) | (Zero ) -> [] | _ -> [x] in
+  let f (x : InitialTerm.t) = match x with Plus (v) -> 
+    (InitialTermSet.elements v) | (Zero ) -> [] | _ -> [x] in
   let t1 = List.concat (List.map f t) in
   let t2 = InitialTermSet.from_list t1 in
-  match InitialTermSet.elements t2 with [] -> InitialTerm.Zero | [x] -> ( x) | _ ->  (InitialTerm.Plus t2)
+  match InitialTermSet.elements t2 with [] -> 
+    InitialTerm.Zero | [x] -> ( x) | _ ->  (InitialTerm.Plus t2)
     
 let flatten_product (t : InitialTerm.t list) : InitialTerm.t =
   let open InitialTerm in 
   let f x = match x with Times (v) -> v | One  -> [] | _ -> [x] in
   let t1 = List.concat (List.map f t) in
-  if List.exists (fun x -> match x with Zero  -> true | _ -> false) t1 then ( InitialTerm.Zero)
-  else match t1 with [] -> ( InitialTerm.One) | [x] -> x | _ ->  (InitialTerm.Times  t1)
+  if List.exists (fun x -> match x with Zero  -> true | _ -> false) 
+    t1 then ( InitialTerm.Zero)
+  else match t1 with [] -> ( InitialTerm.One) | [x] -> x | _ ->  
+    (InitialTerm.Times  t1)
     
 let flatten_not (t : InitialTerm.t) : InitialTerm.t =
   let open InitialTerm in 
@@ -511,7 +627,8 @@ let flatten_star (t : InitialTerm.t) : InitialTerm.t =
   let open InitialTerm in
   
   let t1 = match t with
-  | Plus (x) -> flatten_sum (List.filter (fun s -> not (is_test_tt s)) (InitialTermSet.elements x))
+  | Plus (x) -> flatten_sum (List.filter (fun s -> not (is_test_tt s)) 
+			       (InitialTermSet.elements x))
   | _ -> t in
   if is_test_tt t1 then InitialTerm.One
   else match t1 with
@@ -521,7 +638,8 @@ let flatten_star (t : InitialTerm.t) : InitialTerm.t =
 let rec simplify_tt (t : InitialTerm.t) : InitialTerm.t =
   let open InitialTerm in 
   match t with
-  | Plus (x) -> flatten_sum (List.map simplify_tt (InitialTermSet.elements x))
+  | Plus (x) -> flatten_sum (List.map simplify_tt 
+			       (InitialTermSet.elements x))
   | Times (x) -> flatten_product (List.map simplify_tt x)
   | Not (x) -> flatten_not (simplify_tt x)
   | Star (x) -> flatten_star (simplify_tt x)
@@ -569,8 +687,10 @@ let contains_dups (t : term) : bool =
     match t with 
     | (Assg _ | Test _ | Zero _ | One _) -> false
     | Dup _ -> true
-    | Plus (_,x) ->  (TermSet.fold (fun e acc ->  (contains e) || acc)  x false)
-    | Times (_,x) ->  (List.fold_left (fun acc e -> (contains e) || acc) false x)
+    | Plus (_,x) ->  
+      (TermSet.fold (fun e acc ->  (contains e) || acc)  x false)
+    | Times (_,x) ->  
+      (List.fold_left (fun acc e -> (contains e) || acc) false x)
     | Not (_,x) ->  (contains x)
     | Star (_,x) ->  (contains x) in
   contains t
@@ -597,123 +717,10 @@ let deMorgan (t : term) : term =
       | Star x -> Star (dM x) in
   (make_term (simplify_tt (dM (InitialTerm.of_term t))))
 
-let add_terms (t1 : term) (t2 : term) : term =
-  make_term (simplify_tt (InitialTerm.Plus (InitialTermSet.from_list [InitialTerm.of_term t1; InitialTerm.of_term t2])))
-
-let mul_terms (t1 : term) (t2 : term) : term =
-  make_term (simplify_tt (InitialTerm.Times [InitialTerm.of_term t1; InitialTerm.of_term t2]))
-
-(* SPINES *)
-
-module TermMap = Map.Make(Term)
-
-module Decide_Spines = struct 
-
-(* right spines of a term *)
-  let rspines (e : term) : TermSet.t =
-    let open InitialTerm in 
-    let rec sp (e : InitialTerm.t) : InitialTermSet.t =
-      match e with
-	| Dup  -> InitialTermSet.return One
-	| Plus ts -> InitialTermSet.bind ts sp
-	| Times l ->
-          (match l with
-            | [] -> InitialTermSet.empty
-            | [d] -> sp d
-            | d :: t ->
-              let u = sp d in
-              let v = sp (Times t) in
-              let s = InitialTermSet.map (fun x -> Times (x :: t)) u in
-              InitialTermSet.union s v)
-	| Star d ->
-          let s = sp d in
-          InitialTermSet.map (fun x -> Times [x; e]) s
-	| (Assg _ | Test _ | Not _ | Zero  | One  ) -> InitialTermSet.empty in
-    InitialTermSet.fold (fun sp acc -> TermSet.add (make_term sp) acc) 
-      (InitialTermSet.map simplify_tt (sp (InitialTerm.of_term e))) TermSet.empty
-      
-(* left spines of a term *)
-  let lspines (e : term) : TermSet.t =
-    let open InitialTerm in 
-    let rec sp (e : InitialTerm.t) : InitialTermSet.t =
-      match e with
-	| Dup -> InitialTermSet.return One
-	| Plus ts -> InitialTermSet.bind ts sp
-	| Times l ->
-          (match l with
-            | [] -> InitialTermSet.empty
-            | [d] -> sp d
-            | d :: t ->
-              let u = sp d in
-              let v = sp (Times t) in
-              let s = InitialTermSet.map (fun x -> Times [d; x]) v in
-              InitialTermSet.union u s)
-	| Star d ->
-          let s = sp d in
-          InitialTermSet.map (fun x -> Times [e; x]) s
-	| (Assg _ | Test _ | Not _ | Zero | One) -> InitialTermSet.empty in
-    
-    InitialTermSet.fold (fun sp acc -> TermSet.add (make_term sp) acc)
-	(InitialTermSet.map simplify_tt (sp (InitialTerm.of_term e))) TermSet.empty
-
-      
-  let lrspines (e : term) : TermSet.t =
-    let open InitialTerm in 
-    let rec lrspines e = 
-      match e with
-	| Dup -> InitialTermSet.return (Times [One; One])
-	| Plus ts -> InitialTermSet.bind ts lrspines
-	| Times l ->
-	  (match l with
-	    | [] -> InitialTermSet.empty
-	    | [d] -> lrspines d
-	    | d :: t ->
-	      let u = lrspines d in
-	      let v = lrspines (Times t) in
-	      let f x = match x with
-		| Times [l;r] -> Times [l; simplify_tt (Times (r :: t))]
-		| _ -> failwith "lrspines 1" in
-	      let r = InitialTermSet.map f u in
-	      let g x = match x with
-		| Times [l;r] -> Times [simplify_tt (Times [d;l]); r]
-		| _ -> failwith "lrspines 2" in
-	      let s = InitialTermSet.map g v in
-	      InitialTermSet.union r s)
-	| Star d ->
-	  let s = lrspines d in
-	  let f x = match x with
-	    | Times [l;r] -> Times [simplify_tt (Times [e;l]); 
-				    simplify_tt (Times [r;e])]
-	    | _ -> failwith "lrspines 3" in
-	  InitialTermSet.map f s
-	| (Assg _ | Test _ | Not _ | Zero | One) -> InitialTermSet.empty
-    in InitialTermSet.fold (fun x -> TermSet.add (make_term x)) (lrspines (InitialTerm.of_term e)) TermSet.empty
-	
-  (* get all lrspines of e and all lrspines of rspines of e *)
-  let allLRspines (e : term) : TermSet.t TermMap.t =
-    let allLR = TermSet.add e (rspines e) in
-    let h = ref TermMap.empty in
-    let f d = h := TermMap.add d (lrspines d) !h in
-    TermSet.iter f allLR; !h
-      
-  (* (* remove dups of lspines *)                                            *)
-  (* let remove_dups_from_Lspines (h : (term, TermSet.t) Hashtbl.t) : unit = *)
-  (*   let f x = match x with                                                *)
-  (*   | Times [l;r] -> Times [Decide_Ast.zero_dups l; r]                           *)
-  (*   | _ -> failwith "remove_dups_from_Lspines" in                         *)
-  (*   let g ts = TermSet.map f ts in                                        *)
-      
-  let display_lrspines (ts : TermSet.t) : unit =
-    let f x = match x with
-      | Times (_,[l;r]) -> Printf.printf "%s ||| %s\n" 
-	(Term.to_string l) (Term.to_string r)
-      | _ -> failwith "display_lrspines" in
-    TermSet.iter f ts
-      
-end  
 
 let hits = ref 0 
 let misses = ref 1 
+module TermMap = Map.Make(Term)
 
 let memoize (f : Term.t -> 'a) =
   let hash_version = 
@@ -735,7 +742,8 @@ let memoize (f : Term.t -> 'a) =
     (try 
       assert (hv = fv);
     with Invalid_argument _ -> 
-      Printf.printf "warning: memoize assert could not run: Invalid argument exception!\n");
+      Printf.printf "%s" ("warning: memoize assert could not run:" ^
+			     "Invalid argument exception!\n"));
     hv)
   else hash_version
 
@@ -760,7 +768,8 @@ let memoize_on_arg2 f =
     (try 
       assert (hv = fv);
     with Invalid_argument _ -> 
-      Printf.printf "warning: memoize assert could not run: Invalid argument exception!\n");
+      Printf.printf "%s" ("warning: memoize assert could not run:" 
+			  ^"Invalid argument exception!\n"));
     hv)
   else hash_version
 
@@ -768,10 +777,16 @@ let memoize_on_arg2 f =
 let _ = 
   if debug_mode
   then 
-    let value = (InitialTerm.Plus(InitialTermSet.add 
-				    (InitialTerm.Test(Term.Field.of_string "x", Term.Value.of_string "3")) 
-				    (InitialTermSet.singleton 
-				       (InitialTerm.Not (InitialTerm.Test(Term.Field.of_string "x", Term.Value.of_string "3")))))) in
+    let value = (InitialTerm.Plus
+		   (InitialTermSet.add 
+		      (InitialTerm.Test
+			 (Term.Field.of_string "x", 
+			  Term.Value.of_string "3")) 
+		      (InitialTermSet.singleton 
+			 (InitialTerm.Not 
+			    (InitialTerm.Test
+			       (Term.Field.of_string "x", 
+				Term.Value.of_string "3")))))) in
     assert (0 = (InitialTerm.compare value value))
   else ()
-      
+    
