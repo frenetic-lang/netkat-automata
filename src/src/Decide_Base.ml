@@ -209,7 +209,6 @@ module Univ = functor (U : UnivDescr) -> struct
 
     exception Empty_filter
 
-    (* TODO: is this right? mpm *)
     let filter_alpha (Base(a1,b1):t) (a2: complete_test) : t option =
       try
 	Some (U.FieldSet.fold
@@ -411,8 +410,6 @@ module Univ = functor (U : UnivDescr) -> struct
 	    | None -> acc
 	    | Some r -> add r acc)
 	bs empty
-
-    (* TODO: is this right? *)
 
 
     let print_debugging_info () = 

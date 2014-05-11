@@ -97,38 +97,33 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	  Decide_Ast.InitialTerm.to_term (f e)
 	
 
-    let compare e1 e2 = 
-      (* TODO: enable when debugged *)
-      Pervasives.compare (derivterm_to_term e1) (derivterm_to_term e2)
-      (* match e1,e2 with 
-	| (Zero _,_) -> -1
-	| (Spine _, BetaSpine _) -> -1 
-	| (BetaSpine _, Spine _) -> 1
-	| (_,Zero _) -> 1
-	| (Spine (tm1,_,_), Spine (tm2,_,_)) -> 
-	  Decide_Ast.Term.compare tm1 tm2
-	| (BetaSpine (b1,s1,_,_),BetaSpine (b2,s2,_,_)) -> 
-	  (match U.Base.compare_complete_test b1 b2 with 
-	    | -1 -> -1
-	    | 1 -> 1
-	    | 0 -> TermSet.compare s1 s2
-	    | _ -> failwith "value out of range for compare"
-	  )
-      *)
+    let rec compare e1 e2 = 
+      let my_compare = 
+	match e1,e2 with 
+	  | (Zero _,_) -> -1
+	  | (Spine _, BetaSpine _) -> -1 
+	  | (BetaSpine _, Spine _) -> 1
+	  | (_,Zero _) -> 1
+	  | (Spine (tm1,_,_), Spine (tm2,_,_)) -> 
+	    Decide_Ast.Term.compare tm1 tm2
+	  | (BetaSpine (b1,s1,_,_),BetaSpine (b2,s2,_,_)) -> 
+	    (match U.Base.compare_complete_test b1 b2 with 
+	      | -1 -> -1
+	      | 1 -> 1
+	      | 0 -> TermSet.compare s1 s2
+	      | _ -> failwith "value out of range for compare"
+	    ) in 
+      if debug_mode
+      then let their_compare = 
+	     Pervasives.compare (derivterm_to_term e1) (derivterm_to_term e2) in 
+	   assert (if my_compare = 0 then their_compare = 0 else true); 
+	   assert (compare e2 e1 = my_compare * -1);
+	   my_compare
+      else my_compare
 	  
 
     let default_e_matrix trm =
-      (E_Matrix (fun _ -> match trm with 
-	| Spine (_,em,_)
-	| BetaSpine (_,_,em,_)
-	| Zero (em,_)
-	  -> 
-	  let ret = U.Base.Set.of_term (derivterm_to_term trm) in 
-	  em := (E_Matrix (fun _ -> ret)); ret
-
-       ))
-    (* TODO: enable when debugged *)
-    (*
+      let new_matrix = 
       (E_Matrix (fun _ -> match trm with 
 	| Spine (tm,em,_) -> 
 	  let ret = U.Base.Set.of_term tm in 
@@ -144,8 +139,24 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	| Zero(em,_) -> 
 	  let ret = U.Base.Set.empty in
 	  em := (E_Matrix (fun _ -> ret));
-	  ret))
-	*)
+	  ret)) in 
+      if debug_mode 
+      then 
+	let old_matrix = 
+	  (E_Matrix (fun _ -> match trm with 
+	    | Spine (_,em,_)
+	    | BetaSpine (_,_,em,_)
+	    | Zero (em,_)
+	      -> 
+	      let ret = U.Base.Set.of_term (derivterm_to_term trm) in 
+	      em := (E_Matrix (fun _ -> ret)); ret
+	   )) in 
+	assert (0 = U.Base.Set.compare 
+	    (match old_matrix with E_Matrix f -> (f ())) 
+	    (match new_matrix with E_Matrix f -> (f ())));
+	new_matrix
+      else new_matrix
+
 
     let default_d_matrix = ref (fun _ _ -> failwith "dummy1")
       
