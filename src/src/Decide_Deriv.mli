@@ -9,6 +9,7 @@ sig
     val to_string : t -> string
   end
   val run_e : DerivTerm.t -> Univ(U).Base.Set.t
-  val run_d : DerivTerm.t -> ((Univ(U).Base.point -> DerivTerm.t) * Univ(U).Base.Set.t)
+  val run_d : DerivTerm.t -> 
+    ((Univ(U).Base.point -> DerivTerm.t) * Univ(U).Base.Set.t)
 
 end
