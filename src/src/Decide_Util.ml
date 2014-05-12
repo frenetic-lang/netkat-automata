@@ -2,6 +2,8 @@ exception Quit
 exception Undo
 
 let debug_mode = false
+let failed_Count = ref 0
+let success_count = ref 1
   
 let output_endline (out : out_channel) (s : string) : unit =
   output_string out s;

@@ -5,17 +5,40 @@ module rec Term : sig
   module Field : sig
     type t
     val compare : t -> t -> int
+    val hash : t -> int 
+    val equal : t -> t -> bool 
     val to_string : t -> string
     val of_string : string -> t
   end
+  module FieldArray : sig
+    type 'a t
+    val make : 'a -> 'a t
+    val set : 'a t -> Field.t -> 'a -> unit 
+    val get : 'a t -> Field.t -> 'a
+    val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+    val copy : 'a t -> 'a t
+  end 
+
   module Value : sig
     type t 
     val compare : t -> t -> int
+    val hash : t -> int 
+    val equal : t -> t -> bool 
     val to_string : t -> string
     val of_string : string -> t
     val extra_val : t
   end
+  module ValueArray : sig
+    type 'a t
+    val make : 'a -> 'a t
+    val set : 'a t -> Value.t -> 'a -> unit 
+    val get : 'a t -> Value.t -> 'a
+  end 
+
+ 
   type uid
+  val int_of_uid : uid -> int
+  val largest_uid : unit -> uid
   type t =
     | Assg of uid * Field.t * Value.t
     | Test of uid * Field.t * Value.t

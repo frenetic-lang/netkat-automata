@@ -8,21 +8,43 @@ let utf8 = ref false
  * syntax
  ***********************************************)
 
+let biggest_int = ref 0  
      
   module rec Term : sig
     module Field : sig
       type t
       val compare : t -> t -> int
+      val hash : t -> int 
+      val equal : t -> t -> bool 
       val to_string : t -> string
       val of_string : string -> t
+      val max_elem : unit -> t
     end
+  module FieldArray : sig
+    type 'a t
+    val make : 'a -> 'a t
+    val set : 'a t -> Field.t -> 'a -> unit 
+    val get : 'a t -> Field.t -> 'a
+    val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+    val copy : 'a t-> 'a t
+  end 
+
     module Value : sig
       type t 
       val compare : t -> t -> int
+      val hash : t -> int 
+      val equal : t -> t -> bool 
       val to_string : t -> string
       val of_string : string -> t
       val extra_val : t
+      val max_elem : unit -> t
     end
+  module ValueArray : sig
+    type 'a t
+    val make : 'a -> 'a t
+    val set : 'a t -> Value.t -> 'a -> unit 
+    val get : 'a t -> Value.t -> 'a
+  end 
       
     type uid
     type t =
@@ -43,6 +65,7 @@ let utf8 = ref false
   val equal : t -> t -> bool
   val uid_of_int : int -> uid
   val int_of_uid : uid -> int
+  val largest_uid : unit -> uid
   val ts_elements : (TermSet.t -> t list) ref
   end = struct 
     type uid = int	
@@ -50,7 +73,9 @@ let utf8 = ref false
     module Field = struct 
       type t = int
       let compare = Pervasives.compare
-      let of_string,to_string = 
+      let hash x = x
+      let equal a b = 0 = (compare a b)
+      let of_string,to_string,max_elem = 
 	let stringtoint = Hashtbl.create 11 in 
 	let inttostring = Hashtbl.create 11 in 
 	let counter = ref 0 in 
@@ -64,13 +89,33 @@ let utf8 = ref false
 	    id in 
 	let to_string (x : t) : string = 
 	  Hashtbl.find inttostring x in 
-	of_string,to_string
+	let max_elem _ = !counter in
+	of_string,to_string,max_elem
     end
+    module FieldArray = struct
+      type 'a t = 'a array
+      let make (a : 'a) : 'a t = 
+	Array.make (Field.hash (Field.max_elem ())) a
+      let set this k = 
+	Array.set this (Field.hash k)
+      let get this k = 
+	Array.get this (Field.hash k)
+      let fold f arr acc =
+	let accr = ref acc in 
+	Array.iteri (fun indx elem -> 
+	  let acc = !accr in 
+	  accr := (f indx elem acc)) arr;
+	!accr
+      let copy = Array.copy
+    end 
+      
 
     module Value = struct 
       type t = int
       let compare = Pervasives.compare
-      let of_string,to_string = 
+      let hash x = x
+      let equal a b = 0 = (compare a b)
+      let of_string,to_string,max_elem = 
 	let stringtoint = Hashtbl.create 11 in 
 	let inttostring = Hashtbl.create 11 in 
 	let snowman =  "☃" in
@@ -87,9 +132,19 @@ let utf8 = ref false
 	    id in 
 	let to_string (x : t) : string = 
 	  Hashtbl.find inttostring x in 
-	of_string,to_string
+	of_string,to_string,(fun _ -> !counter)
       let extra_val = -1
     end
+    module ValueArray = struct
+      type 'a t = 'a array
+      let make (a : 'a) : 'a t = 
+	Array.make (Value.hash (Value.max_elem ())) a
+      let set this k = 
+	Array.set this (Value.hash k)
+      let get this k = 
+	Array.get this (Value.hash k)
+    end 
+
 
     type t =
       | Assg of uid * Field.t * Value.t
@@ -176,6 +231,7 @@ let utf8 = ref false
 
     let uid_of_int x = x
     let int_of_uid x = x
+    let largest_uid _ = !biggest_int
 
     let old_compare : (t -> t -> int) ref = ref (fun _ _ -> failwith "dummy")
 
@@ -426,6 +482,7 @@ Decide_Ast.InitialTermSet.from_list [%s]))"
 	let (this_counter : Term.uid) = Term.uid_of_int (!counter) in
 	if !counter > 107374182
 	then failwith "about to overflow the integers!";
+	biggest_int := !counter;
 	counter := !counter + 1;
 	hash := Map.add e (this_counter,None) !hash;
 	this_counter,None

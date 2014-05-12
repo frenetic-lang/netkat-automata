@@ -1,6 +1,8 @@
 exception Quit
 
 val debug_mode : bool
+val failed_Count : int ref
+val success_count : int ref
 
 module SetMapF :
   functor (K : Map.OrderedType) ->
