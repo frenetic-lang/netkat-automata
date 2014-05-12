@@ -162,6 +162,8 @@ module Univ = functor (U : UnivDescr) -> struct
       let cmp = atom_compare a1 a2 in
       if cmp <> 0 then cmp else assg_compare b1 b2
 
+    let compar = compare
+
     let equal (x:t) (y:t) : bool = 
       compare x y = 0
 
@@ -341,16 +343,35 @@ module Univ = functor (U : UnivDescr) -> struct
 	    base acc
 	) st acc
 
+
+      let shallow_equal a b = 
+	if cardinal a = cardinal b 
+	then List.fold_left2
+	  (fun (acc : bool) (a : elt) (b : elt) -> 
+	    acc && (0 = compar a b)
+	  ) true (elements a) (elements b) 
+	else false
+
       let compare a b = failwith "can't do it"
+	    
 
       let equal (a : t) (b : t) = 
 	fold_points (fun pt acc -> contains_point b pt && acc) a true
 	&& fold_points (fun pt acc -> contains_point a pt && acc) b true
 
 
+      let union (a : t) (b : t) : t = 
+	union a b
+
+      let biggest_cardinal = ref 0 
+
     (* of_term : Ast.term -> Set.t *)
     (* this calculates the E matrix *)
       let of_term t0 = 
+	Printf.printf "entered ofterm!\n%!";
+	let t0 = Decide_Ast.zero_dups t0 in 
+	  (* may only normalize dup-free terms *)
+	let t0 = Decide_Ast.deMorgan t0 in
 	let of_term : (Decide_Ast.term -> t) ref  = 
 	  ref (fun _ -> failwith "dummy") in 
 	of_term := Decide_Ast.memoize (fun (t0:Decide_Ast.term)  -> 
@@ -360,9 +381,6 @@ module Univ = functor (U : UnivDescr) -> struct
 			     (PosNeg.Neg(x,U.ValueSet.singleton v)) 
 			     Map.empty,Map.empty))
 	  in
-	  let t0 = Decide_Ast.zero_dups t0 in 
-	  (* may only normalize dup-free terms *)
-	  let t0 = Decide_Ast.deMorgan t0 in
 	  let open Decide_Ast.Term in 
 	      match t0 with 
 		| One _ -> 
@@ -399,6 +417,10 @@ module Univ = functor (U : UnivDescr) -> struct
 		    else f (mult s s) s in
 		  f (mult s1 s1) s1 );
 	let ret = !of_term t0 in 
+	Printf.printf "%u\n\n" (cardinal ret);
+	let cardinal = cardinal ret in 
+	if cardinal > !biggest_cardinal 
+	then biggest_cardinal := cardinal;
 	ret 
 
     let of_term = Decide_Ast.memoize of_term
@@ -412,12 +434,16 @@ module Univ = functor (U : UnivDescr) -> struct
 	bs empty
 
 
-    let print_debugging_info () = 
+    let print_debugging_info _ = 
       Printf.printf "Total iterations of fold_points: %d\n" !total_cycles;
       Printf.printf "Total wasted cycles in fold_points: %d\n" 
 	!wasted_cycles;
       (Printf.printf "Percent wasted cycles: %d\n" 
-	 ((!wasted_cycles * 100) / !total_cycles))
+	 ((!wasted_cycles * 100) / !total_cycles));
+      Printf.printf "size of biggest BaseSet: %u" (!biggest_cardinal);
+      Printf.printf "size of the universe (for reference): %u" 
+	(U.FieldSet.fold (fun fld acc -> 
+	  U.ValueSet.cardinal (U.all_values fld) * acc) U.all_fields 1) ;
       
 
 

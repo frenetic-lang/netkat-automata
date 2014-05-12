@@ -11,6 +11,7 @@ module Univ : functor (U:UnivDescr) ->
 sig
   module Base : sig
     type t
+    val compare : t -> t -> int
     type point
     val compare_point : point -> point -> int
     val point_to_string : point -> string
@@ -24,6 +25,7 @@ sig
     val project_lhs : t -> t
     module Set : sig 
       include Set.S with type elt = t
+      val shallow_equal : t -> t -> bool
       val to_string : t -> string
       val fold_points : (point -> 'a -> 'a) -> t -> 'a -> 'a
       val contains_point : t -> point -> bool

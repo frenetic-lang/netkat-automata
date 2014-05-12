@@ -69,6 +69,9 @@ let check_equivalent (t1:term) (t2:term) : bool =
       if not (U.Base.Set.equal q1_E q2_E)
       then false
       else
+	let (tmpbool : bool) = (U.Base.Set.shallow_equal q1_E q2_E) in 
+	if tmpbool
+	then failwith "SHIVER ME TIMBERS!";
 	let u,f = uf_find(q1),uf_find(q2) in
 	if  uf_eq u f  
 	then main_loop rest_work_list

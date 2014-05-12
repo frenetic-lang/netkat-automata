@@ -39,12 +39,14 @@ let utf8 = ref false
   val to_string_sexpr : t -> string
   val old_compare : (t -> t -> int) ref
   val compare : t -> t -> int
+  val hash : t -> int
+  val equal : t -> t -> bool
   val uid_of_int : int -> uid
   val int_of_uid : uid -> int
   val ts_elements : (TermSet.t -> t list) ref
   end = struct 
     type uid = int	
-	
+
     module Field = struct 
       type t = int
       let compare = Pervasives.compare
@@ -194,6 +196,10 @@ let utf8 = ref false
 	    failwith "old said equal, new said not"
 	  | a,_ -> a
       else myres
+    let equal a b = 
+      (compare a b) = 0
+
+    let hash a = int_of_uid (extract_uid a)
 
   end
 
@@ -232,6 +238,8 @@ module rec InitialTerm : sig
   val to_term : t -> Term.t
   val of_term : Term.t -> t
   val compare : t -> t -> int
+  val hash : t -> int
+  val equal : t -> t -> bool
   val to_string_ocaml : t -> string
 
 end = struct 
@@ -356,109 +364,123 @@ end = struct
 
 
   let rec to_string_ocaml = function 
-    | Assg ( var, value) -> Printf.sprintf "(%s:=%s)" 
+    | Assg ( var, value) -> 
+      Printf.sprintf "(Decide_Ast.InitialTerm.Assg(
+Decide_Ast.Term.Field.of_string \"%s\",
+Decide_Ast.Term.Value.of_string \"%s\"))" 
       (Term.Field.to_string var) (Term.Value.to_string value)
-    | Test ( var, value) -> Printf.sprintf "(%s=%s)" 
+    | Test ( var, value) -> Printf.sprintf "(Decide_Ast.InitialTerm.Test(
+Decide_Ast.Term.Field.of_string \"%s\",
+Decide_Ast.Term.Value.of_string \"%s\"))" 
       (Term.Field.to_string var) (Term.Value.to_string value)
-    | Dup  -> "dup"
+    | Dup  -> "Decide_Ast.InitialTerm.Dup"
     | Plus (x) -> 
-      Printf.sprintf "(+ %s)" 
+      Printf.sprintf "(Decide_Ast.InitialTerm.Plus(
+Decide_Ast.InitialTermSet.from_list [%s]))" 
 	(InitialTermSet.fold 
-	   (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) x "")
-    | Times (x) -> 
-      Printf.sprintf "(; %s)" (List.fold_right (Printf.sprintf "%s %s") 
-				 (List.map to_string_sexpr x) "")
-    | Not (x) -> (if !utf8 then "¬" else "~") ^ (Printf.sprintf "(%s)" 
-						   (to_string_sexpr x))
-    | Star (x) -> (Printf.sprintf "(%s)" (to_string_sexpr x)) ^ "*"
-    | Zero  -> "drop"
-    | One  -> "pass"
+	   (fun x acc -> 
+	     if acc = ""
+	     then (to_string_ocaml x)
+	     else Printf.sprintf "%s;%s" (to_string_ocaml x) acc) x "")
+    | Times (x) -> Printf.sprintf "(Decide_Ast.InitialTerm.Times([%s]))"
+      (List.fold_right (fun x acc -> 
+	if acc = "" 
+	then x
+	else (Printf.sprintf "%s;%s") x acc )
+	 (List.map to_string_ocaml x) "")
+    | Not (x) -> (Printf.sprintf "(Decide_Ast.InitialTerm.Not(%s))" 
+		    (to_string_ocaml x))
+    | Star (x) -> (Printf.sprintf "(Decide_Ast.InitialTerm.Star (%s))" 
+		     (to_string_ocaml x))
+    | Zero  -> "Decide_Ast.InitialTerm.Zero"
+    | One  -> "Decide_Ast.InitialTerm.One"
 
 
-  let to_term = 
-    let get_uid,set_term = 
-      let counter = ref 0 in 
-      let module Map = Map.Make(InitialTerm) in 
-      let hash = ref Map.empty in 
-      let get_uid e = 
-	try let (id : Term.uid),trm = Map.find e !hash in 
-	    (if debug_mode
-	     then 
-		((match trm with 
-		  | Some e' -> 
-		    (match Map.find (of_term e') !hash with 
-		      | id',Some e'' when (id' = id && 
-			  (Term.to_string_sexpr e') = 
-			  (Term.to_string_sexpr e'')) -> ()
-		      | id', Some e'' -> 
-			Printf.printf "id: %u.  id': %u. e':  %s.  e'': %s."
-			  (Term.int_of_uid id) (Term.int_of_uid id') 
-			  (Term.to_string_sexpr e') 
+  let get_uid,set_term = 
+    let counter = ref 0 in 
+    let module Map = Map.Make(InitialTerm) in 
+    let hash = ref Map.empty in 
+    let get_uid e = 
+      try let (id : Term.uid),trm = Map.find e !hash in 
+	  (if debug_mode
+	   then 
+	      ((match trm with 
+		| Some e' -> 
+		  (match Map.find (of_term e') !hash with 
+		    | id',Some e'' when (id' = id && 
+			(Term.to_string_sexpr e') = 
+			(Term.to_string_sexpr e'')) -> ()
+		    | id', Some e'' -> 
+		      Printf.printf "id: %u.  id': %u. e':  %s.  e'': %s."
+			(Term.int_of_uid id) (Term.int_of_uid id') 
+			(Term.to_string_sexpr e') 
 			  (Term.to_string_sexpr e'')
-			;
-			failwith "hash collision?!?!"
-		      | _ -> 
-			failwith "get_uid new sanity check fails hard!");
-		  | None -> ());id,trm)
-	     else 
-		id,trm)
-	with Not_found -> 
-	  let (this_counter : Term.uid) = Term.uid_of_int (!counter) in
-	  if !counter > 107374182
-	  then failwith "about to overflow the integers!";
-	  counter := !counter + 1;
-	  hash := Map.add e (this_counter,None) !hash;
-	  this_counter,None
+		      ;
+		      failwith "hash collision?!?!"
+		    | _ -> 
+		      failwith "get_uid new sanity check fails hard!");
+		| None -> ());id,trm)
+	   else 
+	      id,trm)
+      with Not_found -> 
+	let (this_counter : Term.uid) = Term.uid_of_int (!counter) in
+	if !counter > 107374182
+	then failwith "about to overflow the integers!";
+	counter := !counter + 1;
+	hash := Map.add e (this_counter,None) !hash;
+	this_counter,None
+    in 
+    let set_term e new_e= 
+      let id,_ = get_uid e in 
+      hash := Map.add e (id,Some new_e) !hash in 
+    get_uid,set_term
+      
+  let to_term (e : InitialTerm.t) : Term.t = 
+    let rec rf e = 
+      let module TTerm = InitialTerm in 
+      let id,e' = 
+	if debug_mode 
+	then let r,_ = get_uid e in 
+	     r,None
+	else get_uid e
       in 
-      let set_term e new_e= 
-	let id,_ = get_uid e in 
-	hash := Map.add e (id,Some new_e) !hash in 
-      get_uid,set_term in
-    
-    let to_term (e : InitialTerm.t) : Term.t = 
-      let rec rf e = 
-	let module TTerm = InitialTerm in 
-	let id,e' = 
-	  if debug_mode 
-	  then let r,_ = get_uid e in 
-	       r,None
-	  else get_uid e
-	in 
-	match e' with 
-	  | Some e -> e
-	  | None -> (
-	    match e with 
-	      | TTerm.Assg (k,v) -> let e' = Term.Assg(id, k, v) in 
-				    set_term e e'; e'
-	      | TTerm.Test (k,v) -> let e' = Term.Test(id, k, v) in 
-				    set_term e e'; e'
-	      | TTerm.Dup -> let e' = Term.Dup(id) in 
-			     set_term e e'; e'
-	      | TTerm.Plus (ts) -> 
-		let e' = 
-		  Term.Plus(id, 
-			    InitialTermSet.fold 
-			      (fun x -> TermSet.add (rf x) ) 
-			      ts TermSet.empty) in 
-		set_term e e'; e'
-	      | TTerm.Times (tl) -> 
-		let e' = Term.Times(id, List.map rf tl) in 
-		set_term e e'; e'
-	      | TTerm.Not tm -> 
-		let e' = Term.Not (id, rf tm) in 
-		set_term e e'; e'
-	      | TTerm.Star tm -> 
-		let e' = Term.Star (id, rf tm) in 
-		set_term e e'; e'
-	      | TTerm.Zero -> 
-		let e' = Term.Zero id in 
-		set_term e e'; e'
-	      | TTerm.One -> 
-		let e' = Term.One id in 
-		set_term e e'; e')
-      in 
-      rf e in
-    to_term
+      match e' with 
+	| Some e -> e
+	| None -> (
+	  match e with 
+	    | TTerm.Assg (k,v) -> let e' = Term.Assg(id, k, v) in 
+				  set_term e e'; e'
+	    | TTerm.Test (k,v) -> let e' = Term.Test(id, k, v) in 
+				  set_term e e'; e'
+	    | TTerm.Dup -> let e' = Term.Dup(id) in 
+			   set_term e e'; e'
+	    | TTerm.Plus (ts) -> 
+	      let e' = 
+		Term.Plus(id, 
+			  InitialTermSet.fold 
+			    (fun x -> TermSet.add (rf x) ) 
+			    ts TermSet.empty) in 
+	      set_term e e'; e'
+	    | TTerm.Times (tl) -> 
+	      let e' = Term.Times(id, List.map rf tl) in 
+	      set_term e e'; e'
+	    | TTerm.Not tm -> 
+	      let e' = Term.Not (id, rf tm) in 
+	      set_term e e'; e'
+	    | TTerm.Star tm -> 
+	      let e' = Term.Star (id, rf tm) in 
+	      set_term e e'; e'
+	    | TTerm.Zero -> 
+	      let e' = Term.Zero id in 
+	      set_term e e'; e'
+	    | TTerm.One -> 
+	      let e' = Term.One id in 
+	      set_term e e'; e')
+    in 
+    rf e 
+
+  let hash a = Term.int_of_uid (fst (get_uid a))
+  let equal a b = (compare a b) = 0
     
 end
 
@@ -514,7 +536,7 @@ let termset_to_string (ts : TermSet.t) : string =
 
 let serialize_formula formula file = 
   let file = open_out file in 
-  Printf.fprintf file "%s" 
+  Printf.fprintf file "let serialized_formula = %s" 
     (match formula with 
       | Eq (s,t) -> 
 	Printf.sprintf "Decide_Ast.Eq (%s,%s)" 
@@ -524,7 +546,8 @@ let serialize_formula formula file =
 	Printf.sprintf "Decide_Ast.Le (%s,%s)" 
 	  (InitialTerm.to_string_ocaml s)
 	  (InitialTerm.to_string_ocaml t)
-    )
+    );
+  close_out file
 
   
 (***********************************************
@@ -720,19 +743,20 @@ let deMorgan (t : term) : term =
 
 let hits = ref 0 
 let misses = ref 1 
+module TermHash = Hashtbl.Make(Term)
 module TermMap = Map.Make(Term)
 
 let memoize (f : Term.t -> 'a) =
   let hash_version = 
-    let hash = ref TermMap.empty in 
+    let hash = TermHash.create 100 in 
     (fun b -> 
-      try let ret = TermMap.find b !hash in
+      try let ret = TermHash.find hash b in
 	  (hits := !hits + 1;
 	   ret)
       with Not_found -> 
 	(misses := !misses + 1;
 	 let ret = f b in 
-	 hash := TermMap.add b ret !hash;
+	 TermHash.replace hash b ret;
 	 ret
 	)) in 
   if debug_mode 
