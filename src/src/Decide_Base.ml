@@ -90,54 +90,22 @@ module Univ = functor (U : UnivDescr) -> struct
   module Base = struct
 
     module Map = struct 
-	(* debugging *)
-      module OldMap = Map.Make(Decide_Ast.Term.Field)
       type key = Decide_Ast.Term.Field.t
-      type 'a t = (('a option) Decide_Ast.Term.FieldArray.t) * ('a OldMap.t)
-      let find (a : key) ((b,oldb) : 'a t) : 'a = 
-	(* TODO - doesn't deal with not_found correctly. *)
-	let myres = match Decide_Ast.Term.FieldArray.get b a with 
+      type 'a t = (('a option) Decide_Ast.Term.FieldArray.t) 
+      let find (a : key) (b : 'a t) : 'a = 
+	match Decide_Ast.Term.FieldArray.get b a with 
 	  | Some r -> r
-	  | None -> raise Not_found in 
-	let theirres = OldMap.find a oldb in 
-	assert (myres = theirres);
-	myres
-
-
-      let compare (mt,_) (cmpr : 'a -> 'a -> int) ((a,olda) : 'a t) ((b,oldb) : 'a t) : int = 
-	let myres = 
-	  let a,b = 
-	    if a = mt 
-	    then b,a
-	    else a,b in
-	  Decide_Ast.Term.FieldArray.fold 
-	    (fun indx a' acc -> 
-	      match a',(Decide_Ast.Term.FieldArray.get b indx) with 
-		| Some a', Some b' -> 
-		  if acc = 0 
-		  then cmpr a' b'
-		  else acc
-		| a',b' -> 
-		  Pervasives.compare a' b' ) a 0 in 
-	let theirres = OldMap.compare cmpr olda oldb in 
-	assert ( (if (myres = 0) then (0 = theirres) else true)
-		 && (if (theirres = 0) then (0 = myres) else true));
-	myres
-	    
-      let fold (f : key -> 'a -> 'b -> 'b) ((st,oldst) : 'a t) (acc : 'b) : 'b = 
-	let myres = 
+	  | None -> raise Not_found
+    
+      let fold (f : key -> 'a -> 'b -> 'b) (st : 'a t) (acc : 'b) : 'b = 
 	  Decide_Ast.Term.FieldArray.fold 
 	    (fun indx b acc -> 
 	      match b with 
 		| Some e -> (f indx e acc)
-		| None -> acc) st acc in 
-	let theirres = OldMap.fold f oldst acc in 
-	assert (myres = theirres);
-	myres
+		| None -> acc) st acc 
 
-
-      let to_string (m,oldm) elt_to_string = 
-	Printf.sprintf "Mine: [%s]\nTheirs: [%s]\n\n"
+      let to_string m elt_to_string = 
+	Printf.sprintf "[%s]\n"
 	  (Decide_Ast.Term.FieldArray.fold 
 	     (fun a b acc -> 
 	       match b with 
@@ -146,51 +114,32 @@ module Univ = functor (U : UnivDescr) -> struct
 		   Printf.sprintf "%s : %s\n%s" 
 		     (Decide_Ast.Term.Field.to_string a)
 		     (elt_to_string b) acc) m "")
-	  (OldMap.fold 
-	     (fun a b -> 
-	       Printf.sprintf "%s : %s\n%s" 
-		 (Decide_Ast.Term.Field.to_string a)
-		 (elt_to_string b)) oldm "")
 
+      let compare (cmpr : 'a -> 'a -> int) (a : 'a t) (b : 'a t) : int = 
+	U.FieldSet.fold 
+	  (fun fld acc -> 
+	    if acc = 0
+	    then 
+	      match Decide_Ast.Term.FieldArray.get a fld,(Decide_Ast.Term.FieldArray.get b fld) with 
+		| Some a', Some b' -> 
+		  cmpr a' b'
+		| a',b' -> 
+		  Pervasives.compare a' b'
+	    else acc) U.all_fields 0 
+      
+      let add (a : key) (b : 'a) (arr : 'a t) : 'a t = 
+	let newarr = Decide_Ast.Term.FieldArray.copy arr in 
+	Decide_Ast.Term.FieldArray.set newarr a (Some b);
+	newarr 
 
-      let compare _ prntr (cmpr : 'a -> 'a -> int) ((a,olda) : 'a t) ((b,oldb) : 'a t) : int = 
-	let myres = 
-	  U.FieldSet.fold 
-	    (fun fld acc -> 
-	      if acc = 0
-	      then 
-		match Decide_Ast.Term.FieldArray.get a fld,(Decide_Ast.Term.FieldArray.get b fld) with 
-		  | Some a', Some b' -> 
-		    cmpr a' b'
-		  | a',b' -> 
-		    Pervasives.compare a' b'
-	      else acc) U.all_fields 0 in 
-	let theirres = OldMap.compare cmpr olda oldb in 
-	assert ( 
-	  (if (myres = 0) 
-	   then (if 0 <> theirres then Printf.eprintf "%s vs\n %s" (to_string (a,olda) prntr) (to_string (b,oldb) prntr);
-		 0 = theirres) else true)
-	  && (if (theirres = 0) then (0 = myres) else true));
-	myres
-
-
-      let add (a : key) (b : 'a) ((arr,oldarr) : 'a t) : 'a t = 
-	let myres = 
-	  let newarr = Decide_Ast.Term.FieldArray.copy arr in 
-	  Decide_Ast.Term.FieldArray.set newarr a (Some b);
-	  newarr in 
-	let theirres = 
-	  OldMap.add a b oldarr in 
-	myres,theirres
-
-      let empty : 'a t = (Decide_Ast.Term.FieldArray.make None, OldMap.empty)
+      let empty : 'a t = (Decide_Ast.Term.FieldArray.make None)
 
     end
 
     type atom = PosNeg.t Map.t
     type assg = U.ValueSet.elt Map.t
     let (atom_empty : atom) = Map.empty
-    let (assg_empty : assg) = Decide_Ast.Term.FieldArray.make None, Map.OldMap.empty
+    let (assg_empty : assg) = Decide_Ast.Term.FieldArray.make None
 
     let atom_to_string (a:atom) : string = 
       U.FieldSet.fold (fun f acc -> 
@@ -219,10 +168,10 @@ module Univ = functor (U : UnivDescr) -> struct
         U.all_fields ""
         
     let atom_compare (a1:atom) (a2:atom) : int = 
-      Map.compare atom_empty PosNeg.to_string PosNeg.compare a1 a2
+      Map.compare PosNeg.compare a1 a2
 
     let assg_compare (b1:assg) (b2:assg) : int = 
-      Map.compare assg_empty Decide_Ast.Term.Value.to_string Decide_Ast.Term.Value.compare b1 b2
+      Map.compare Decide_Ast.Term.Value.compare b1 b2
 
     type t = Base of atom * assg 
     (* must be a Pos * completely-filled-in thing*)
