@@ -310,23 +310,12 @@ module Univ = functor (U : UnivDescr) -> struct
             let o2 = try Some (Map.find field b2) with Not_found -> None in 
             let pn',o' = 
               match o1,o2 with 
-                | (Some v1, Some v2) when PosNeg.contains pn2 v1 -> 
-                  (pn1, o2)
-                | (Some v1, Some v2) -> 
-                  failwith "fancy algorithm should have skipped this!"
-                | (Some v1, None) when PosNeg.contains pn2 v1 -> 
-                  (pn1, o1)
-                | (Some v1, None) -> 
-                  failwith "fancy algorithm should have skipped this!"
-                | (None, Some v2) when not 
-		    (PosNeg.is_empty 
-		       (PosNeg.intersect pn1 pn2)) -> 
-                  (PosNeg.intersect pn1 pn2, o2)
-                | None, None when not (PosNeg.is_empty 
-					 (PosNeg.intersect pn1 pn2)) -> 
-                  (PosNeg.intersect pn1 pn2, None) 
-                | _ -> 
-                  raise Empty_mult in 
+                | (Some v1, Some v2) -> (pn1, o2)
+                | (Some v1, None) -> (pn1, o1)
+		| (None, _) -> 
+		  let inter = (PosNeg.intersect pn1 pn2) in
+		    if (PosNeg.is_empty inter) then raise Empty_mult;
+		    inter,o2 in
             Base(Map.add field pn' a, 
                  match o' with
                    | None -> b
@@ -447,21 +436,33 @@ module Univ = functor (U : UnivDescr) -> struct
 	let incr_add k v hash = 
 	  ValHash.set hash k (add v (ValHash.get hash k));
 	  hash in
+	let incr_add_all ks v hash = 
+	  U.ValueSet.iter 
+	    (fun k -> 
+	      ValHash.set hash k (add v (ValHash.get hash k))) ks;
+	  hash in
 
 	let phase1 = fold 
 	  (fun b  acc -> 
-	    let assg = match b with Base(_,assg) -> assg in 
+	    let Base(test,assg) = b in
 	    List.map
 	      (fun (field,valset,valhash,others) -> 
 		try 
 		  let a = Map.find field assg in 
 		  field,U.ValueSet.add a valset,incr_add a b valhash, others
 		with Not_found -> 
-		  field,valset,valhash,add b others) acc)
+		  try 
+		    let a = Map.find field test in 
+		    match a with 
+		      | PosNeg.Pos(_,a) -> field,U.ValueSet.union a valset,incr_add_all a b valhash, others
+		      | _ -> raise Not_found
+		  with Not_found -> 
+		    field,valset,valhash,add b others) acc)
 	  left (U.FieldSet.fold 
 		  (fun f acc -> 
 		    (f,U.ValueSet.empty,ValHash.make empty,empty)::acc) 
 		  U.all_fields []) in
+
 	let phase2 = 
 	  fold 
 	    (fun b acc -> 
@@ -474,6 +475,7 @@ module Univ = functor (U : UnivDescr) -> struct
 			 (fun a -> union (ValHash.get vh a)) i empty) 
 		      bs) phase1 in 
 	      (b,intersect_all to_intersect)::acc) right [] in 
+
 	let phase3 = 
 	  List.fold_right
 	    (fun (rhs,cnds) acc -> 
@@ -482,6 +484,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		  | Some r -> success_count := !success_count + 1; assert (!success_count > 0); add r acc
 		  | None -> failed_Count := !failed_Count + 1; assert (!failed_Count > 0); acc
 	      ) cnds acc) phase2 empty in 
+
 	if Decide_Util.debug_mode (* TODO : make this debug mode only *)
 	then (assert (equal (old_mult left right) phase3); phase3)
 	else phase3
