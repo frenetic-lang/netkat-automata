@@ -139,6 +139,9 @@ module Univ = functor (U : UnivDescr) -> struct
 
       let init' = Decide_Ast.Term.FieldArray.init
 
+      let singleton k v = 
+	init' (fun k' -> if k = k' then Some v else None)
+
       let empty : unit -> 'a t = (fun _ -> (Decide_Ast.Term.FieldArray.make None))
 
     end
@@ -294,7 +297,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	    new_assg) in
 	Some  (Base (Map.init test_Fun, Map.init' assg_fun))
       with Empty_filter -> None
-
+	     
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
         Some (U.FieldSet.fold 
@@ -309,8 +312,12 @@ module Univ = functor (U : UnivDescr) -> struct
               match o1,o2 with 
                 | (Some v1, Some v2) when PosNeg.contains pn2 v1 -> 
                   (pn1, o2)
+                | (Some v1, Some v2) -> 
+                  failwith "fancy algorithm should have skipped this!"
                 | (Some v1, None) when PosNeg.contains pn2 v1 -> 
                   (pn1, o1)
+                | (Some v1, None) -> 
+                  failwith "fancy algorithm should have skipped this!"
                 | (None, Some v2) when not 
 		    (PosNeg.is_empty 
 		       (PosNeg.intersect pn1 pn2)) -> 
@@ -470,18 +477,14 @@ module Univ = functor (U : UnivDescr) -> struct
 	let phase3 = 
 	  List.fold_right
 	    (fun (rhs,cnds) acc -> 
-	      Printf.printf "%u%%\n" ((100 * cardinal cnds)  / (cardinal left));
 	      fold (fun lhs acc -> 
 		match (mult lhs rhs) with 
-		  | Some r -> Printf.printf "sucesscount\n"; add r acc
-		  | None -> Printf.printf "failedcount\n"; acc
+		  | Some r -> success_count := !success_count + 1; assert (!success_count > 0); add r acc
+		  | None -> failed_Count := !failed_Count + 1; assert (!failed_Count > 0); acc
 	      ) cnds acc) phase2 empty in 
 	if Decide_Util.debug_mode (* TODO : make this debug mode only *)
 	then (assert (equal (old_mult left right) phase3); phase3)
 	else phase3
-
-      let mult = old_mult
-
 
       let biggest_cardinal = ref 0 
 
@@ -497,9 +500,9 @@ module Univ = functor (U : UnivDescr) -> struct
 	of_term := Decide_Ast.memoize (fun (t0:Decide_Ast.term)  -> 
 	  (* to negate a test x=v, we allow x to have any value except v *)
 	  let negate (x : U.field) (v : U.value) =
-	    singleton(Base(Map.add x 
-			     (PosNeg.Neg(x,U.ValueSet.singleton v)) 
-			     (atom_empty ()),(assg_empty ())))
+	    singleton(Base(
+	      Map.singleton x (PosNeg.Neg(x,U.ValueSet.singleton v)), 
+	      assg_empty ()))
 	  in
 	  let open Decide_Ast.Term in 
 	      match t0 with 
@@ -508,12 +511,11 @@ module Univ = functor (U : UnivDescr) -> struct
 		| Zero _ -> 
 		  empty
 		| Assg(_,field,v) -> 
-		  singleton (Base((atom_empty ()), Map.add field v (assg_empty ())))
+		  singleton (Base((atom_empty ()), Map.singleton field v ))
 		| Test(_,field,v) ->  
 		  singleton 
-		    (Base(Map.add field 
-			    (PosNeg.Pos (field,U.ValueSet.singleton v)) 
-			    (atom_empty ()), (assg_empty ())))
+		    (Base(Map.singleton field (PosNeg.Pos (field,U.ValueSet.singleton v)), 
+			  assg_empty ()))
 		| Dup _ -> 
 		  empty
 		| Plus (_,ts) ->
