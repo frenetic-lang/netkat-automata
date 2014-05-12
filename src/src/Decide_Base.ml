@@ -89,9 +89,41 @@ module Univ = functor (U : UnivDescr) -> struct
   end (* PosNeg *)
   module Base = struct
 
-    module Map = Map.Make(Decide_Ast.Term.Field)
+    module Map = struct 
+      type key = Decide_Ast.Term.Field.t
+      type 'a t = ('a option) Decide_Ast.Term.FieldArray.t 
+      let find (a : key) (b : 'a t) : 'a = 
+	match Decide_Ast.Term.FieldArray.get b a with 
+	  | Some r -> r
+	  | None -> raise Not_found
+      let compare (cmpr : 'a -> 'a -> int) (a : 'a t) (b : 'a t) : int = 
+	Decide_Ast.Term.FieldArray.fold 
+	  (fun indx a' acc -> 
+	    match a',(Decide_Ast.Term.FieldArray.get b indx) with 
+	      | Some a', Some b' -> 
+		if acc = 0 
+		then cmpr a' b'
+		else acc
+	      | a',b' -> 
+		Pervasives.compare a' b' ) a 0
+      let fold (f : key -> 'a -> 'b -> 'b) (st : 'a t) (acc : 'b) : 'b = 
+	Decide_Ast.Term.FieldArray.fold 
+	  (fun indx b acc -> 
+	    match b with 
+	      | Some e -> (f indx e acc)
+	      | None -> acc) st acc
+      let add (a : key) (b : 'a) (arr : 'a t) : 'a t = 
+	let newarr = Decide_Ast.Term.FieldArray.copy arr in 
+	Decide_Ast.Term.FieldArray.set newarr a (Some b);
+	newarr
+      let empty : 'a t = Decide_Ast.Term.FieldArray.make None
+	
+    end
+    (*module Map = Map.Make(Decide_Ast.Term.Field) *)
     type atom = PosNeg.t Map.t
     type assg = U.ValueSet.elt Map.t
+    let (atom_empty : atom) = Map.empty
+    let (assg_empty : assg) = Decide_Ast.Term.FieldArray.make None
 
     let atom_to_string (a:atom) : string = 
       U.FieldSet.fold (fun f acc -> 
@@ -235,7 +267,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		    | Some new_assg ->
 		      Base(Map.add field new_test tests,
 			   Map.add field new_assg assgs))
-		U.all_fields (Base(Map.empty, Map.empty)))
+		U.all_fields (Base(atom_empty, assg_empty)))
       with Empty_filter -> None
 
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
@@ -267,7 +299,7 @@ module Univ = functor (U : UnivDescr) -> struct
                  match o' with
                    | None -> b
                    | Some v' -> Map.add field v' b))
-          (U.all_fields) (Base(Map.empty, Map.empty)))
+          (U.all_fields) (Base(atom_empty, assg_empty)))
       with Empty_mult -> 
         None
 
@@ -291,13 +323,13 @@ module Univ = functor (U : UnivDescr) -> struct
 		      (Point(Map.add field v x, Map.add field v y)) :: acc
 		    ) a acc
 		) partial_list []
-	    ) U.all_fields [Point(Map.empty, Map.empty)]
+	    ) U.all_fields [Point(assg_empty, assg_empty)]
       in
       let pts = (extract_points b) in
       List.fold_right f pts acc
 
     let project_lhs (Base(a,b)) = 
-      Base(a,Map.empty)
+      Base(a,assg_empty)
 	
     module Set = struct
       include S
@@ -442,21 +474,21 @@ module Univ = functor (U : UnivDescr) -> struct
 	  let negate (x : U.field) (v : U.value) =
 	    singleton(Base(Map.add x 
 			     (PosNeg.Neg(x,U.ValueSet.singleton v)) 
-			     Map.empty,Map.empty))
+			     atom_empty,assg_empty))
 	  in
 	  let open Decide_Ast.Term in 
 	      match t0 with 
 		| One _ -> 
-		  singleton (Base(Map.empty, Map.empty))
+		  singleton (Base(atom_empty, assg_empty))
 		| Zero _ -> 
 		  empty
 		| Assg(_,field,v) -> 
-		  singleton (Base(Map.empty, Map.add field v Map.empty))
+		  singleton (Base(atom_empty, Map.add field v assg_empty))
 		| Test(_,field,v) ->  
 		  singleton 
 		    (Base(Map.add field 
 			    (PosNeg.Pos (field,U.ValueSet.singleton v)) 
-			    Map.empty, Map.empty))
+			    atom_empty, assg_empty))
 		| Dup _ -> 
 		  empty
 		| Plus (_,ts) ->
@@ -464,17 +496,17 @@ module Univ = functor (U : UnivDescr) -> struct
 		    (fun t acc -> union (!of_term t) acc) ts empty 
 		| Times (_,tl) -> 
 		  List.fold_right (fun t acc ->  mult (!of_term t) acc) tl
-		    (singleton (Base (Map.empty, Map.empty)))
+		    (singleton (Base (atom_empty, assg_empty)))
 		| Not (_,x) -> begin
 		  match x with
-		    | Zero _ -> singleton (Base(Map.empty,Map.empty))
+		    | Zero _ -> singleton (Base(atom_empty,assg_empty))
 		    | One _ -> empty
 		    | Test (_,x,v) -> negate x v
 		    | _ -> failwith "De Morgan law should have been applied"
 		end
 		| Star (_,x) ->
 		  let s = !of_term x in
-		  let s1 = add (Base(Map.empty, Map.empty)) s in
+		  let s1 = add (Base(atom_empty, assg_empty)) s in
 		  let rec f s r  =
 		    if equal s r then s
 		    else f (mult s s) s in
