@@ -89,6 +89,7 @@ module Univ = functor (U : UnivDescr) -> struct
   end (* PosNeg *)
   module Base = struct
 
+(*
     module Map = struct 
       type key = Decide_Ast.Term.Field.t
       type 'a t = ('a option) Decide_Ast.Term.FieldArray.t 
@@ -117,13 +118,13 @@ module Univ = functor (U : UnivDescr) -> struct
 	Decide_Ast.Term.FieldArray.set newarr a (Some b);
 	newarr
       let empty : 'a t = Decide_Ast.Term.FieldArray.make None
-	
     end
-    (*module Map = Map.Make(Decide_Ast.Term.Field) *)
+      *)
+    module Map = Map.Make(Decide_Ast.Term.Field)
     type atom = PosNeg.t Map.t
     type assg = U.ValueSet.elt Map.t
     let (atom_empty : atom) = Map.empty
-    let (assg_empty : assg) = Decide_Ast.Term.FieldArray.make None
+    let (assg_empty : assg) = Map.empty (*Decide_Ast.Term.FieldArray.make None*)
 
     let atom_to_string (a:atom) : string = 
       U.FieldSet.fold (fun f acc -> 
