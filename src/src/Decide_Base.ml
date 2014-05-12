@@ -89,42 +89,62 @@ module Univ = functor (U : UnivDescr) -> struct
   end (* PosNeg *)
   module Base = struct
 
-(*
     module Map = struct 
+	(* debugging *)
+      module OldMap = Map.Make(Decide_Ast.Term.Field)
       type key = Decide_Ast.Term.Field.t
-      type 'a t = ('a option) Decide_Ast.Term.FieldArray.t 
-      let find (a : key) (b : 'a t) : 'a = 
-	match Decide_Ast.Term.FieldArray.get b a with 
+      type 'a t = (('a option) Decide_Ast.Term.FieldArray.t) * ('a OldMap.t)
+      let find (a : key) ((b,oldb) : 'a t) : 'a = 
+	(* TODO - doesn't deal with not_found correctly. *)
+	let myres = match Decide_Ast.Term.FieldArray.get b a with 
 	  | Some r -> r
-	  | None -> raise Not_found
-      let compare (cmpr : 'a -> 'a -> int) (a : 'a t) (b : 'a t) : int = 
-	Decide_Ast.Term.FieldArray.fold 
-	  (fun indx a' acc -> 
-	    match a',(Decide_Ast.Term.FieldArray.get b indx) with 
-	      | Some a', Some b' -> 
-		if acc = 0 
-		then cmpr a' b'
-		else acc
-	      | a',b' -> 
-		Pervasives.compare a' b' ) a 0
-      let fold (f : key -> 'a -> 'b -> 'b) (st : 'a t) (acc : 'b) : 'b = 
-	Decide_Ast.Term.FieldArray.fold 
-	  (fun indx b acc -> 
-	    match b with 
-	      | Some e -> (f indx e acc)
-	      | None -> acc) st acc
-      let add (a : key) (b : 'a) (arr : 'a t) : 'a t = 
-	let newarr = Decide_Ast.Term.FieldArray.copy arr in 
-	Decide_Ast.Term.FieldArray.set newarr a (Some b);
-	newarr
-      let empty : 'a t = Decide_Ast.Term.FieldArray.make None
+	  | None -> raise Not_found in 
+	let theirres = OldMap.find a oldb in 
+	assert (myres = theirres);
+	myres
+      let compare (cmpr : 'a -> 'a -> int) ((a,olda) : 'a t) ((b,oldb) : 'a t) : int = 
+	let myres = 
+	  Decide_Ast.Term.FieldArray.fold 
+	    (fun indx a' acc -> 
+	      match a',(Decide_Ast.Term.FieldArray.get b indx) with 
+		| Some a', Some b' -> 
+		  if acc = 0 
+		  then cmpr a' b'
+		  else acc
+		| a',b' -> 
+		  Pervasives.compare a' b' ) a 0 in 
+	let theirres = OldMap.compare cmpr olda oldb in 
+	assert (myres = theirres);
+	myres
+	    
+      let fold (f : key -> 'a -> 'b -> 'b) ((st,oldst) : 'a t) (acc : 'b) : 'b = 
+	let myres = 
+	  Decide_Ast.Term.FieldArray.fold 
+	    (fun indx b acc -> 
+	      match b with 
+		| Some e -> (f indx e acc)
+		| None -> acc) st acc in 
+	let theirres = OldMap.fold f oldst acc in 
+	assert (myres = theirres);
+	myres
+
+      let add (a : key) (b : 'a) ((arr,oldarr) : 'a t) : 'a t = 
+	let myres = 
+	  let newarr = Decide_Ast.Term.FieldArray.copy arr in 
+	  Decide_Ast.Term.FieldArray.set newarr a (Some b);
+	  newarr in 
+	let theirres = 
+	  OldMap.add a b oldarr in 
+	myres,theirres
+
+      let empty : 'a t = (Decide_Ast.Term.FieldArray.make None, OldMap.empty)
+
     end
-      *)
-    module Map = Map.Make(Decide_Ast.Term.Field)
+
     type atom = PosNeg.t Map.t
     type assg = U.ValueSet.elt Map.t
     let (atom_empty : atom) = Map.empty
-    let (assg_empty : assg) = Map.empty (*Decide_Ast.Term.FieldArray.make None*)
+    let (assg_empty : assg) = Decide_Ast.Term.FieldArray.make None, Map.OldMap.empty
 
     let atom_to_string (a:atom) : string = 
       U.FieldSet.fold (fun f acc -> 
