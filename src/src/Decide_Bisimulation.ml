@@ -112,5 +112,7 @@ let check_equivalent (t1:term) (t2:term) : bool =
 	  U.Base.Set.print_debugging_info (); 
 	  ret
     end
-  else true
+  else (
+    Printf.eprintf "comparing empty terms!\n";
+    true)
 

@@ -432,7 +432,6 @@ module Univ = functor (U : UnivDescr) -> struct
 	let phase3 = 
 	  List.fold_right
 	    (fun (rhs,cnds) acc -> 
-	      Printf.printf "%u%%\n" ((100 * cardinal cnds)  / (cardinal left));
 	      fold (fun lhs acc -> 
 		match (mult lhs rhs) with 
 		  | Some r -> Printf.printf "sucesscount\n"; add r acc
@@ -442,7 +441,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	then (assert (equal (old_mult left right) phase3); phase3)
 	else phase3
 
-      let mult = old_mult
+
 
 
       let biggest_cardinal = ref 0 
