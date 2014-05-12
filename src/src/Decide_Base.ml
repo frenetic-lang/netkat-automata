@@ -102,8 +102,14 @@ module Univ = functor (U : UnivDescr) -> struct
 	let theirres = OldMap.find a oldb in 
 	assert (myres = theirres);
 	myres
-      let compare (cmpr : 'a -> 'a -> int) ((a,olda) : 'a t) ((b,oldb) : 'a t) : int = 
+
+
+      let compare (mt,_) (cmpr : 'a -> 'a -> int) ((a,olda) : 'a t) ((b,oldb) : 'a t) : int = 
 	let myres = 
+	  let a,b = 
+	    if a = mt 
+	    then b,a
+	    else a,b in
 	  Decide_Ast.Term.FieldArray.fold 
 	    (fun indx a' acc -> 
 	      match a',(Decide_Ast.Term.FieldArray.get b indx) with 
@@ -114,7 +120,8 @@ module Univ = functor (U : UnivDescr) -> struct
 		| a',b' -> 
 		  Pervasives.compare a' b' ) a 0 in 
 	let theirres = OldMap.compare cmpr olda oldb in 
-	assert (myres = theirres);
+	assert ( (if (myres = 0) then (0 = theirres) else true)
+		 && (if (theirres = 0) then (0 = myres) else true));
 	myres
 	    
       let fold (f : key -> 'a -> 'b -> 'b) ((st,oldst) : 'a t) (acc : 'b) : 'b = 
@@ -127,6 +134,45 @@ module Univ = functor (U : UnivDescr) -> struct
 	let theirres = OldMap.fold f oldst acc in 
 	assert (myres = theirres);
 	myres
+
+
+      let to_string (m,oldm) elt_to_string = 
+	Printf.sprintf "Mine: [%s]\nTheirs: [%s]\n\n"
+	  (Decide_Ast.Term.FieldArray.fold 
+	     (fun a b acc -> 
+	       match b with 
+		 | None -> acc 
+		 | Some b -> 
+		   Printf.sprintf "%s : %s\n%s" 
+		     (Decide_Ast.Term.Field.to_string a)
+		     (elt_to_string b) acc) m "")
+	  (OldMap.fold 
+	     (fun a b -> 
+	       Printf.sprintf "%s : %s\n%s" 
+		 (Decide_Ast.Term.Field.to_string a)
+		 (elt_to_string b)) oldm "")
+
+
+      let compare _ prntr (cmpr : 'a -> 'a -> int) ((a,olda) : 'a t) ((b,oldb) : 'a t) : int = 
+	let myres = 
+	  U.FieldSet.fold 
+	    (fun fld acc -> 
+	      if acc = 0
+	      then 
+		match Decide_Ast.Term.FieldArray.get a fld,(Decide_Ast.Term.FieldArray.get b fld) with 
+		  | Some a', Some b' -> 
+		    cmpr a' b'
+		  | a',b' -> 
+		    Pervasives.compare a' b'
+	      else acc) U.all_fields 0 in 
+	let theirres = OldMap.compare cmpr olda oldb in 
+	assert ( 
+	  (if (myres = 0) 
+	   then (if 0 <> theirres then Printf.eprintf "%s vs\n %s" (to_string (a,olda) prntr) (to_string (b,oldb) prntr);
+		 0 = theirres) else true)
+	  && (if (theirres = 0) then (0 = myres) else true));
+	myres
+
 
       let add (a : key) (b : 'a) ((arr,oldarr) : 'a t) : 'a t = 
 	let myres = 
@@ -173,10 +219,10 @@ module Univ = functor (U : UnivDescr) -> struct
         U.all_fields ""
         
     let atom_compare (a1:atom) (a2:atom) : int = 
-      Map.compare PosNeg.compare a1 a2
+      Map.compare atom_empty PosNeg.to_string PosNeg.compare a1 a2
 
     let assg_compare (b1:assg) (b2:assg) : int = 
-      Map.compare Decide_Ast.Term.Value.compare b1 b2
+      Map.compare assg_empty Decide_Ast.Term.Value.to_string Decide_Ast.Term.Value.compare b1 b2
 
     type t = Base of atom * assg 
     (* must be a Pos * completely-filled-in thing*)
