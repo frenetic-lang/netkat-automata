@@ -23,6 +23,7 @@ let biggest_int = ref 0
   module FieldArray : sig
     type 'a t
     val make : 'a -> 'a t
+    val init : (Field.t -> 'a) -> 'a t
     val set : 'a t -> Field.t -> 'a -> unit 
     val get : 'a t -> Field.t -> 'a
     val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
@@ -96,6 +97,8 @@ let biggest_int = ref 0
       type 'a t = 'a array
       let make (a : 'a) : 'a t = 
 	Array.make (Field.hash (Field.max_elem ())) a
+      let init f = 
+	Array.init (Field.hash (Field.max_elem ())) f
       let set this k = 
 	Array.set this (Field.hash k)
       let get this k = 

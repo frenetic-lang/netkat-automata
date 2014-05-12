@@ -96,6 +96,8 @@ module Univ = functor (U : UnivDescr) -> struct
 	match Decide_Ast.Term.FieldArray.get b a with 
 	  | Some r -> r
 	  | None -> raise Not_found
+	    
+      let get a b = Decide_Ast.Term.FieldArray.get b a
     
       let fold (f : key -> 'a -> 'b -> 'b) (st : 'a t) (acc : 'b) : 'b = 
 	  Decide_Ast.Term.FieldArray.fold 
@@ -131,6 +133,11 @@ module Univ = functor (U : UnivDescr) -> struct
 	let newarr = Decide_Ast.Term.FieldArray.copy arr in 
 	Decide_Ast.Term.FieldArray.set newarr a (Some b);
 	newarr 
+
+      let init f = Decide_Ast.Term.FieldArray.init 
+	(fun a -> Some (f a))
+
+      let init' = Decide_Ast.Term.FieldArray.init
 
       let empty : unit -> 'a t = (fun _ -> (Decide_Ast.Term.FieldArray.make None))
 
@@ -225,10 +232,13 @@ module Univ = functor (U : UnivDescr) -> struct
     exception Empty_mult
 
     let base_of_point (Point(x,y) : point) : t = 
-      let x = Map.fold 
-	(fun f v acc -> Map.add f (PosNeg.Pos(f,U.ValueSet.singleton v)) acc)
-	x (atom_empty ()) in
-      Base(x, y)
+      let x = 
+	Map.init 
+	  (fun f -> 
+	    match Map.get f x with 
+	      | Some v -> (PosNeg.Pos(f,U.ValueSet.singleton v))
+	      | None -> failwith "point doesn't match the spec") in 
+      Base(x,y)
 
     
     let contains_point (Point(x,y) : point) (Base(a,b) : t) : bool = 
@@ -261,29 +271,28 @@ module Univ = functor (U : UnivDescr) -> struct
 
     let filter_alpha (Base(a1,b1):t) (a2: complete_test) : t option =
       try
-	Some (U.FieldSet.fold
-		(fun field (Base(tests, assgs)) ->
-		  let test_1 =
-		    try Map.find field a1 with Not_found -> 
-		      PosNeg.any field in
-		  let test_2 =
-		    try Map.find field a2 with Not_found -> 
-		      failwith "complete test has missing field!" in
-		  let new_test = 
-		    if PosNeg.contains test_1 test_2 
-		    then PosNeg.singleton field test_2
-		    else PosNeg.empty field
-		  in
-		  if PosNeg.is_empty new_test
-		  then raise Empty_filter;
-		  let new_assg = (try Some (Map.find field b1) 
-		    with Not_found -> None) in
-		  match new_assg with
-		    | None -> Base(Map.add field new_test tests, assgs)
-		    | Some new_assg ->
-		      Base(Map.add field new_test tests,
-			   Map.add field new_assg assgs))
-		U.all_fields (Base((atom_empty ()), (assg_empty ()))))
+	let test_Fun = 
+	  (fun field -> 
+	       let test_1 =
+		 try Map.find field a1 with Not_found -> 
+		   PosNeg.any field in
+	       let test_2 =
+		 try Map.find field a2 with Not_found -> 
+		   failwith "complete test has missing field!" in
+	       let new_test = 
+		 if PosNeg.contains test_1 test_2 
+		 then PosNeg.singleton field test_2
+		 else PosNeg.empty field
+	       in
+	       if PosNeg.is_empty new_test
+	       then raise Empty_filter;
+	       new_test) in
+	let assg_fun = 
+	  (fun field -> 
+	    let new_assg = (try Some (Map.find field b1) 
+	      with Not_found -> None) in
+	    new_assg) in
+	Some  (Base (Map.init test_Fun, Map.init' assg_fun))
       with Empty_filter -> None
 
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 

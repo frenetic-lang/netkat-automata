@@ -13,6 +13,7 @@ module rec Term : sig
   module FieldArray : sig
     type 'a t
     val make : 'a -> 'a t
+    val init : (Field.t -> 'a) -> 'a t
     val set : 'a t -> Field.t -> 'a -> unit 
     val get : 'a t -> Field.t -> 'a
     val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
