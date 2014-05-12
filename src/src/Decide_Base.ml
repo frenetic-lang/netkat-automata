@@ -89,6 +89,7 @@ module Univ = functor (U : UnivDescr) -> struct
   end (* PosNeg *)
   module Base = struct
 
+    module VMap = Map.Make(Decide_Ast.Term.Value)
     module Map = Map.Make(Decide_Ast.Term.Field)
     type atom = PosNeg.t Map.t
     type assg = U.ValueSet.elt Map.t
@@ -310,7 +311,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	  
 
       (* TODO: a more efficient multiplication would be nice.*)
-      let mult (left : t) (right : t) : t =
+      let old_mult (left : t) (right : t) : t =
 	let f x y (r : t) : t =
           match mult x y with
             | Some z -> add z r
@@ -362,6 +363,63 @@ module Univ = functor (U : UnivDescr) -> struct
 
       let union (a : t) (b : t) : t = 
 	union a b
+
+
+      let mult (left : t)  (right : t) : t = 
+	let module ValHash = VMap in
+	let extract_test (f : U.field) (Base(atom,_)) = 
+	  try Map.find f atom 
+	  with Not_found -> PosNeg.any f in 
+	let pn_intersect (a : U.ValueSet.t) (b : PosNeg.t) : U.ValueSet.t = 
+	  match a, b with
+            | s1, PosNeg.Pos(_,s2) -> 
+              U.ValueSet.inter s1 s2
+            | s1, PosNeg.Neg(_,s2) -> 
+              U.ValueSet.diff s1 s2 in
+	let intersect_all lst = 
+	  List.fold_left 
+	    (fun acc e -> inter e acc) (List.hd lst) (List.tl lst) in 
+	let incr_add k v hash = 
+	  ValHash.add k (add v (ValHash.find k hash)) hash in
+
+	let phase1 = fold 
+	  (fun b  acc -> 
+	    let assg = match b with Base(_,assg) -> assg in 
+	    List.map
+	      (fun (field,valset,valhash,others) -> 
+		try 
+		  let a = Map.find field assg in 
+		  field,U.ValueSet.add a valset,incr_add a b valhash, others
+		with Not_found -> 
+		  field,valset,valhash,add b others) acc)
+	  left (U.FieldSet.fold 
+		  (fun f acc -> 
+		    (f,U.ValueSet.empty,ValHash.empty,empty)::acc) 
+		  U.all_fields []) in
+	let phase2 = 
+	  fold 
+	    (fun b acc -> 
+	      let to_intersect = 
+		List.map
+		  (fun (f,vs,vh,bs) -> 
+		    let i = pn_intersect vs (extract_test f b) in 
+		    union 
+		      (U.ValueSet.fold 
+			 (fun a -> union (ValHash.find a vh)) i empty) 
+		      bs) phase1 in 
+	      (b,intersect_all to_intersect)::acc) right [] in 
+	let phase3 = 
+	  List.fold_right
+	    (fun (rhs,cnds) acc -> 
+	      fold (fun lhs acc -> 
+		match (mult lhs rhs) with 
+		  | Some r -> add r acc
+		  | None -> acc
+	      ) cnds acc) phase2 empty in 
+	if true (* TODO : make this debug mode only *)
+	then (assert (equal (old_mult left right) phase3); phase3)
+	else phase3
+
 
       let biggest_cardinal = ref 0 
 
