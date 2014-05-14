@@ -17,6 +17,8 @@ prof: netkat-prof
 
 test: good-test-dexter
 
+stack-overflow : t26
+
 clean:
 	rm -f netkat
 	for X in . Test Parser; do \
@@ -29,10 +31,15 @@ netkat: $(SOURCES)
 	ocamlopt -o netkat -g -p -I Test -I Parser  $(SOURCES) Decide_Repl.mli Decide_Repl.ml
 
 netkat-prof: $(SOURCES)
-	ocamlcp -o netkat-prof -g -I Test -I Parser -I Dot $(SOURCES) Decide_Repl.mli Decide_Repl.ml
+	ocamlcp -o netkat-prof -g -I Test -I Parser -I Dot $(SOURCES) DexterTest.ml SingleTest.ml
 
 good-test-dexter: $(SOURCES)
-	ocamlopt -o dexter-test -g -p -I Test -I Parser $(SOURCES) DexterTest.ml SingleTest.ml
+	ocamlopt -o dexter-test -I Test -I Parser $(SOURCES) DexterTest.ml SingleTest.ml
+
+t26: $(SOURCES)
+	ocamlopt -o t26 -I Test -I Parser $(SOURCES) Tree_2_6.ml SingleTest26.ml
+
+
 
 Parser.mli Parser.ml: Parser.mly
 	ocamlyacc -v Parser.mly
