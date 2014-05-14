@@ -313,42 +313,59 @@ end = struct
     | Zero
     | One
 	
-  let rec compare a b = 
+  let rec compare use_mine a b = 
+    let compare = compare use_mine in 
     match a,b with 
-    | Plus ts1, Plus ts2 -> 
-      let cardinal1 = InitialTermSet.cardinal ts1 in
-      let cardinal2 = InitialTermSet.cardinal ts2 in
-      if cardinal2 = cardinal1
-      then 
-	List.fold_right2
+      | Plus ts1, Plus ts2 -> 
+	if use_mine
+	then
+	  begin
+	    let cardinal1 = InitialTermSet.cardinal ts1 in
+	    let cardinal2 = InitialTermSet.cardinal ts2 in
+	    if cardinal2 = cardinal1
+	    then 
+	      List.fold_right2
+		(fun l r acc -> 
+		  if acc = 0 
+		  then compare l r
+		  else acc) 
+		(List.fast_sort compare (InitialTermSet.elements ts1)) 
+		(List.fast_sort compare (InitialTermSet.elements ts2)) 0 
+	    else if cardinal1 < cardinal2 
+	    then -1
+	    else 1
+	  end
+	else InitialTermSet.compare ts1 ts2
+      | Times tl1, Times tl2 -> 
+	let len1 = List.length tl1 in 
+	let len2 = List.length tl2 in
+	if len1 = len2
+	then List.fold_right2 
 	  (fun l r acc -> 
 	    if acc = 0 
 	    then compare l r
-	    else acc) 
-	  (List.fast_sort compare (InitialTermSet.elements ts1)) 
-	  (List.fast_sort compare (InitialTermSet.elements ts2)) 0 
-      else if cardinal1 < cardinal2 
-      then -1
-      else 1
-    | Times tl1, Times tl2 -> 
-      let len1 = List.length tl1 in 
-      let len2 = List.length tl2 in
-      if len1 = len2
-      then List.fold_right2 
-	(fun l r acc -> 
-	  if acc = 0 
-	  then compare l r
-	  else acc) (tl1) ( tl2) 0
-      else if len1 < len2
-      then -1
-      else 1
-    | Star a,Star b -> 
-      compare a b
-    | Not a, Not b -> 
-      compare a b
-    | _ -> Pervasives.compare a b
+	    else acc) (tl1) ( tl2) 0
+	else if len1 < len2
+	then -1
+	else 1
+      | Star a,Star b -> 
+	compare a b
+      | Not a, Not b -> 
+	compare a b
+      | _ -> Pervasives.compare a b
 
-
+  let compare a b = 
+    if Decide_Util.debug_mode
+    then 
+      let mine = compare true a b in 
+      let theirs = compare false a b in 
+      match (mine,theirs) with 
+	| 0,0 -> 0 
+	| 0,a -> failwith "mine said equal, theirs said not"
+	| a,0 -> failwith "theirs said equal, mine said not"
+	| k,_ -> k
+    else compare false a b
+      
 
   let of_term e = 
     let module TTerm = InitialTerm in 

@@ -19,8 +19,8 @@ module Bisimulation = functor(UDesc: UnivDescr) -> struct
   let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (Deriv.DerivTerm.to_string a) (Deriv.DerivTerm.to_string b)
 
   let get_state,update_state,print_states = 
-    Decide_Dot.init Deriv.DerivTerm.to_string (fun a -> not (U.Base.Set.is_empty a))
-  (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) *)
+    (* Decide_Dot.init Deriv.DerivTerm.to_string (fun a -> not (U.Base.Set.is_empty a)) *)
+    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) 
       
     
 end
