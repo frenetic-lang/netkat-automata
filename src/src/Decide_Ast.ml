@@ -26,6 +26,7 @@ let biggest_int = ref 0
   (* pretty printers + serializers *)
   val to_string : t -> string
   val to_string_sexpr : t -> string
+  val int_of_uid : uid -> int
 
   (* utilities for Map, Hashtbl, etc *)
   val old_compare : (t -> t -> int) ref
@@ -38,9 +39,12 @@ let biggest_int = ref 0
   val largest_uid : unit -> uid
   val ts_elements : (TermSet.t -> t list) ref
   val extract_uid : t -> uid
+  val default_uid : uid
 
   end = struct 
     type uid = int	
+
+    let default_uid = -1
 
     type t =
       | Assg of uid * Field.t * Value.t
@@ -185,6 +189,7 @@ end
 
 let _ = Term.old_compare := 
   (let rec oldcomp = (fun a b -> 
+    let open Term in 
     match a,b with 
       | (Plus (_,al)),(Plus (_,bl)) -> TermSet.compare al bl
       | (Times (_,al)),(Times (_,bl)) -> 
@@ -197,8 +202,9 @@ let _ = Term.old_compare :=
 	    ) al bl 0
 	  | a,b when a < b -> -1 
 	  | a,b when a > b -> 1
+	  | _ -> failwith "stupid Ocaml compiler thinks my style is bad"
 	)
-      | (Not (_,t1),Not (_,t2)) -> 
+      | (Not (_,t1),Not (_,t2))
       | (Star (_,t1),Star (_,t2)) -> 
 	oldcomp t1 t2
       | _ -> Pervasives.compare a b)
@@ -212,6 +218,11 @@ module UnivMap = Decide_Util.SetMapF (Field) (Value)
 type formula = Eq of Term.t * Term.t
 	       | Le of Term.t * Term.t
 
+let zero = Zero 0
+let one = One 1
+let dup = Dup 2
+
+
 (***********************************************
  * output
  ***********************************************)
@@ -221,30 +232,15 @@ let term_to_string = Term.to_string
 
 let formula_to_string (e : formula) : string =
   match e with
-  | Eq (s,t) -> Term.to_string (make_term s) ^ " == " ^ 
-    Term.to_string (make_term t)
-  | Le (s,t) -> Term.to_string (make_term s) ^ " <= " ^ 
-    Term.to_string (make_term t)
+  | Eq (s,t) -> Term.to_string ( s) ^ " == " ^ 
+    Term.to_string ( t)
+  | Le (s,t) -> Term.to_string ( s) ^ " <= " ^ 
+    Term.to_string ( t)
 
 let termset_to_string (ts : TermSet.t) : string =
   let l = TermSet.elements ts in
   let m = List.map term_to_string l in
   String.concat "\n" m
-
-let serialize_formula formula file = 
-  let file = open_out file in 
-  Printf.fprintf file "let serialized_formula = %s" 
-    (match formula with 
-      | Eq (s,t) -> 
-	Printf.sprintf "Decide_Ast.Eq (%s,%s)" 
-	  (InitialTerm.to_string_ocaml s)
-	  (InitialTerm.to_string_ocaml t)
-      | Le (s,t) -> 
-	Printf.sprintf "Decide_Ast.Le (%s,%s)" 
-	  (InitialTerm.to_string_ocaml s)
-	  (InitialTerm.to_string_ocaml t)
-    );
-  close_out file
 
   
 (***********************************************
@@ -252,7 +248,7 @@ let serialize_formula formula file =
  ***********************************************)
 
 let terms_in_formula (f : formula) =
-  match f with (Eq (s,t) | Le (s,t)) -> (make_term s,make_term t)
+  match f with (Eq (s,t) | Le (s,t)) -> s,t
 
 let rec is_test (t : term) : bool =
   match t with
@@ -304,107 +300,63 @@ let rec contains_a_neg term =
 (* NOTE : any simplification routine must re-set ID to -1*)
 
 (* flatten terms *)
-let flatten_sum (t : InitialTerm.t list) : InitialTerm.t =
-  let open InitialTerm in 
-  let f (x : InitialTerm.t) = match x with Plus (v) -> 
-    (InitialTermSet.elements v) | (Zero ) -> [] | _ -> [x] in
+let flatten_sum (t : Term.t list) : Term.t =
+  let open Term in 
+  let f (x : Term.t) = 
+    match x with 
+      | Plus (_,v) -> 
+	(TermSet.elements v) 
+      | (Zero _) -> [] 
+      | _ -> [x] in
   let t1 = List.concat (List.map f t) in
-  let t2 = InitialTermSet.from_list t1 in
-  match InitialTermSet.elements t2 with [] -> 
-    InitialTerm.Zero | [x] -> ( x) | _ ->  (InitialTerm.Plus t2)
+  let t2 = TermSet.from_list t1 in
+  match TermSet.elements t2 with 
+    | [] -> zero
+    | [x] -> x
+    | _ ->  (Term.Plus (-1, t2))
     
-let flatten_product (t : InitialTerm.t list) : InitialTerm.t =
-  let open InitialTerm in 
-  let f x = match x with Times (v) -> v | One  -> [] | _ -> [x] in
+let flatten_product (t : Term.t list) : Term.t =
+  let open Term in 
+  let f x = match x with 
+    | Times (_,v) -> v 
+    | One _  -> [] 
+    | _ -> [x] in
   let t1 = List.concat (List.map f t) in
-  if List.exists (fun x -> match x with Zero  -> true | _ -> false) 
-    t1 then ( InitialTerm.Zero)
-  else match t1 with [] -> ( InitialTerm.One) | [x] -> x | _ ->  
-    (InitialTerm.Times  t1)
+  if List.exists (fun x -> match x with (Zero _)  -> true | _ -> false) 
+    t1 then ( zero)
+  else match t1 with [] -> ( one) | [x] -> x | _ ->  
+    (Term.Times (-1,t1))
     
-let flatten_not (t : InitialTerm.t) : InitialTerm.t =
-  let open InitialTerm in 
+let flatten_not (t : Term.t) : Term.t =
+  let open Term in 
   match t with
-  | Not (y) -> y
-  | Zero  -> InitialTerm.One
-  | One  ->  InitialTerm.Zero
-  | _ -> (InitialTerm.Not t)
+  | Not (_,y) -> y
+  | Zero _ -> one
+  | One _ ->  zero
+  | _ -> (Term.Not (-1,t))
 
-let is_test_tt t = 
-  let open InitialTerm in
-  let rec is_test (t : InitialTerm.t) : bool =
-    match t with
-      | Assg _ -> false
-      | Test _ -> true
-      | Dup  -> false
-      | Times (x) -> List.for_all is_test x
-      | Plus (x) -> InitialTermSet.for_all is_test x
-      | Not (x) -> is_test x || failwith "May not negate an action"
-      | Star (x) -> is_test x
-      | (Zero | One ) -> true in 
-  is_test t
-
-    
-let flatten_star (t : InitialTerm.t) : InitialTerm.t =
-  let open InitialTerm in
+let flatten_star (t : Term.t) : Term.t =
+  let open Term in
   
   let t1 = match t with
-  | Plus (x) -> flatten_sum (List.filter (fun s -> not (is_test_tt s)) 
-			       (InitialTermSet.elements x))
+  | Plus (_,x) -> flatten_sum (List.filter (fun s -> not (is_test s)) 
+			       (TermSet.elements x))
   | _ -> t in
-  if is_test_tt t1 then InitialTerm.One
+  if is_test t1 then one
   else match t1 with
   | Star _ -> t1
-  | _ -> (InitialTerm.Star t1)
+  | _ -> (Term.Star (-1,t1))
     
-let rec simplify_tt (t : InitialTerm.t) : InitialTerm.t =
-  let open InitialTerm in 
+let rec simplify (t : Term.t) : Term.t =
   match t with
-  | Plus (x) -> flatten_sum (List.map simplify_tt 
-			       (InitialTermSet.elements x))
-  | Times (x) -> flatten_product (List.map simplify_tt x)
-  | Not (x) -> flatten_not (simplify_tt x)
-  | Star (x) -> flatten_star (simplify_tt x)
+  | Plus (_,x) -> flatten_sum (List.map simplify 
+			       (TermSet.elements x))
+  | Times (_,x) -> flatten_product (List.map simplify x)
+  | Not (_,x) -> flatten_not (simplify x)
+  | Star (_,x) -> flatten_star (simplify x)
   | _ -> t
 
-let simplify t = 
-  (make_term (simplify_tt (InitialTerm.of_term t)))
-
-let simplify_formula (e : formula) : formula =
-  match e with
-  | Eq (s,t) -> Eq ((simplify_tt s),  (simplify_tt t))
-  | Le (s,t) -> Le ( (simplify_tt s),  (simplify_tt t))
-
-(* set dups to 0 *)
-let zero_dups (t : term) : term =
-  let rec zero (t : InitialTerm.t) =
-    let open InitialTerm in 
-	match t with 
-	  | (Assg _ | Test _ | Zero | One ) -> t
-	  | Dup  -> InitialTerm.Zero
-	  | Plus (x) -> Plus (InitialTermSet.map zero x)
-	  | Times x -> Times (List.map zero x)
-	  | Not x -> Not (zero x)
-	  | Star x -> Star (zero x) in
-  (make_term (simplify_tt (zero (InitialTerm.of_term t))))
-
-(* set dups to 1 *)
-let one_dups (t : term) : term =
-  let open InitialTerm in 
-  let rec one t =
-    match t with 
-      | (Assg _ | Test _ | Zero | One) -> t
-      | Dup -> One
-      | Plus x -> Plus (InitialTermSet.map one x)
-      | Times x -> Times (List.map one x)
-      | Not x -> Not (one x)
-      | Star x -> Star (one x) in
-  (make_term (simplify_tt (one (InitialTerm.of_term t))))
-
-let zero = Zero 0
-let one = One 1
-let dup = Dup 2 in 
-
+    
 let contains_dups (t : term) : bool =
   let rec contains t =
     match t with 
@@ -421,25 +373,23 @@ let contains_dups (t : term) : bool =
 
 (* apply De Morgan laws to push negations down to the leaves *)
 let deMorgan (t : term) : term =
-  let open InitialTerm in
-  let rec dM (t : InitialTerm.t) : InitialTerm.t =
-    let f x = dM (Not x) in
+  let rec dM (t : term) : term =
+    let f x = dM (Not (-1,x)) in
     match t with 
-      | (Assg _ | Test _ | Zero | One | Dup) -> t
-      | Plus x -> Plus (InitialTermSet.map dM x)
-      | Times x -> Times (List.map dM x)
-      | Not (Not x) -> dM x
-      | Not (Plus s) -> Times (List.map f (InitialTermSet.elements s))
-      | Not (Times s) -> Plus (InitialTermSet.from_list (List.map f s))
-      | Not (Star x) ->
-	if is_test_tt x then Zero
+      | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> t
+      | Plus (_,x) -> Plus (-1,TermSet.map dM x)
+      | Times (_,x) -> Times (-1,List.map dM x)
+      | Not (_,(Not (_,x))) -> dM x
+      | Not (_,(Plus (_,s))) -> Times (-1, List.map f (TermSet.elements s))
+      | Not (_,Times (_,s)) -> Plus (-1, TermSet.from_list (List.map f s))
+      | Not (_,Star (_,x)) ->
+	if is_test x then zero
       else failwith "May not negate an action"
-      | Not Zero -> One
-      | Not One -> Zero
+      | Not (_, (Zero _)) -> one
+      | Not (_, (One _)) -> zero
       | Not _ -> t
-      | Star x -> Star (dM x) in
-  (make_term (simplify_tt (dM (InitialTerm.of_term t))))
-
+      | Star (_, x) -> Star (-1, dM x) in
+  simplify (dM t)
 
 
 (* smart constructors *)
@@ -455,17 +405,17 @@ let assign_ids =
   let ids_from_list tl = 
     List.map extract_uid tl in
   let ids_from_set ts = 
-    TermSet.fold (fun f acc -> (extract_uid f) :: acc) ts []
+    TermSet.fold (fun f acc -> (extract_uid f) :: acc) ts [] in
   let counter = ref 3 in 
-  let getandinc  = 
+  let getandinc _ = 
     let ret = !counter in 
     counter := !counter + 1; 
     ret in 
   let rec assign_ids t = 
     match t with 
-      | Dup -> dup
-      | One -> one 
-      | Zero -> zero 
+      | Dup _ -> dup
+      | One _ -> one 
+      | Zero _ -> zero 
       | Assg(-1,f,v) -> 
 	(try Hashtbl.find assghash (f,v)
 	with Not_found -> 
@@ -473,10 +423,10 @@ let assign_ids =
 	  Hashtbl.replace assghash (f,v) ret; 
 	  ret)
       | Test(-1,f,v) -> 
-	(try Hashtbl.find assghash (f,v)
+	(try Hashtbl.find testhash (f,v)
 	 with Not_found -> 
-	   let ret = Assg(getandinc (), f,v) in 
-	   Hashtbl.replace assghash (f,v) ret; 
+	   let ret = Test(getandinc (), f,v) in 
+	   Hashtbl.replace testhash (f,v) ret; 
 	   ret)
       | Plus (-1,ts) -> 
 	let ids = (ids_from_set ts) in 
@@ -495,47 +445,75 @@ let assign_ids =
 	   ret
 	)
       | Not (-1, t) -> 
-	(try Hashtbl.find hash [t] 
-	with Not_found -> 
+	(try Hashtbl.find hash [extract_uid t] 
+	 with Not_found -> 
 	  let ret = Not(getandinc (), t) in 
-	  Hashtbl.replace hash [t] ret;
+	  Hashtbl.replace hash [extract_uid t] ret;
 	  ret)
       | Star (-1, t) -> 
-	try Hashtbl.find hash [t]
+	(try Hashtbl.find hash [extract_uid t]
 	with Not_found -> 
 	  let ret = Star(getandinc (), t) in 
-	  Hashtbl.replace hash [t] ret;
-	  ret
+	  Hashtbl.replace hash [extract_uid t] ret;
+	  ret)
+      | _ -> failwith "add a sanity assert case after dinner"
+	  
   in
   assign_ids
 
-  let make_assg f v = 
-    assign_ids (Assg(-1f,v)) 
+  let make_assg (f,v) = 
+    assign_ids (Assg(-1,f,v)) 
 
-  let make_test f v = 
-    assign_ids (test(-1,f,v)) 
+  let make_test (f,v) = 
+    assign_ids (Test(-1,f,v)) 
       
-  let make_dup = dup i
+  let make_dup = dup 
 
   let make_plus ts = 
-    assign_ids (flatten_sum (Plus(-1,ts))) 
+    assign_ids (flatten_sum ts)
 
   let make_times tl = 
-    assign_ids (flatten_product (Times(-1,tl))) 
+    assign_ids (flatten_product tl)
 
   let make_not t = 
-    assign_ids (deMorgan (flatten_not (Not(-1,t)))) 
+    assign_ids (deMorgan (flatten_not t))
       
   let make_star t = 
-    assign_ids (flatten_star (Star(-1,t))) 
+    assign_ids (flatten_star t)
       
   let make_zero = zero 
     
   let make_one  = one 
 
-  let parse_and_simplify parse s = 
-    assign_ids (deMorgan (simplify (parse s)))
+  let parse_and_simplify (parse : string -> term) (s : string) : term = 
+    assign_ids (deMorgan (simplify (parse s))) 
 
+
+(* set dups to 0 *)
+let zero_dups (t : term) : term =
+  let zval = zero in
+  let rec zero (t : term) =
+    match t with 
+      | (Assg _ | Test _ | Zero _ | One _ ) -> t
+      | Dup _ -> zval
+      | Plus (_,x) -> Plus (-1, TermSet.map zero x)
+      | Times (_,x) -> Times (-1, List.map zero x)
+      | Not (_,x) -> Not (-1, zero x)
+      | Star (_,x) -> Star (-1, zero x) in
+  assign_ids (simplify (zero t))
+
+(* set dups to 1 *)
+let one_dups (t : term) : term =
+  let oval = one in 
+  let rec one t =
+    match t with 
+      | (Assg _ | Test _ | Zero _ | One _) -> t
+      | Dup _ -> oval
+      | Plus (_,x) -> Plus (-1, TermSet.map one x)
+      | Times (_,x) -> Times (-1, List.map one x)
+      | Not (_,x) -> Not (-1, one x)
+      | Star (_,x) -> Star (-1, one x) in
+  assign_ids (simplify (one t))
 
 let hits = ref 0 
 let misses = ref 1 
@@ -593,20 +571,4 @@ let memoize_on_arg2 f =
     hv)
   else hash_version
 
-
-let _ = 
-  if debug_mode
-  then 
-    let value = (InitialTerm.Plus
-		   (InitialTermSet.add 
-		      (InitialTerm.Test
-			 (Field.of_string "x", 
-			  Value.of_string "3")) 
-		      (InitialTermSet.singleton 
-			 (InitialTerm.Not 
-			    (InitialTerm.Test
-			       (Field.of_string "x", 
-				Value.of_string "3")))))) in
-    assert (0 = (InitialTerm.compare value value))
-  else ()
     
