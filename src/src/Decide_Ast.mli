@@ -4,6 +4,10 @@ exception Empty
 module rec Term : sig
  
   type uid
+    
+  (* only for use in the parser *)
+  val default_uid : uid
+
   val int_of_uid : uid -> int
   val largest_uid : unit -> uid
   type t =
@@ -16,6 +20,7 @@ module rec Term : sig
     | Star of uid * t
     | Zero of uid
     | One of uid
+
   val compare : t -> t -> int
   val to_string : t -> string 
 
@@ -27,30 +32,20 @@ end and TermSet : sig
   val return : elt -> t
 end with type elt = Term.t 
 
-module rec InitialTerm : sig
-  type t =
-    | Assg of Decide_Util.Field.t * Decide_Util.Value.t
-    | Test of Decide_Util.Field.t * Decide_Util.Value.t
-    | Dup 
-    | Plus of  InitialTermSet.t
-    | Times of t list
-    | Not of t
-    | Star of t
-    | Zero 
-    | One 
-  val to_term : t -> Term.t
-  val of_term : Term.t -> t
-end and InitialTermSet : sig
-  include Set.S
-  val map : (elt -> elt) -> t -> t
-  val from_list : elt list -> t
-  val bind : t -> (elt -> t) -> t
-  val return : elt -> t
-
-end with type elt = InitialTerm.t 
-
-
 type term = Term.t
+
+
+(* smart constructors *)
+val make_assg : Decide_Util.Field.t * Decide_Util.Value.t -> Term.t
+val make_test : Decide_Util.Field.t * Decide_Util.Value.t -> Term.t
+val make_dup :  Term.t 
+val make_plus : TermSet.t -> Term.t 
+val make_times : Term.t list -> Term.t
+val make_not : Term.t -> Term.t
+val make_star : Term.t -> Term.t 
+val make_zero :  Term.t 
+val make_one :  Term.t
+val assign_ids : Term.t -> Term.t
 
 module UnivMap : sig 
   type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
@@ -58,17 +53,14 @@ end
 
 
 type formula = 
-  | Eq of InitialTerm.t * InitialTerm.t 
-  | Le of InitialTerm.t * InitialTerm.t
+  | Eq of Term.t * Term.t 
+  | Le of Term.t * Term.t
 
 (* AST Utilities *)
+val parse_and_simplify : (string -> term) -> term
 val contains_dups : term -> bool
 val values_in_term : term -> UnivMap.t 
 val terms_in_formula : formula -> term * term
-val simplify : term -> term
-val simplify_tt : InitialTerm.t -> InitialTerm.t
-val simplify_formula : formula -> formula
-val deMorgan : term -> term 
 val zero_dups : term -> term 
 val one_dups : term -> term 
 val one : term 
