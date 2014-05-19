@@ -2,47 +2,13 @@ exception Empty
 
 
 module rec Term : sig
-  module Field : sig
-    type t
-    val compare : t -> t -> int
-    val hash : t -> int 
-    val equal : t -> t -> bool 
-    val to_string : t -> string
-    val of_string : string -> t
-  end
-  module FieldArray : sig
-    type 'a t
-    val make : 'a -> 'a t
-    val init : (Field.t -> 'a) -> 'a t
-    val set : 'a t -> Field.t -> 'a -> unit 
-    val get : 'a t -> Field.t -> 'a
-    val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
-    val copy : 'a t -> 'a t
-  end 
-
-  module Value : sig
-    type t 
-    val compare : t -> t -> int
-    val hash : t -> int 
-    val equal : t -> t -> bool 
-    val to_string : t -> string
-    val of_string : string -> t
-    val extra_val : t
-  end
-  module ValueArray : sig
-    type 'a t
-    val make : 'a -> 'a t
-    val set : 'a t -> Value.t -> 'a -> unit 
-    val get : 'a t -> Value.t -> 'a
-  end 
-
  
   type uid
   val int_of_uid : uid -> int
   val largest_uid : unit -> uid
   type t =
-    | Assg of uid * Field.t * Value.t
-    | Test of uid * Field.t * Value.t
+    | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t
+    | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t
     | Dup of uid 
     | Plus of uid * TermSet.t
     | Times of uid * t list
@@ -63,8 +29,8 @@ end with type elt = Term.t
 
 module rec InitialTerm : sig
   type t =
-    | Assg of Term.Field.t * Term.Value.t
-    | Test of Term.Field.t * Term.Value.t
+    | Assg of Decide_Util.Field.t * Decide_Util.Value.t
+    | Test of Decide_Util.Field.t * Decide_Util.Value.t
     | Dup 
     | Plus of  InitialTermSet.t
     | Times of t list
@@ -87,7 +53,7 @@ end with type elt = InitialTerm.t
 type term = Term.t
 
 module UnivMap : sig 
-  type t = Decide_Util.SetMapF(Term.Field)(Term.Value).t
+  type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
 end
 
 

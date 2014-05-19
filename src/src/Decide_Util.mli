@@ -4,6 +4,44 @@ val debug_mode : bool
 val failed_Count : int ref
 val success_count : int ref
 
+
+module Field : sig
+  type t
+  val compare : t -> t -> int
+  val hash : t -> int 
+  val equal : t -> t -> bool 
+  val to_string : t -> string
+  val of_string : string -> t
+  val max_elem : unit -> t
+end
+module FieldArray : sig
+  type 'a t
+  val make : 'a -> 'a t
+  val init : (Field.t -> 'a) -> 'a t
+  val set : 'a t -> Field.t -> 'a -> unit 
+  val get : 'a t -> Field.t -> 'a
+  val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+  val copy : 'a t-> 'a t
+end 
+  
+module Value : sig
+  type t 
+  val compare : t -> t -> int
+  val hash : t -> int 
+  val equal : t -> t -> bool 
+  val to_string : t -> string
+  val of_string : string -> t
+  val extra_val : t
+  val max_elem : unit -> t
+end
+module ValueArray : sig
+  type 'a t
+  val make : 'a -> 'a t
+  val set : 'a t -> Value.t -> 'a -> unit 
+  val get : 'a t -> Value.t -> 'a
+end 
+
+
 module SetMapF :
   functor (K : Map.OrderedType) ->
   functor (V : Set.OrderedType) -> sig

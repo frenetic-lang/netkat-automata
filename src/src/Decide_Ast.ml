@@ -10,43 +10,7 @@ let utf8 = ref false
 
 let biggest_int = ref 0  
      
-  module rec Term : sig
-    module Field : sig
-      type t
-      val compare : t -> t -> int
-      val hash : t -> int 
-      val equal : t -> t -> bool 
-      val to_string : t -> string
-      val of_string : string -> t
-      val max_elem : unit -> t
-    end
-  module FieldArray : sig
-    type 'a t
-    val make : 'a -> 'a t
-    val init : (Field.t -> 'a) -> 'a t
-    val set : 'a t -> Field.t -> 'a -> unit 
-    val get : 'a t -> Field.t -> 'a
-    val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
-    val copy : 'a t-> 'a t
-  end 
-
-    module Value : sig
-      type t 
-      val compare : t -> t -> int
-      val hash : t -> int 
-      val equal : t -> t -> bool 
-      val to_string : t -> string
-      val of_string : string -> t
-      val extra_val : t
-      val max_elem : unit -> t
-    end
-  module ValueArray : sig
-    type 'a t
-    val make : 'a -> 'a t
-    val set : 'a t -> Value.t -> 'a -> unit 
-    val get : 'a t -> Value.t -> 'a
-  end 
-      
+  module rec Term : sig      
     type uid
     type t =
       | Assg of uid * Field.t * Value.t
@@ -70,84 +34,6 @@ let biggest_int = ref 0
   val ts_elements : (TermSet.t -> t list) ref
   end = struct 
     type uid = int	
-
-    module Field = struct 
-      type t = int
-      let compare = Pervasives.compare
-      let hash x = x
-      let equal a b = 0 = (compare a b)
-      let of_string,to_string,max_elem = 
-	let stringtoint = Hashtbl.create 11 in 
-	let inttostring = Hashtbl.create 11 in 
-	let counter = ref 0 in 
-	let of_string (x : string) : t = 
-	  try Hashtbl.find stringtoint x 
-	  with Not_found -> 
-	    let id = !counter in 
-	    counter := !counter + 1 ;
-	    Hashtbl.replace stringtoint x id;
-	    Hashtbl.replace inttostring id x;
-	    id in 
-	let to_string (x : t) : string = 
-	  Hashtbl.find inttostring x in 
-	let max_elem _ = !counter in
-	of_string,to_string,max_elem
-    end
-    module FieldArray = struct
-      type 'a t = 'a array
-      let make (a : 'a) : 'a t = 
-	Array.make (Field.hash (Field.max_elem ())) a
-      let init f = 
-	Array.init (Field.hash (Field.max_elem ())) f
-      let set this k = 
-	Array.set this (Field.hash k)
-      let get this k = 
-	Array.get this (Field.hash k)
-      let fold f arr acc =
-	let accr = ref acc in 
-	Array.iteri (fun indx elem -> 
-	  let acc = !accr in 
-	  accr := (f indx elem acc)) arr;
-	!accr
-      let copy = Array.copy
-    end 
-      
-
-    module Value = struct 
-      type t = int
-      let compare = Pervasives.compare
-      let hash x = x
-      let equal a b = 0 = (compare a b)
-      let of_string,to_string,max_elem = 
-	let stringtoint = Hashtbl.create 11 in 
-	let inttostring = Hashtbl.create 11 in 
-	let snowman =  "☃" in
-	Hashtbl.replace stringtoint snowman (-1);
-	Hashtbl.replace inttostring (-1) snowman;
-	let counter = ref 0 in 
-	let of_string (x : string) : t = 
-	  try Hashtbl.find stringtoint x 
-	  with Not_found -> 
-	    let id = !counter in 
-	    counter := !counter + 1 ;
-	    Hashtbl.replace stringtoint x id;
-	    Hashtbl.replace inttostring id x;
-	    id in 
-	let to_string (x : t) : string = 
-	  Hashtbl.find inttostring x in 
-	of_string,to_string,(fun _ -> !counter)
-      let extra_val = -1
-    end
-    module ValueArray = struct
-      type 'a t = 'a array
-      let make (a : 'a) : 'a t = 
-	Array.make (Value.hash (Value.max_elem ())) a
-      let set this k = 
-	Array.set this (Value.hash k)
-      let get this k = 
-	Array.get this (Value.hash k)
-    end 
-
 
     type t =
       | Assg of uid * Field.t * Value.t
@@ -285,8 +171,8 @@ end
 
 module rec InitialTerm : sig
   type t =
-  | Assg of Term.Field.t * Term.Value.t
-  | Test of Term.Field.t * Term.Value.t
+  | Assg of Field.t * Value.t
+  | Test of Field.t * Value.t
   | Dup
   | Plus of InitialTermSet.t
   | Times of t list
@@ -303,8 +189,8 @@ module rec InitialTerm : sig
 
 end = struct 
   type t =
-    | Assg of Term.Field.t * Term.Value.t
-    | Test of Term.Field.t * Term.Value.t
+    | Assg of Field.t * Value.t
+    | Test of Field.t * Value.t
     | Dup
     | Plus of InitialTermSet.t
     | Times of t list
@@ -406,9 +292,9 @@ end = struct
 	| _ -> String.concat op s in
     match t with
       | Assg ( var, value) -> Printf.sprintf "%s:=%s" 
-	(Term.Field.to_string var) (Term.Value.to_string value)
+	(Field.to_string var) (Value.to_string value)
       | Test ( var, value) -> Printf.sprintf "%s=%s" 
-	(Term.Field.to_string var) (Term.Value.to_string value)
+	(Field.to_string var) (Value.to_string value)
       | Dup  -> "dup"
       | Plus (x) -> assoc_to_string " + " "0" 
 	(List.map protect ( InitialTermSet.elements x ))
@@ -420,9 +306,9 @@ end = struct
 
   let rec to_string_sexpr = function 
     | Assg ( var, value) -> Printf.sprintf "(%s:=%s)" 
-      (Term.Field.to_string var) (Term.Value.to_string value)
+      (Field.to_string var) (Value.to_string value)
     | Test ( var, value) -> Printf.sprintf "(%s=%s)" 
-      (Term.Field.to_string var) (Term.Value.to_string value)
+      (Field.to_string var) (Value.to_string value)
     | Dup  -> "dup"
     | Plus (x) -> 
       Printf.sprintf "(+ %s)" 
@@ -442,13 +328,13 @@ end = struct
   let rec to_string_ocaml = function 
     | Assg ( var, value) -> 
       Printf.sprintf "(Decide_Ast.InitialTerm.Assg(
-Decide_Ast.Term.Field.of_string \"%s\",
-Decide_Ast.Term.Value.of_string \"%s\"))" 
-      (Term.Field.to_string var) (Term.Value.to_string value)
+Decide_Ast.Field.of_string \"%s\",
+Decide_Ast.Value.of_string \"%s\"))" 
+      (Field.to_string var) (Value.to_string value)
     | Test ( var, value) -> Printf.sprintf "(Decide_Ast.InitialTerm.Test(
-Decide_Ast.Term.Field.of_string \"%s\",
-Decide_Ast.Term.Value.of_string \"%s\"))" 
-      (Term.Field.to_string var) (Term.Value.to_string value)
+Decide_Ast.Field.of_string \"%s\",
+Decide_Ast.Value.of_string \"%s\"))" 
+      (Field.to_string var) (Value.to_string value)
     | Dup  -> "Decide_Ast.InitialTerm.Dup"
     | Plus (x) -> 
       Printf.sprintf "(Decide_Ast.InitialTerm.Plus(
@@ -645,7 +531,7 @@ let rec is_test (t : term) : bool =
   | Star (_,x) -> is_test x
   | (Zero _ | One _) -> true
 
-let rec vars_in_term (t : term) : Term.Field.t list =
+let rec vars_in_term (t : term) : Field.t list =
   match t with
   | (Assg (_,x,_) | Test(_,x,_)) -> [x]
   | Times (_,x) -> List.concat (List.map vars_in_term x)
@@ -881,13 +767,13 @@ let _ =
     let value = (InitialTerm.Plus
 		   (InitialTermSet.add 
 		      (InitialTerm.Test
-			 (Term.Field.of_string "x", 
-			  Term.Value.of_string "3")) 
+			 (Field.of_string "x", 
+			  Value.of_string "3")) 
 		      (InitialTermSet.singleton 
 			 (InitialTerm.Not 
 			    (InitialTerm.Test
-			       (Term.Field.of_string "x", 
-				Term.Value.of_string "3")))))) in
+			       (Field.of_string "x", 
+				Value.of_string "3")))))) in
     assert (0 = (InitialTerm.compare value value))
   else ()
     
