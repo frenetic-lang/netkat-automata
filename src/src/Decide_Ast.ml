@@ -510,8 +510,11 @@ let assign_ids =
     
   let make_one  = one 
 
-  let parse_and_simplify (parse : string -> term) (s : string) : term = 
-    assign_ids (deMorgan (simplify (parse s))) 
+  let parse_and_simplify (parse : string -> formula) (s : string) : formula = 
+    match parse s with 
+      | Eq (l,r) -> Eq(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
+      | Le (l,r) -> Le(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
+	
 
 
 let hits = ref 0 
