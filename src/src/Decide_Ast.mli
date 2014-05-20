@@ -1,11 +1,13 @@
 exception Empty
 
 module rec Term : sig
+
   type uid
   (* only for use in the parser *)
   val default_uid : uid
   val int_of_uid : uid -> int
   val largest_uid : unit -> uid
+
   type t =
     | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t
     | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t
@@ -16,6 +18,7 @@ module rec Term : sig
     | Star of uid * t
     | Zero of uid
     | One of uid
+
   val compare : t -> t -> int
   val to_string : t -> string 
 end and TermSet : sig
@@ -38,7 +41,6 @@ val make_not : Term.t -> Term.t
 val make_star : Term.t -> Term.t 
 val make_zero :  Term.t 
 val make_one :  Term.t
-val assign_ids : Term.t -> Term.t
 
 module UnivMap : sig 
   type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
@@ -55,8 +57,6 @@ val values_in_term : term -> UnivMap.t
 val terms_in_formula : formula -> term * term
 val zero_dups : term -> term 
 val one_dups : term -> term 
-val one : term 
-val zero : term
 
 (* Pretty printing *)
 val term_to_string : term -> string
