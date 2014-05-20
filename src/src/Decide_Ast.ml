@@ -36,8 +36,8 @@ let biggest_int = ref 0
 
 
   (* because module troubles *)
-  val largest_uid : unit -> uid
   val ts_elements : (TermSet.t -> t list) ref
+  val ts_map : ((t -> t) -> TermSet.t -> TermSet.t) ref
   val extract_uid : t -> uid
   val default_uid : uid
 
@@ -73,6 +73,8 @@ let biggest_int = ref 0
     let ts_elements : (TermSet.t -> t list) ref  = 
       ref (fun _ -> failwith "module issues")
       
+    let ts_map : ((t -> t) -> TermSet.t -> TermSet.t) ref = 
+      ref (fun _ _ -> failwith "module issues")
   
     let rec to_string (t : t) : string =
       (* higher precedence binds tighter *)
@@ -130,14 +132,9 @@ let biggest_int = ref 0
 
 
     let int_of_uid x = x
-    let largest_uid _ = failwith "TODO: this is no longer being set."
 
     let old_compare : (t -> t -> int) ref = ref (fun _ _ -> failwith "dummy")
 
-    (* TODO: this compare function is going to be "broken" with respect to 0/1 dups, 
-       in the sense that the pre- and post- zero/one-dup term will be considered equal.
-       I think this is fine, but it certainly bares thinking about.
-    *)
     let compare a b = 
       match extract_uid a, extract_uid b with 
 	| (-1,_ | _,-1) -> 
@@ -162,9 +159,19 @@ let biggest_int = ref 0
     let equal a b = 
       (compare a b) = 0
 
+    let rec invalidate_id = function 
+      | Assg (_,l,r) -> Assg(-1,l,r)
+      | Test (_,l,r) -> Test(-1,l,r)
+      | Plus (_,es) -> Plus(-1,!ts_map invalidate_id es)
+      | Times (_,es) -> Times(-1,List.map invalidate_id es)
+      | Not (_,e) -> Not(-1,invalidate_id e)
+      | Star (_,e) -> Star(-1,invalidate_id e)
+      | other -> other
+
+	
     let hash a = match extract_uid a with 
-      | -1 -> failwith "hash a"
-      | a -> int_of_uid a
+      | -1 -> Hashtbl.hash (invalidate_id a)
+      | a -> Hashtbl.hash a
 
 
   end
@@ -184,9 +191,10 @@ end with type elt = Term.t = struct
   let bind (ts : t) (f : elt -> t) : t =
     fold (fun x t -> union (f x) t) ts empty
   let return = singleton
-  (* Fingers crossed...*)
-  let _ = Term.ts_elements := Obj.magic elements
 end  
+  
+let _ = Term.ts_elements := TermSet.elements
+let _ = Term.ts_map := TermSet.map
 
 let _ = Term.old_compare := 
   (let rec oldcomp = (fun e1 e2 -> 
@@ -442,6 +450,7 @@ let assign_ids =
 	   Hashtbl.replace testhash (f,v) ret; 
 	   ret)
       | Plus (-1,ts) -> 
+	let ts = TermSet.map assign_ids ts in 
 	let ids = (ids_from_set ts) in 
 	(try Hashtbl.find plushash ids 
 	 with Not_found -> 
@@ -450,6 +459,7 @@ let assign_ids =
 	   ret
 	)
       | Times (-1,tl) -> 
+	let tl = List.map assign_ids tl in
 	let ids = ids_from_list tl in 
 	(try Hashtbl.find timeshash ids 
 	 with Not_found -> 
@@ -458,18 +468,20 @@ let assign_ids =
 	   ret
 	)
       | Not (-1, t) -> 
+	let t = assign_ids t in 
 	(try Hashtbl.find nothash (extract_uid t)
 	 with Not_found -> 
 	  let ret = Not(getandinc (), t) in 
 	  Hashtbl.replace nothash (extract_uid t) ret;
 	  ret)
       | Star (-1, t) -> 
+	let t = assign_ids t in 
 	(try Hashtbl.find starhash (extract_uid t)
 	with Not_found -> 
 	  let ret = Star(getandinc (), t) in 
 	  Hashtbl.replace starhash (extract_uid t) ret;
 	  ret)
-      | _ -> failwith "add a sanity assert case after dinner"
+      | already_assigned -> already_assigned
 	  
   in
   assign_ids
@@ -483,8 +495,7 @@ let assign_ids =
   let make_dup = dup 
 
   let make_plus ts = 
-    failwith "TODO - this should be not a flatten_sum, but a special no-recursion version
-    assign_ids (flatten_sum ts)"
+    assign_ids (flatten_sum ts)
 
   let make_times tl = 
     assign_ids (flatten_product tl)

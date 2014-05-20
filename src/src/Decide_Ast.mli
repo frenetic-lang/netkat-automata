@@ -3,10 +3,6 @@ exception Empty
 module rec Term : sig
 
   type uid
-  (* only for use in the parser *)
-  val default_uid : uid
-  val int_of_uid : uid -> int
-  val largest_uid : unit -> uid
 
   type t =
     | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t
@@ -19,8 +15,15 @@ module rec Term : sig
     | Zero of uid
     | One of uid
 
+  (* only for use in the parser *)
+  val default_uid : uid
+
   val compare : t -> t -> int
+
+  (* pretty printing *)
   val to_string : t -> string 
+  val int_of_uid : uid -> int
+
 end and TermSet : sig
   include Set.S
   val map : (elt -> elt) -> t -> t
