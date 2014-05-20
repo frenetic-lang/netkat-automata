@@ -21,8 +21,8 @@ let biggest_int = ref 0
       | Times of uid * 'a t list * 'a
       | Not of uid * 'a t *'a 
       | Star of uid * 'a t * 'a
-      | Zero of uid * 'a
-      | One of uid * 'a 
+      | Zero of uid
+      | One of uid
 
   (* pretty printers + serializers *)
   val to_string : 'a t -> string
@@ -51,8 +51,8 @@ let biggest_int = ref 0
       | Times of uid * 'a t list * 'a
       | Not of uid * 'a t *'a 
       | Star of uid * 'a t * 'a
-      | Zero of uid * 'a
-      | One of uid * 'a 
+      | Zero of uid
+      | One of uid
 
     let default_uid = -1
 
@@ -65,8 +65,8 @@ let biggest_int = ref 0
 	| Times (id,_,_)
 	| Not (id,_,_)
 	| Star (id,_,_)
-	| Zero (id,_)
-	| One (id,_)
+	| Zero (id)
+	| One (id)
 	  -> id 
   
     let rec to_string (t : 'a t) : string =
@@ -199,8 +199,8 @@ type 'a formula = Eq of 'a Term.t * 'a Term.t
 	       | Le of 'a Term.t * 'a Term.t
 
 
-let zero a = Zero (0,a)
-let one a = One (1,a)
+let zero = Zero 0
+let one = One 1
 let dup a = Dup (2,a)
 
 
@@ -298,7 +298,7 @@ let flatten_sum o (t : 'a Term.t list) : 'a Term.t =
   let t1 = List.concat (List.map f t) in
   let t2 = BatSet.PSet.of_list t1 in
   match BatSet.PSet.elements t2 with 
-    | [] -> zero o
+    | [] -> zero
     | [x] -> x
     | _ ->  (Term.Plus (-1, t2, o))
     
@@ -310,18 +310,23 @@ let flatten_product o (t : 'a Term.t list) : 'a Term.t =
   let t1 = List.concat (List.map f t) in
   if List.exists 
     (fun x -> match x with (Zero _)  -> true | _ -> false) t1 
-  then zero o
+  then zero
   else match t1 with 
-    | [] -> one o
+    | [] -> one
     | [x] -> x 
     | _ ->  (Term.Times (-1,t1,o))
     
 let flatten_not o (t : 'a Term.t) : 'a Term.t =
   match t with
   | Not (_,y,_) -> y
-  | Zero _ -> one o
-  | One _ ->  zero o
+  | Zero _ -> one
+  | One _ ->  zero
   | _ -> (Term.Not (-1,t,o))
+
+(* TODO: correctness concern with this use of flatten_sum *)
+(* should these 'a things really be Some 'a? it would
+   solve the "should this invalidate?" problem pretty 
+   thoroughly. *)
 
 let flatten_star o (t : 'a Term.t) : 'a Term.t =
   let t1 = match t with
@@ -329,7 +334,7 @@ let flatten_star o (t : 'a Term.t) : 'a Term.t =
     flatten_sum o (List.filter (fun s -> not (is_test s))
 		   (BatSet.PSet.elements x))
   | _ -> t in
-  if is_test t1 then one o
+  if is_test t1 then one
   else match t1 with
   | Star _ -> t1
   | _ -> (Term.Star (-1,t1,o))
@@ -371,10 +376,10 @@ let deMorgan df (t : 'a term) : 'a term =
       | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (df ()) e)) (BatSet.PSet.elements s), df())
       | Not (_,Times (_,s,_),_) -> Plus (-1, BatSet.PSet.of_list (List.map (fun e -> f (df ()) e) s), df())
       | Not (_,Star (_,x,_),_) ->
-	if is_test x then zero (df())
+	if is_test x then zero
 	else failwith "May not negate an action"
-      | Not (_, (Zero _),_ ) -> one (df())
-      | Not (_, (One _),_ ) -> zero (df())
+      | Not (_, (Zero _),_ ) -> one
+      | Not (_, (One _),_ ) -> zero
       | Not(_, (Dup _),_) -> failwith "you may not negate a dup!"
       | Not(_, (Assg _),_) -> failwith "you may not negate an assg!"
       | Not (_, (Test _),_) -> t in
@@ -383,110 +388,95 @@ let deMorgan df (t : 'a term) : 'a term =
 
 (* smart constructors *)
 
-let assign_ids : 'a Term.t -> 'a Term.t = 
-  let timeshash = Hashtbl.create 100 in 
-  let plushash = Hashtbl.create 100 in 
-  let nothash = Hashtbl.create 100 in 
-  let starhash = Hashtbl.create 100 in 
-  let testhash = Hashtbl.create 100 in 
-  let assghash = Hashtbl.create 100 in 
-  let getinassg : Field.t * Value.t -> 'a Term.t = Hashtbl.find assghash in 
-  let setinassg : Field.t * Value.t -> 'a Term.t -> unit = Hashtbl.replace assghash in 
-  let extract_uid t = 
-    match extract_uid t with 
-      | -1 -> failwith "BAD! ASSIGNING BASED ON -1 UID"
-      | i -> i in 
-  let ids_from_list tl = 
-    List.map extract_uid tl in
-  let ids_from_set ts = 
-    BatSet.PSet.fold (fun t acc -> (extract_uid t) :: acc) ts [] in
-  let counter = ref 3 in 
+let timeshash (* : ((uid list) (uid) Hashtbl.t) *) = Hashtbl.create 100
+
+let plushash (* : (uid list) (uid) Hashtbl.t *) = Hashtbl.create 100 
+
+let nothash (* : (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
+
+let starhash (* : (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
+
+let testhash (* :  (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
+
+let assghash (* :  (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
+
+let counter = ref 3
+
+let extract_uid_fn1 t = 
+  match extract_uid t with 
+    | -1 -> failwith "BAD! ASSIGNING BASED ON -1 UID"
+    | i -> i
+let ids_from_list tl = 
+  List.map extract_uid_fn1 tl
+let ids_from_set ts = 
+  BatSet.PSet.fold (fun t acc -> (extract_uid_fn1 t) :: acc) ts []
+
+let get_id hash k = 
   let getandinc _ = 
     let ret = !counter in 
     if ret > 1073741822
     then failwith "you're gonna overflow the integers, yo";
     counter := !counter + 1; 
-    ret in 
-  let rec assign_ids (t : 'a Term.t) : 'a Term.t = 
-    match t with 
-      | Dup (-1,o) -> dup o
-      | One (-1,o) -> one o
-      | Zero (-1,o) -> zero o
-      | Assg(-1,f,v,o) -> 
-	(try getinassg (f,v)
-	with Not_found -> 
-	  let ret = Assg(getandinc (), f,v,o) in 
-	  Hashtbl.replace assghash (f,v) ret; 
-	  ret)
-      | Test(-1,f,v,o) -> 
-	(try Hashtbl.find testhash (f,v)
-	 with Not_found -> 
-	   let ret = Test(getandinc (), f,v,o) in 
-	   Hashtbl.replace testhash (f,v) ret; 
-	   ret)
-      | Plus (-1,ts,o) -> 
-	let ts = BatSet.PSet.map assign_ids ts in 
-	let ids = (ids_from_set ts) in 
-	(try Hashtbl.find plushash ids 
-	 with Not_found -> 
-	   let ret = Plus(getandinc (), ts,o) in 
-	   Hashtbl.replace plushash ids ret;
-	   ret
-	)
-      | Times (-1,tl,o) -> 
-	let tl = List.map assign_ids tl in
-	let ids = ids_from_list tl in 
-	(try Hashtbl.find timeshash ids 
-	 with Not_found -> 
-	   let ret = Times(getandinc (), tl,o) in 
-	   Hashtbl.replace timeshash ids ret;
-	   ret
-	)
-      | Not (-1, t,o) -> 
-	let t = assign_ids t in 
-	(try Hashtbl.find nothash (extract_uid t)
-	 with Not_found -> 
-	  let ret = Not(getandinc (), t,o) in 
-	  Hashtbl.replace nothash (extract_uid t) ret;
-	  ret)
-      | Star (-1, t,o) -> 
-	let t = assign_ids t in 
-	(try Hashtbl.find starhash (extract_uid t)
-	with Not_found -> 
-	  let ret = Star(getandinc (), t,o) in 
-	  Hashtbl.replace starhash (extract_uid t) ret;
-	  ret)
-      | already_assigned -> already_assigned
-	  
-  in
-  assign_ids
-
-  let make_assg (f,v) o = 
-    assign_ids (Assg(-1,f,v,o)) 
-
-  let make_test (f,v,o) = 
-    assign_ids (Test(-1,f,v,o)) 
-      
-  let make_dup o = dup o
-
-  let make_plus ts o = 
-    assign_ids (flatten_sum o ts)
-
-  let make_times tl o = 
-    assign_ids (flatten_product o tl)
+    ret in
+  let new_id hash k = 
+    let ret = getandinc() in 
+    Hashtbl.replace hash k ret; 
+    ret in
+  try Hashtbl.find hash k 
+  with Not_found -> new_id hash k
     
-  let make_star t o = 
-    assign_ids (flatten_star o t)
-      
-  let make_zero o = zero o
+let rec assign_ids (t : 'a Term.t) : 'a Term.t = 
+  match t with 
+    | Dup (-1,o) -> dup o
+    | One (-1) -> one
+    | Zero (-1) -> zero
+    | Assg(-1,f,v,o) -> 
+      Assg(get_id assghash (f,v), f,v,o)
+    | Test(-1,f,v,o) -> 
+      Test(get_id testhash (f,v), f,v,o)
+    | Plus (-1,ts,o) -> 
+      let ts = BatSet.PSet.map assign_ids ts in 
+      let ids = (ids_from_set ts) in 
+      Plus(get_id plushash ids, ts,o)
+    | Times (-1,tl,o) -> 
+      let tl = List.map assign_ids tl in
+      let ids = ids_from_list tl in 
+      Times(get_id timeshash ids, tl,o)
+    | Not (-1, t,o) -> 
+      let t = assign_ids t in 
+      Not(get_id nothash (extract_uid_fn1 t), t,o)
+    | Star (-1, t,o) -> 
+      let t = assign_ids t in 
+      Star(get_id starhash (extract_uid_fn1 t), t, o)
+    | already_assigned -> already_assigned
+
+
+let make_assg (f,v) o = 
+  assign_ids (Assg(-1,f,v,o)) 
     
-  let make_one o  = one o
-
-  let parse_and_simplify df (parse : string -> 'a formula) (s : string) : 'a formula = 
-    match parse s with 
-      | Eq (l,r) -> Eq(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
-      | Le (l,r) -> Le(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
-
+let make_test (f,v) o = 
+  assign_ids (Test(-1,f,v,o)) 
+    
+let make_dup o = dup o
+  
+let make_plus ts o = 
+  assign_ids (flatten_sum o ts)
+    
+let make_times tl o = 
+  assign_ids (flatten_product o tl)
+    
+let make_star t o = 
+  assign_ids (flatten_star o t)
+    
+let make_zero = zero
+  
+let make_one = one 
+  
+let parse_and_simplify df (parse : string -> 'a formula) (s : string) : 'a formula = 
+  match parse s with 
+    | Eq (l,r) -> Eq(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
+    | Le (l,r) -> Le(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
+      
 
 
 let hits = ref 0 
@@ -551,7 +541,7 @@ let zero_dups (t : 'a term) : 'a term =
   let rec zero (t : 'a term) =
     match t with 
       | (Assg _ | Test _ | Zero _ | One _ ) -> t
-      | Dup (_,o) -> zval o
+      | Dup (_,o) -> zval
       | Plus (_,x,o) -> Plus (-1, BatSet.PSet.map zero x,o)
       | Times (_,x,o) -> Times (-1, List.map zero x,o)
       | Not (_,x,o) -> Not (-1, zero x,o)
@@ -565,7 +555,7 @@ let one_dups (t : 'a term) : 'a term =
   let rec one t =
     match t with 
       | (Assg _ | Test _ | Zero _ | One _) -> t
-      | Dup (_,o) -> oval o
+      | Dup (_,o) -> oval
       | Plus (_,x,o) -> Plus (-1, BatSet.PSet.map one x, o)
       | Times (_,x,o) -> Times (-1, List.map one x, o)
       | Not (_,x,o) -> Not (-1, one x, o)
