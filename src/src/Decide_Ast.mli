@@ -28,13 +28,13 @@ end
 
 type 'a term = 'a Term.t
 
+
 (* smart constructors *)
 val make_assg : Decide_Util.Field.t * Decide_Util.Value.t -> 'a -> 'a Term.t
 val make_test : Decide_Util.Field.t * Decide_Util.Value.t -> 'a -> 'a Term.t
 val make_dup :  'a -> 'a Term.t 
 val make_plus : 'a Term.t list -> 'a -> 'a Term.t 
 val make_times : 'a Term.t list -> 'a -> 'a Term.t
-val make_not : 'a Term.t -> 'a -> 'a Term.t
 val make_star : 'a Term.t -> 'a -> 'a Term.t 
 val make_zero :  'a -> 'a Term.t 
 val make_one :  'a -> 'a Term.t

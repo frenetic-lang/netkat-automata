@@ -10,75 +10,68 @@ let utf8 = ref false
 
 let biggest_int = ref 0  
      
-  module rec Term : sig      
+  module Term : sig      
     type uid = int
-    type t =
-      | Assg of uid * Field.t * Value.t
-      | Test of uid * Field.t * Value.t
-      | Dup of uid 
-      | Plus of uid * TermSet.t
-      | Times of uid * t list
-      | Not of uid * t
-      | Star of uid * t
-      | Zero of uid
-      | One of uid
+
+    type 'a t =
+      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
+      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
+      | Dup of uid *'a 
+      | Plus of uid * ('a t) BatSet.PSet.t * 'a
+      | Times of uid * 'a t list * 'a
+      | Not of uid * 'a t *'a 
+      | Star of uid * 'a t * 'a
+      | Zero of uid * 'a
+      | One of uid * 'a 
 
   (* pretty printers + serializers *)
-  val to_string : t -> string
-  val to_string_sexpr : t -> string
+  val to_string : 'a t -> string
+  val to_string_sexpr : 'a t -> string
   val int_of_uid : uid -> int
 
   (* utilities for Map, Hashtbl, etc *)
-  val old_compare : (t -> t -> int) ref
-  val compare : t -> t -> int
-  val hash : t -> int
-  val equal : t -> t -> bool
+  val old_compare : ('a t -> 'a t -> int)
+  val compare : 'a t -> 'a t -> int
+  val hash : 'a t -> int
+  val equal : 'a t -> 'a t -> bool
 
 
   (* because module troubles *)
-  val ts_elements : (TermSet.t -> t list) ref
-  val ts_map : ((t -> t) -> TermSet.t -> TermSet.t) ref
-  val extract_uid : t -> uid
+  val extract_uid : 'a t -> uid
   val default_uid : uid
 
   end = struct 
     type uid = int	
 
-    let default_uid = -1
+    type 'a t =
+      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
+      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
+      | Dup of uid *'a 
+      | Plus of uid * ('a t) BatSet.PSet.t * 'a
+      | Times of uid * 'a t list * 'a
+      | Not of uid * 'a t *'a 
+      | Star of uid * 'a t * 'a
+      | Zero of uid * 'a
+      | One of uid * 'a 
 
-    type t =
-      | Assg of uid * Field.t * Value.t
-      | Test of uid * Field.t * Value.t
-      | Dup of uid 
-      | Plus of uid * TermSet.t
-      | Times of uid * t list
-      | Not of uid * t
-      | Star of uid * t
-      | Zero of uid
-      | One of uid
+    let default_uid = -1
 
     let extract_uid = 
       function 
-	| Assg (id,_,_)
-	| Test (id,_,_)
-	| Dup id 
-	| Plus (id,_)
-	| Times (id,_)
-	| Not (id,_)
-	| Star (id,_)
-	| Zero (id)
-	| One (id)
+	| Assg (id,_,_,_)
+	| Test (id,_,_,_)
+	| Dup (id,_)
+	| Plus (id,_,_)
+	| Times (id,_,_)
+	| Not (id,_,_)
+	| Star (id,_,_)
+	| Zero (id,_)
+	| One (id,_)
 	  -> id 
-
-    let ts_elements : (TermSet.t -> t list) ref  = 
-      ref (fun _ -> failwith "module issues")
-      
-    let ts_map : ((t -> t) -> TermSet.t -> TermSet.t) ref = 
-      ref (fun _ _ -> failwith "module issues")
   
-    let rec to_string (t : t) : string =
+    let rec to_string (t : 'a t) : string =
       (* higher precedence binds tighter *)
-      let out_precedence (t : t) : int =
+      let out_precedence (t : 'a t) : int =
 	match t with
 	  | Plus _ -> 0
 	  | Times _ -> 1
@@ -86,7 +79,7 @@ let biggest_int = ref 0
 	  | Star _ -> 3
 	  | _ -> 4 (* assignments and primitive tests *) in
       (* parenthesize as dictated by surrounding precedence *)
-      let protect (x : t) : string =
+      let protect (x : 'a t) : string =
 	let s = to_string x in
 	if out_precedence t <= out_precedence x then s else "(" ^ s ^ ")" in
       let assoc_to_string (op : string) (ident : string) (s : string list) 
@@ -95,55 +88,75 @@ let biggest_int = ref 0
 	  | [] -> ident
 	  | _ -> String.concat op s in
       match t with
-	| Assg (_, var, value) -> Printf.sprintf "%s:=%s" 
+	| Assg (_, var, value,_) -> Printf.sprintf "%s:=%s" 
 	  (Field.to_string var) (Value.to_string value)
-	| Test (_, var, value) -> Printf.sprintf "%s=%s" 
+	| Test (_, var, value,_) -> Printf.sprintf "%s=%s" 
 	  (Field.to_string var) (Value.to_string value)
 	| Dup _ -> "dup"
-	| Plus (_,x) -> assoc_to_string " + " "0" (List.map protect 
-						     ( !ts_elements x ))
-	| Times (_,x) -> assoc_to_string ";" "1" (List.map protect x)
-	| Not (_,x) -> (if !utf8 then "¬" else "~") ^ (protect x)
-	| Star (_,x) -> (protect x) ^ "*"
+	| Plus (_,x,_) -> assoc_to_string " + " "0" (List.map protect 
+						     ( BatSet.PSet.elements x ))
+	| Times (_,x,_) -> assoc_to_string ";" "1" (List.map protect x)
+	| Not (_,x,_) -> (if !utf8 then "¬" else "~") ^ (protect x)
+	| Star (_,x,_) -> (protect x) ^ "*"
 	| Zero _ -> "drop"
 	| One _ -> "pass"
 
 
   let rec to_string_sexpr = function 
-    | Assg ( _, var, value) -> Printf.sprintf "(%s:=%s)"
+    | Assg ( _, var, value,_) -> Printf.sprintf "(%s:=%s)"
       (Field.to_string var) (Value.to_string value)
-    | Test ( _, var, value) -> Printf.sprintf "(%s=%s)"
+    | Test ( _, var, value,_) -> Printf.sprintf "(%s=%s)"
       (Field.to_string var) (Value.to_string value)
     | Dup _ -> "dup"
-    | Plus (_,x) -> 
+    | Plus (_,x,_) -> 
       Printf.sprintf "(+ %s)" 
 	(List.fold_right 
 	   (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) 
-	   (!ts_elements x) "")
-    | Times (_, x) -> 
+	   (BatSet.PSet.elements x) "")
+    | Times (_, x,_) -> 
       Printf.sprintf "(; %s)" 
 	(List.fold_right 
 	   (Printf.sprintf "%s %s") (List.map to_string_sexpr x) "")
-    | Not (_, x) -> (if !utf8 then "¬" else "~") ^ 
+    | Not (_, x,_) -> (if !utf8 then "¬" else "~") ^ 
       (Printf.sprintf "(%s)" (to_string_sexpr x))
-    | Star (_, x) -> (Printf.sprintf "(%s)" (to_string_sexpr x)) ^ "*"
+    | Star (_, x,_) -> (Printf.sprintf "(%s)" (to_string_sexpr x)) ^ "*"
     | Zero _ -> "drop"
     | One _ -> "pass"
 
 
     let int_of_uid x = x
 
-    let old_compare : (t -> t -> int) ref = ref (fun _ _ -> failwith "dummy")
+    let old_compare =   
+      (let rec oldcomp = (fun e1 e2 -> 
+	match e1,e2 with 
+	  | (Plus (_,al,_)),(Plus (_,bl,_)) -> BatSet.PSet.compare al bl
+	  | (Times (_,al,_)),(Times (_,bl,_)) -> 
+	    (match List.length al, List.length bl with 
+	      | a,b when a = b -> 
+		List.fold_right2 (fun x y acc -> 
+		  if (acc = 0) 
+		  then oldcomp x y 
+		  else acc
+		    ) al bl 0
+	      | a,b when a < b -> -1 
+	      | a,b when a > b -> 1
+	      | _ -> failwith "stupid Ocaml compiler thinks my style is bad"
+	    )
+	  | ((Not (_,t1,_),Not (_,t2,_)) | (Star (_,t1,_),Star (_,t2,_))) -> 
+	    oldcomp t1 t2
+	  | _ -> Pervasives.compare e1 e2)
+       in oldcomp )
+	
 
     let compare a b = 
       match extract_uid a, extract_uid b with 
 	| (-1,_ | _,-1) -> 
-	  !old_compare a b
+	  old_compare a b
 	| uida,uidb -> 
 	  let myres = Pervasives.compare uida uidb in 
 	  if Decide_Util.debug_mode 
 	  then 
-	    match myres, !old_compare a b
+	    match myres, old_compare a b
 	    with 
 	      | 0,0 -> 0 
 	      | 0,_ -> 
@@ -160,12 +173,12 @@ let biggest_int = ref 0
       (compare a b) = 0
 
     let rec invalidate_id = function 
-      | Assg (_,l,r) -> Assg(-1,l,r)
-      | Test (_,l,r) -> Test(-1,l,r)
-      | Plus (_,es) -> Plus(-1,!ts_map invalidate_id es)
-      | Times (_,es) -> Times(-1,List.map invalidate_id es)
-      | Not (_,e) -> Not(-1,invalidate_id e)
-      | Star (_,e) -> Star(-1,invalidate_id e)
+      | Assg (_,l,r,o) -> Assg(-1,l,r,o)
+      | Test (_,l,r,o) -> Test(-1,l,r,o)
+      | Plus (_,es,o) -> Plus(-1,BatSet.PSet.map invalidate_id es,o)
+      | Times (_,es,o) -> Times(-1,List.map invalidate_id es,o)
+      | Not (_,e,o) -> Not(-1,invalidate_id e,o)
+      | Star (_,e,o) -> Star(-1,invalidate_id e,o)
       | other -> other
 
 	
@@ -176,59 +189,19 @@ let biggest_int = ref 0
 
   end
 
-  and TermSet : sig
-  include Set.S
-  val map : (elt -> elt) -> t -> t
-  val from_list : elt list -> t
-  val bind : t -> (elt -> t) -> t
-  val return : elt -> t
-end with type elt = Term.t = struct
-  include Set.Make (Term)
-  let map (f : elt -> elt) (ts : t) : t =
-    fold (fun x -> add (f x)) ts empty
-  let from_list (tl : elt list) : t =
-    List.fold_right add tl empty
-  let bind (ts : t) (f : elt -> t) : t =
-    fold (fun x t -> union (f x) t) ts empty
-  let return = singleton
-end  
-  
-let _ = Term.ts_elements := TermSet.elements
-let _ = Term.ts_map := TermSet.map
-
-let _ = Term.old_compare := 
-  (let rec oldcomp = (fun e1 e2 -> 
-    let open Term in 
-    match e1,e2 with 
-      | (Plus (_,al)),(Plus (_,bl)) -> TermSet.compare al bl
-      | (Times (_,al)),(Times (_,bl)) -> 
-	(match List.length al, List.length bl with 
-	  | a,b when a = b -> 
-	    List.fold_right2 (fun x y acc -> 
-	      if (acc = 0) 
-	      then oldcomp x y 
-	      else acc
-	    ) al bl 0
-	  | a,b when a < b -> -1 
-	  | a,b when a > b -> 1
-	  | _ -> failwith "stupid Ocaml compiler thinks my style is bad"
-	)
-      | ((Not (_,t1),Not (_,t2)) | (Star (_,t1),Star (_,t2))) -> 
-	oldcomp t1 t2
-      | _ -> Pervasives.compare e1 e2)
-   in oldcomp )
-    
+ 
 open Term
-type term = Term.t
+type 'a term = 'a Term.t
 
 module UnivMap = Decide_Util.SetMapF (Field) (Value)
  
-type formula = Eq of Term.t * Term.t
-	       | Le of Term.t * Term.t
+type 'a formula = Eq of 'a Term.t * 'a Term.t
+	       | Le of 'a Term.t * 'a Term.t
 
-let zero = Zero 0
-let one = One 1
-let dup = Dup 2
+
+let zero a = Zero (0,a)
+let one a = One (1,a)
+let dup a = Dup (2,a)
 
 
 (***********************************************
@@ -238,15 +211,15 @@ let dup = Dup 2
 
 let term_to_string = Term.to_string
 
-let formula_to_string (e : formula) : string =
+let formula_to_string (e : 'a formula) : string =
   match e with
   | Eq (s,t) -> Term.to_string ( s) ^ " == " ^ 
     Term.to_string ( t)
   | Le (s,t) -> Term.to_string ( s) ^ " <= " ^ 
     Term.to_string ( t)
 
-let termset_to_string (ts : TermSet.t) : string =
-  let l = TermSet.elements ts in
+let termset_to_string (ts : ('a term) BatSet.PSet.t) : string =
+  let l = BatSet.PSet.elements ts in
   let m = List.map term_to_string l in
   String.concat "\n" m
 
@@ -255,37 +228,37 @@ let termset_to_string (ts : TermSet.t) : string =
  * utilities
  ***********************************************)
 
-let terms_in_formula (f : formula) =
+let terms_in_formula (f : 'a formula) =
   match f with (Eq (s,t) | Le (s,t)) -> s,t
 
-let rec is_test (t : term) : bool =
+let rec is_test (t : 'a term) : bool =
   match t with
   | Assg _ -> false
   | Test _ -> true
   | Dup _ -> false
-  | Times (_,x) -> List.for_all is_test x
-  | Plus (_,x) -> TermSet.for_all is_test x
-  | Not (_,x) -> is_test x || failwith "May not negate an action"
-  | Star (_,x) -> is_test x
+  | Times (_,x,_) -> List.for_all is_test x
+  | Plus (_,x,_) -> BatSet.PSet.for_all is_test x
+  | Not (_,x,_) -> is_test x || failwith "May not negate an action"
+  | Star (_,x,_) -> is_test x
   | (Zero _ | One _) -> true
 
-let rec vars_in_term (t : term) : Field.t list =
+let rec vars_in_term (t : 'a term) : Field.t list =
   match t with
-  | (Assg (_,x,_) | Test(_,x,_)) -> [x]
-  | Times (_,x) -> List.concat (List.map vars_in_term x)
-  | Plus (_,x) -> List.concat (List.map vars_in_term (TermSet.elements x))
-  | (Not (_,x) | Star (_,x)) -> vars_in_term x
+  | (Assg (_,x,_,_) | Test(_,x,_,_)) -> [x]
+  | Times (_,x,_) -> List.concat (List.map vars_in_term x)
+  | Plus (_,x,_) -> List.concat (List.map vars_in_term (BatSet.PSet.elements x))
+  | (Not (_,x,_) | Star (_,x,_)) -> vars_in_term x
   | (Dup _ | Zero _ | One _) -> []
 
 
 (* Collect the possible values of each variable *)
-let values_in_term (t : term) : UnivMap.t =
-  let rec collect (t : term) (m : UnivMap.t) : UnivMap.t =
+let values_in_term (t : 'a term) : UnivMap.t =
+  let rec collect (t : 'a term) (m : UnivMap.t) : UnivMap.t =
   match t with 
-  | (Assg (_,x,v) | Test (_,x,v)) -> UnivMap.add x v m
-  | Plus (_,s) -> TermSet.fold collect s m
-  | Times (_,s) -> List.fold_right collect s m
-  | (Not (_,x) | Star (_,x)) -> collect x m
+  | (Assg (_,x,v,_) | Test (_,x,v,_)) -> UnivMap.add x v m
+  | Plus (_,s,_) -> BatSet.PSet.fold collect s m
+  | Times (_,s,_) -> List.fold_right collect s m
+  | (Not (_,x,_) | Star (_,x,_)) -> collect x m
   | (Dup _ | Zero _ | One _) -> m in
   collect t UnivMap.empty
 
@@ -293,11 +266,11 @@ let rec contains_a_neg term =
   match term with 
     | (Assg _ | Test _ | Dup _ | Zero _ | One _) -> false
     | Not _ -> true
-    | Times (_,x) -> List.fold_left 
+    | Times (_,x,_) -> List.fold_left 
       (fun acc x -> acc || (contains_a_neg x)) false x
-    | Plus (_,x) -> TermSet.fold 
+    | Plus (_,x,_) -> BatSet.PSet.fold 
       (fun x acc -> acc || (contains_a_neg x)) x false 
-    | Star (_,x) -> contains_a_neg x
+    | Star (_,x,_) -> contains_a_neg x
 
 
 
@@ -314,109 +287,111 @@ let rec contains_a_neg term =
 *)
 
 (* flatten terms *)
-let flatten_sum (t : Term.t list) : Term.t =
+let flatten_sum o (t : 'a Term.t list) : 'a Term.t =
   let open Term in 
-  let f (x : Term.t) = 
+  let f (x : 'a Term.t) = 
     match x with 
-      | Plus (_,v) -> 
-	(TermSet.elements v) 
+      | Plus (_,v,_) -> 
+	(BatSet.PSet.elements v) 
       | (Zero _) -> [] 
       | _ -> [x] in
   let t1 = List.concat (List.map f t) in
-  let t2 = TermSet.from_list t1 in
-  match TermSet.elements t2 with 
-    | [] -> zero
+  let t2 = BatSet.PSet.of_list t1 in
+  match BatSet.PSet.elements t2 with 
+    | [] -> zero o
     | [x] -> x
-    | _ ->  (Term.Plus (-1, t2))
+    | _ ->  (Term.Plus (-1, t2, o))
     
-let flatten_product (t : Term.t list) : Term.t =
+let flatten_product o (t : 'a Term.t list) : 'a Term.t =
   let f x = match x with 
-    | Times (_,v) -> v 
+    | Times (_,v,_) -> v 
     | One _  -> [] 
     | _ -> [x] in
   let t1 = List.concat (List.map f t) in
   if List.exists 
     (fun x -> match x with (Zero _)  -> true | _ -> false) t1 
-  then zero
+  then zero o
   else match t1 with 
-    | [] -> one
+    | [] -> one o
     | [x] -> x 
-    | _ ->  (Term.Times (-1,t1))
+    | _ ->  (Term.Times (-1,t1,o))
     
-let flatten_not (t : Term.t) : Term.t =
+let flatten_not o (t : 'a Term.t) : 'a Term.t =
   match t with
-  | Not (_,y) -> y
-  | Zero _ -> one
-  | One _ ->  zero
-  | _ -> (Term.Not (-1,t))
+  | Not (_,y,_) -> y
+  | Zero _ -> one o
+  | One _ ->  zero o
+  | _ -> (Term.Not (-1,t,o))
 
-let flatten_star (t : Term.t) : Term.t =
+let flatten_star o (t : 'a Term.t) : 'a Term.t =
   let t1 = match t with
-  | Plus (_,x) -> 
-    flatten_sum (List.filter (fun s -> not (is_test s))
-		   (TermSet.elements x))
+  | Plus (_,x,o) -> 
+    flatten_sum o (List.filter (fun s -> not (is_test s))
+		   (BatSet.PSet.elements x))
   | _ -> t in
-  if is_test t1 then one
+  if is_test t1 then one o
   else match t1 with
   | Star _ -> t1
-  | _ -> (Term.Star (-1,t1))
+  | _ -> (Term.Star (-1,t1,o))
     
-let rec simplify (t : Term.t) : Term.t =
+let rec simplify (t : 'a Term.t) : 'a Term.t =
   match t with
-  | Plus (_,x) -> flatten_sum (List.map simplify 
-			       (TermSet.elements x))
-  | Times (_,x) -> flatten_product (List.map simplify x)
-  | Not (_,x) -> flatten_not (simplify x)
-  | Star (_,x) -> flatten_star (simplify x)
+  | Plus (_,x,o) -> flatten_sum o (List.map simplify 
+			       (BatSet.PSet.elements x))
+  | Times (_,x,o) -> flatten_product o (List.map simplify x)
+  | Not (_,x,o) -> flatten_not o (simplify x)
+  | Star (_,x,o) -> flatten_star o (simplify x)
   | _ -> t
 
     
-let contains_dups (t : term) : bool =
+let contains_dups (t : 'a term) : bool =
   let rec contains t =
     match t with 
     | (Assg _ | Test _ | Zero _ | One _) -> false
     | Dup _ -> true
-    | Plus (_,x) ->  
-      (TermSet.fold (fun e acc ->  (contains e) || acc)  x false)
-    | Times (_,x) ->  
+    | Plus (_,x,_) ->  
+      (BatSet.PSet.fold (fun e acc ->  (contains e) || acc)  x false)
+    | Times (_,x,_) ->  
       (List.fold_left (fun acc e -> (contains e) || acc) false x)
-    | Not (_,x) ->  (contains x)
-    | Star (_,x) ->  (contains x) in
+    | Not (_,x,_) ->  (contains x)
+    | Star (_,x,_) ->  (contains x) in
   contains t
 
 
 (* apply De Morgan laws to push negations down to the leaves *)
-let deMorgan (t : term) : term =
-  let rec dM (t : term) : term =
-    let f x = dM (Not (-1,x)) in
+let deMorgan df (t : 'a term) : 'a term =
+  let rec dM (t : 'a term) : 'a term =
+    let f o x = dM (Not (-1,x,o)) in
     match t with 
       | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> t
-      | Star (_, x) -> Star (-1, dM x)
-      | Plus (_,x) -> Plus (-1,TermSet.map dM x)
-      | Times (_,x) -> Times (-1,List.map dM x)
-      | Not (_,(Not (_,x))) -> dM x
-      | Not (_,(Plus (_,s))) -> Times (-1, List.map f (TermSet.elements s))
-      | Not (_,Times (_,s)) -> Plus (-1, TermSet.from_list (List.map f s))
-      | Not (_,Star (_,x)) ->
-	if is_test x then zero
-      else failwith "May not negate an action"
-      | Not (_, (Zero _)) -> one
-      | Not (_, (One _)) -> zero
-      | Not(_, (Dup _)) -> failwith "you may not negate a dup!"
-      | Not(_, (Assg _)) -> failwith "you may not negate an assg!"
-      | Not (_, (Test _)) -> t in
+      | Star (_, x, o) -> Star (-1, dM x, o)
+      | Plus (_,x, o) -> Plus (-1,BatSet.PSet.map dM x, o)
+      | Times (_,x, o) -> Times (-1,List.map dM x, o)
+      | Not (_,(Not (_,x,_)),_) -> dM x
+      | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (df ()) e)) (BatSet.PSet.elements s), df())
+      | Not (_,Times (_,s,_),_) -> Plus (-1, BatSet.PSet.of_list (List.map (fun e -> f (df ()) e) s), df())
+      | Not (_,Star (_,x,_),_) ->
+	if is_test x then zero (df())
+	else failwith "May not negate an action"
+      | Not (_, (Zero _),_ ) -> one (df())
+      | Not (_, (One _),_ ) -> zero (df())
+      | Not(_, (Dup _),_) -> failwith "you may not negate a dup!"
+      | Not(_, (Assg _),_) -> failwith "you may not negate an assg!"
+      | Not (_, (Test _),_) -> t in
   simplify (dM t)
 
 
 (* smart constructors *)
 
-let assign_ids = 
+let assign_ids : 'a Term.t -> 'a Term.t = 
   let timeshash = Hashtbl.create 100 in 
   let plushash = Hashtbl.create 100 in 
   let nothash = Hashtbl.create 100 in 
   let starhash = Hashtbl.create 100 in 
   let testhash = Hashtbl.create 100 in 
   let assghash = Hashtbl.create 100 in 
+  let getinassg : Field.t * Value.t -> 'a Term.t = Hashtbl.find assghash in 
+  let setinassg : Field.t * Value.t -> 'a Term.t -> unit = Hashtbl.replace assghash in 
   let extract_uid t = 
     match extract_uid t with 
       | -1 -> failwith "BAD! ASSIGNING BASED ON -1 UID"
@@ -424,7 +399,7 @@ let assign_ids =
   let ids_from_list tl = 
     List.map extract_uid tl in
   let ids_from_set ts = 
-    TermSet.fold (fun t acc -> (extract_uid t) :: acc) ts [] in
+    BatSet.PSet.fold (fun t acc -> (extract_uid t) :: acc) ts [] in
   let counter = ref 3 in 
   let getandinc _ = 
     let ret = !counter in 
@@ -432,53 +407,53 @@ let assign_ids =
     then failwith "you're gonna overflow the integers, yo";
     counter := !counter + 1; 
     ret in 
-  let rec assign_ids t = 
+  let rec assign_ids (t : 'a Term.t) : 'a Term.t = 
     match t with 
-      | Dup _ -> dup
-      | One _ -> one 
-      | Zero _ -> zero 
-      | Assg(-1,f,v) -> 
-	(try Hashtbl.find assghash (f,v)
+      | Dup (-1,o) -> dup o
+      | One (-1,o) -> one o
+      | Zero (-1,o) -> zero o
+      | Assg(-1,f,v,o) -> 
+	(try getinassg (f,v)
 	with Not_found -> 
-	  let ret = Assg(getandinc (), f,v) in 
+	  let ret = Assg(getandinc (), f,v,o) in 
 	  Hashtbl.replace assghash (f,v) ret; 
 	  ret)
-      | Test(-1,f,v) -> 
+      | Test(-1,f,v,o) -> 
 	(try Hashtbl.find testhash (f,v)
 	 with Not_found -> 
-	   let ret = Test(getandinc (), f,v) in 
+	   let ret = Test(getandinc (), f,v,o) in 
 	   Hashtbl.replace testhash (f,v) ret; 
 	   ret)
-      | Plus (-1,ts) -> 
-	let ts = TermSet.map assign_ids ts in 
+      | Plus (-1,ts,o) -> 
+	let ts = BatSet.PSet.map assign_ids ts in 
 	let ids = (ids_from_set ts) in 
 	(try Hashtbl.find plushash ids 
 	 with Not_found -> 
-	   let ret = Plus(getandinc (), ts) in 
+	   let ret = Plus(getandinc (), ts,o) in 
 	   Hashtbl.replace plushash ids ret;
 	   ret
 	)
-      | Times (-1,tl) -> 
+      | Times (-1,tl,o) -> 
 	let tl = List.map assign_ids tl in
 	let ids = ids_from_list tl in 
 	(try Hashtbl.find timeshash ids 
 	 with Not_found -> 
-	   let ret = Times(getandinc (), tl) in 
+	   let ret = Times(getandinc (), tl,o) in 
 	   Hashtbl.replace timeshash ids ret;
 	   ret
 	)
-      | Not (-1, t) -> 
+      | Not (-1, t,o) -> 
 	let t = assign_ids t in 
 	(try Hashtbl.find nothash (extract_uid t)
 	 with Not_found -> 
-	  let ret = Not(getandinc (), t) in 
+	  let ret = Not(getandinc (), t,o) in 
 	  Hashtbl.replace nothash (extract_uid t) ret;
 	  ret)
-      | Star (-1, t) -> 
+      | Star (-1, t,o) -> 
 	let t = assign_ids t in 
 	(try Hashtbl.find starhash (extract_uid t)
 	with Not_found -> 
-	  let ret = Star(getandinc (), t) in 
+	  let ret = Star(getandinc (), t,o) in 
 	  Hashtbl.replace starhash (extract_uid t) ret;
 	  ret)
       | already_assigned -> already_assigned
@@ -486,53 +461,48 @@ let assign_ids =
   in
   assign_ids
 
-  let make_assg (f,v) = 
-    assign_ids (Assg(-1,f,v)) 
+  let make_assg (f,v) o = 
+    assign_ids (Assg(-1,f,v,o)) 
 
-  let make_test (f,v) = 
-    assign_ids (Test(-1,f,v)) 
+  let make_test (f,v,o) = 
+    assign_ids (Test(-1,f,v,o)) 
       
-  let make_dup = dup 
+  let make_dup o = dup o
 
-  let make_plus ts = 
-    assign_ids (flatten_sum ts)
+  let make_plus ts o = 
+    assign_ids (flatten_sum o ts)
 
-  let make_times tl = 
-    assign_ids (flatten_product tl)
-
-  let make_not t = 
-    assign_ids (deMorgan (flatten_not t))
-      
-  let make_star t = 
-    assign_ids (flatten_star t)
-      
-  let make_zero = zero 
+  let make_times tl o = 
+    assign_ids (flatten_product o tl)
     
-  let make_one  = one 
+  let make_star t o = 
+    assign_ids (flatten_star o t)
+      
+  let make_zero o = zero o
+    
+  let make_one o  = one o
 
-  let parse_and_simplify (parse : string -> formula) (s : string) : formula = 
+  let parse_and_simplify df (parse : string -> 'a formula) (s : string) : 'a formula = 
     match parse s with 
-      | Eq (l,r) -> Eq(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
-      | Le (l,r) -> Le(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
-	
+      | Eq (l,r) -> Eq(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
+      | Le (l,r) -> Le(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
+
 
 
 let hits = ref 0 
 let misses = ref 1 
-module TermHash = Hashtbl.Make(Term)
-module TermMap = Map.Make(Term)
 
-let memoize (f : Term.t -> 'a) =
+let memoize (f : 'b Term.t -> 'a) =
   let hash_version = 
-    let hash = TermHash.create 100 in 
+    let hash = Hashtbl.create 100 in 
     (fun b -> 
-      try let ret = TermHash.find hash b in
+      try let ret = Hashtbl.find hash b in
 	  (hits := !hits + 1;
 	   ret)
       with Not_found -> 
 	(misses := !misses + 1;
 	 let ret = f b in 
-	 TermHash.replace hash b ret;
+	 Hashtbl.replace hash b ret;
 	 ret
 	)) in 
   if debug_mode 
@@ -550,15 +520,15 @@ let memoize (f : Term.t -> 'a) =
 
 let memoize_on_arg2 f =
   let hash_version = 
-    let hash = ref TermMap.empty in 
+    let hash = ref BatMap.PMap.empty in 
     (fun a b -> 
-      try let ret = TermMap.find b !hash in
+      try let ret = BatMap.PMap.find b !hash in
 	  (hits := !hits + 1;
 	   ret)
       with Not_found -> 
 	(misses := !misses + 1;
 	 let ret = f a b in 
-	 hash := TermMap.add b ret !hash;
+	 hash := BatMap.PMap.add b ret !hash;
 	 ret
 	)) in
   if debug_mode
@@ -576,30 +546,30 @@ let memoize_on_arg2 f =
 
 
 (* set dups to 0 *)
-let zero_dups (t : term) : term =
+let zero_dups (t : 'a term) : 'a term =
   let zval = zero in
-  let rec zero (t : term) =
+  let rec zero (t : 'a term) =
     match t with 
       | (Assg _ | Test _ | Zero _ | One _ ) -> t
-      | Dup _ -> zval
-      | Plus (_,x) -> Plus (-1, TermSet.map zero x)
-      | Times (_,x) -> Times (-1, List.map zero x)
-      | Not (_,x) -> Not (-1, zero x)
-      | Star (_,x) -> Star (-1, zero x) in
+      | Dup (_,o) -> zval o
+      | Plus (_,x,o) -> Plus (-1, BatSet.PSet.map zero x,o)
+      | Times (_,x,o) -> Times (-1, List.map zero x,o)
+      | Not (_,x,o) -> Not (-1, zero x,o)
+      | Star (_,x,o) -> Star (-1, zero x,o) in
   let zero = memoize zero in 
   assign_ids (simplify (zero t))
 
 (* set dups to 1 *)
-let one_dups (t : term) : term =
+let one_dups (t : 'a term) : 'a term =
   let oval = one in 
   let rec one t =
     match t with 
       | (Assg _ | Test _ | Zero _ | One _) -> t
-      | Dup _ -> oval
-      | Plus (_,x) -> Plus (-1, TermSet.map one x)
-      | Times (_,x) -> Times (-1, List.map one x)
-      | Not (_,x) -> Not (-1, one x)
-      | Star (_,x) -> Star (-1, one x) in
+      | Dup (_,o) -> oval o
+      | Plus (_,x,o) -> Plus (-1, BatSet.PSet.map one x, o)
+      | Times (_,x,o) -> Times (-1, List.map one x, o)
+      | Not (_,x,o) -> Not (-1, one x, o)
+      | Star (_,x,o) -> Star (-1, one x, o) in
   let one = memoize one in
   assign_ids (simplify (one t))
     
