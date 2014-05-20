@@ -14,13 +14,13 @@ let biggest_int = ref 0
     type uid = int
 
     type 'a t =
-      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
-      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
-      | Dup of uid *'a 
-      | Plus of uid * ('a t) BatSet.PSet.t * 'a
-      | Times of uid * 'a t list * 'a
-      | Not of uid * 'a t *'a 
-      | Star of uid * 'a t * 'a
+      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
+      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
+      | Dup of uid *'a option 
+      | Plus of uid * ('a t) BatSet.PSet.t * 'a option 
+      | Times of uid * 'a t list * 'a option 
+      | Not of uid * 'a t *'a option 
+      | Star of uid * 'a t * 'a option 
       | Zero of uid
       | One of uid
 
@@ -44,13 +44,13 @@ let biggest_int = ref 0
     type uid = int	
 
     type 'a t =
-      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
-      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a
-      | Dup of uid *'a 
-      | Plus of uid * ('a t) BatSet.PSet.t * 'a
-      | Times of uid * 'a t list * 'a
-      | Not of uid * 'a t *'a 
-      | Star of uid * 'a t * 'a
+      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
+      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
+      | Dup of uid *'a option 
+      | Plus of uid * ('a t) BatSet.PSet.t * 'a option 
+      | Times of uid * 'a t list * 'a option 
+      | Not of uid * 'a t *'a option 
+      | Star of uid * 'a t * 'a option 
       | Zero of uid
       | One of uid
 
@@ -330,8 +330,8 @@ let flatten_not o (t : 'a Term.t) : 'a Term.t =
 
 let flatten_star o (t : 'a Term.t) : 'a Term.t =
   let t1 = match t with
-  | Plus (_,x,o) -> 
-    flatten_sum o (List.filter (fun s -> not (is_test s))
+  | Plus (_,x,o') -> 
+    flatten_sum o' (List.filter (fun s -> not (is_test s))
 		   (BatSet.PSet.elements x))
   | _ -> t in
   if is_test t1 then one
