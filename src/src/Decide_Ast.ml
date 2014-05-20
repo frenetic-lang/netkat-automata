@@ -21,8 +21,8 @@ let biggest_int = ref 0
       | Times of uid * 'a t list * 'a option 
       | Not of uid * 'a t *'a option 
       | Star of uid * 'a t * 'a option 
-      | Zero of uid
-      | One of uid
+      | Zero of uid * 'a option
+      | One of uid * 'a option
 
   (* pretty printers + serializers *)
   val to_string : 'a t -> string
@@ -51,8 +51,8 @@ let biggest_int = ref 0
       | Times of uid * 'a t list * 'a option 
       | Not of uid * 'a t *'a option 
       | Star of uid * 'a t * 'a option 
-      | Zero of uid
-      | One of uid
+      | Zero of uid * 'a option
+      | One of uid * 'a option
 
     let default_uid = -1
 
@@ -65,8 +65,8 @@ let biggest_int = ref 0
 	| Times (id,_,_)
 	| Not (id,_,_)
 	| Star (id,_,_)
-	| Zero (id)
-	| One (id)
+	| Zero (id,_)
+	| One (id,_)
 	  -> id 
   
     let rec to_string (t : 'a t) : string =
@@ -199,9 +199,10 @@ type 'a formula = Eq of 'a Term.t * 'a Term.t
 	       | Le of 'a Term.t * 'a Term.t
 
 
-let zero = Zero 0
-let one = One 1
-let dup a = Dup (2,a)
+let zero = Zero (0,None)
+let one = One (1,None)
+let dup_id = 2
+let dup = Dup (dup_id,None)
 
 
 (***********************************************
@@ -323,15 +324,11 @@ let flatten_not o (t : 'a Term.t) : 'a Term.t =
   | One _ ->  zero
   | _ -> (Term.Not (-1,t,o))
 
-(* TODO: correctness concern with this use of flatten_sum *)
-(* should these 'a things really be Some 'a? it would
-   solve the "should this invalidate?" problem pretty 
-   thoroughly. *)
 
 let flatten_star o (t : 'a Term.t) : 'a Term.t =
   let t1 = match t with
-  | Plus (_,x,o') -> 
-    flatten_sum o' (List.filter (fun s -> not (is_test s))
+  | Plus (_,x,_) -> 
+    flatten_sum None (List.filter (fun s -> not (is_test s))
 		   (BatSet.PSet.elements x))
   | _ -> t in
   if is_test t1 then one
@@ -341,11 +338,11 @@ let flatten_star o (t : 'a Term.t) : 'a Term.t =
     
 let rec simplify (t : 'a Term.t) : 'a Term.t =
   match t with
-  | Plus (_,x,o) -> flatten_sum o (List.map simplify 
+  | Plus (_,x,_) -> flatten_sum None (List.map simplify 
 			       (BatSet.PSet.elements x))
-  | Times (_,x,o) -> flatten_product o (List.map simplify x)
-  | Not (_,x,o) -> flatten_not o (simplify x)
-  | Star (_,x,o) -> flatten_star o (simplify x)
+  | Times (_,x,_) -> flatten_product None (List.map simplify x)
+  | Not (_,x,_) -> flatten_not None (simplify x)
+  | Star (_,x,_) -> flatten_star None (simplify x)
   | _ -> t
 
     
@@ -364,7 +361,7 @@ let contains_dups (t : 'a term) : bool =
 
 
 (* apply De Morgan laws to push negations down to the leaves *)
-let deMorgan df (t : 'a term) : 'a term =
+let deMorgan (t : 'a term) : 'a term =
   let rec dM (t : 'a term) : 'a term =
     let f o x = dM (Not (-1,x,o)) in
     match t with 
@@ -373,8 +370,8 @@ let deMorgan df (t : 'a term) : 'a term =
       | Plus (_,x, o) -> Plus (-1,BatSet.PSet.map dM x, o)
       | Times (_,x, o) -> Times (-1,List.map dM x, o)
       | Not (_,(Not (_,x,_)),_) -> dM x
-      | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (df ()) e)) (BatSet.PSet.elements s), df())
-      | Not (_,Times (_,s,_),_) -> Plus (-1, BatSet.PSet.of_list (List.map (fun e -> f (df ()) e) s), df())
+      | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (None) e)) (BatSet.PSet.elements s), None)
+      | Not (_,Times (_,s,_),_) -> Plus (-1, BatSet.PSet.of_list (List.map (fun e -> f (None) e) s), None)
       | Not (_,Star (_,x,_),_) ->
 	if is_test x then zero
 	else failwith "May not negate an action"
@@ -427,9 +424,11 @@ let get_id hash k =
     
 let rec assign_ids (t : 'a Term.t) : 'a Term.t = 
   match t with 
-    | Dup (-1,o) -> dup o
-    | One (-1) -> one
-    | Zero (-1) -> zero
+    | Dup (-1,o) -> Dup (dup_id,o)
+    | One (-1,None) -> one
+    | Zero (-1,None) -> zero
+    | One (-1,o) -> One(1,o)
+    | Zero (-1,o) -> Zero(0,o)
     | Assg(-1,f,v,o) -> 
       Assg(get_id assghash (f,v), f,v,o)
     | Test(-1,f,v,o) -> 
@@ -451,31 +450,31 @@ let rec assign_ids (t : 'a Term.t) : 'a Term.t =
     | already_assigned -> already_assigned
 
 
-let make_assg (f,v) o = 
-  assign_ids (Assg(-1,f,v,o)) 
+let make_assg (f,v) = 
+  assign_ids (Assg(-1,f,v,None))
+
+let make_test (f,v) = 
+  assign_ids (Test(-1,f,v,None))
     
-let make_test (f,v) o = 
-  assign_ids (Test(-1,f,v,o)) 
-    
-let make_dup o = dup o
+let make_dup = dup
   
-let make_plus ts o = 
-  assign_ids (flatten_sum o ts)
+let make_plus ts = 
+  assign_ids (flatten_sum None ts)
     
-let make_times tl o = 
-  assign_ids (flatten_product o tl)
+let make_times tl = 
+  assign_ids (flatten_product None tl)
     
-let make_star t o = 
-  assign_ids (flatten_star o t)
+let make_star t = 
+  assign_ids (flatten_star None t)
     
 let make_zero = zero
   
 let make_one = one 
   
-let parse_and_simplify df (parse : string -> 'a formula) (s : string) : 'a formula = 
+let parse_and_simplify (parse : string -> 'a formula) (s : string) : 'a formula = 
   match parse s with 
-    | Eq (l,r) -> Eq(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
-    | Le (l,r) -> Le(assign_ids (deMorgan df (simplify l)), assign_ids (deMorgan df (simplify r)))
+    | Eq (l,r) -> Eq(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
+    | Le (l,r) -> Le(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
       
 
 

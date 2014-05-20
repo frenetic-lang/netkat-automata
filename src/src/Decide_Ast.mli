@@ -12,8 +12,8 @@ module Term : sig
     | Times of uid * 'a t list * 'a option 
     | Not of uid * 'a t *'a option 
     | Star of uid * 'a t * 'a option 
-    | Zero of uid
-    | One of uid
+    | Zero of uid * 'a option
+    | One of uid * 'a option
 
   (* only for use in the parser *)
   val default_uid : uid
@@ -28,26 +28,24 @@ end
 
 type 'a term = 'a Term.t
 
+type 'a formula = Eq of 'a Term.t * 'a Term.t
+	       | Le of 'a Term.t * 'a Term.t
 
 (* smart constructors *)
 
-val make_assg : Decide_Util.Field.t * Decide_Util.Value.t -> ('a term -> 'a) -> 'a Term.t
-val make_test : Decide_Util.Field.t * Decide_Util.Value.t -> ('a term -> 'a) -> 'a Term.t
-val make_dup : ('a term -> 'a) -> 'a Term.t
-val make_plus : 'a Term.t list -> ('a term -> 'a) -> 'a Term.t
-val make_times : 'a Term.t list -> ('a term -> 'a) -> 'a Term.t
-val make_zero : 'a Term.t 
-val make_one : 'a Term.t 
+val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  'a Term.t
+val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  'a Term.t
+val make_dup :  'a Term.t
+val make_plus : 'a Term.t list -> 'a Term.t
+val make_times : 'a Term.t list -> 'a Term.t
+val make_zero : 'a Term.t
+val make_one : 'a Term.t
 
-val parse_and_simplify : ('a term -> 'a) -> (string -> 'a formula) -> string -> 'a formula
+val parse_and_simplify : (string -> 'a formula) -> string -> 'a formula
 
 module UnivMap : sig 
   type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
 end
-
-type 'a formula = 
-  | Eq of 'a Term.t * 'a Term.t 
-  | Le of 'a Term.t * 'a Term.t
 
 (* AST Utilities *)
 val contains_dups : 'a term -> bool
