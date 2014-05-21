@@ -39,6 +39,7 @@ module TermSet : sig
   val bind : 'a t -> ('a elt -> 'a t) -> 'a t
   val iter : ('a elt -> unit) -> 'a t -> unit
   val compare : 'a t -> 'a t -> int
+  val elements : 'a t -> 'a elt list 
 end
 
 
