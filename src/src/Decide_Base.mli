@@ -1,6 +1,6 @@
 module type UnivDescr = sig
-  type field = Decide_Ast.Term.Field.t
-  type value = Decide_Ast.Term.Value.t
+  type field = Decide_Util.Field.t
+  type value = Decide_Util.Value.t
   module FieldSet : Set.S with type elt = field
   module ValueSet : Set.S with type elt = value
   val all_fields : FieldSet.t
@@ -12,6 +12,13 @@ sig
   module Base : sig
     type t
     val compare : t -> t -> int
+    val univ_base : t
+    val of_assg : Decide_Util.Field.t -> Decide_Util.Value.t -> t
+    val of_test : Decide_Util.Field.t -> Decide_Util.Value.t -> t
+    val of_neg_test : Decide_Util.Field.t -> Decide_Util.Value.t -> t
+
+
+
     type point
     val compare_point : point -> point -> int
     val point_to_string : point -> string
@@ -20,7 +27,7 @@ sig
     val point_lhs : point -> complete_test
     val compare_complete_test : complete_test -> complete_test -> int
     val complete_test_to_string : complete_test -> string
-    val completetest_to_term_test : complete_test -> Decide_Ast.InitialTerm.t
+    val completetest_to_term_test : complete_test -> unit Decide_Ast.term
 
     val project_lhs : t -> t
     module Set : sig 
@@ -30,7 +37,6 @@ sig
       val fold_points : (point -> 'a -> 'a) -> t -> 'a -> 'a
       val contains_point : t -> point -> bool
       val filter_alpha : t -> complete_test -> t
-      val of_term : Decide_Ast.term -> t
       val mult : t -> t -> t
 
     (* debugging *)

@@ -8,12 +8,13 @@ module Term : sig
     | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
     | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option
     | Dup of uid * 'a option
-    | Plus of uid * ('a t) BatSet.PSet.t * 'a option 
+    | Plus of uid * 'a term_set * 'a option 
     | Times of uid * 'a t list * 'a option 
     | Not of uid * 'a t *'a option 
     | Star of uid * 'a t * 'a option 
     | Zero of uid * 'a option
     | One of uid * 'a option
+  and 'a term_set = ('a t) BatSet.PSet.t
 
   (* only for use in the parser *)
   val default_uid : uid
@@ -26,7 +27,22 @@ module Term : sig
 
 end 
 
+module TermSet : sig 
+  type 'a t = 'a Term.term_set
+  type 'a elt = 'a Term.t
+  val singleton : 'a elt -> 'a t
+  val empty : unit -> 'a t
+  val add : 'a elt -> 'a t -> 'a t
+  val map : ('a elt -> 'b elt) -> 'a t -> 'b t
+  val fold : ('a elt -> 'b -> 'b) -> 'a t -> 'b -> 'b
+  val union : 'a t -> 'a t -> 'a t
+  val bind : 'a t -> ('a elt -> 'a t) -> 'a t
+  val iter : ('a elt -> unit) -> 'a t -> unit
+end
+
+
 type 'a term = 'a Term.t
+type 'a term_set = 'a Term.term_set
 
 type 'a formula = Eq of 'a Term.t * 'a Term.t
 	       | Le of 'a Term.t * 'a Term.t
@@ -48,6 +64,7 @@ module UnivMap : sig
 end
 
 (* AST Utilities *)
+val simplify : unit term -> unit term
 val contains_dups : 'a term -> bool
 val values_in_term : 'a term -> UnivMap.t 
 val terms_in_formula : 'a formula -> 'a term * 'a term

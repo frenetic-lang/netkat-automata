@@ -9,7 +9,8 @@
 export SHELL = /bin/bash
 export PATH = /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
 
-SOURCES = Decide_Util.mli Decide_Util.ml Decide_Ast.mli Decide_Ast.ml Decide_Dot.ml Parser.mli Lexer.ml Parser.ml Decide_Spines.mli Decide_Spines.ml Decide_Base.mli Decide_Base.ml Decide_Deriv.mli Decide_Deriv.ml Decide_Bisimulation.mli Decide_Bisimulation.ml Decide_Test.mli Decide_Test.ml 
+SOURCES = Decide_Util.mli Decide_Util.ml Decide_Ast.mli Decide_Ast.ml Parser.mli Lexer.ml Parser.ml Decide_Base.mli Decide_Base.ml Decide_Spines.mli Decide_Spines.ml Decide_Ast_Cache.mli Decide_Ast_Cache.ml
+#Decide_Dot.ml Decide_Deriv.mli Decide_Deriv.ml Decide_Bisimulation.mli Decide_Bisimulation.ml Decide_Test.mli Decide_Test.ml 
 
 all: netkat
 
@@ -28,10 +29,11 @@ clean:
     done
 
 netkat: $(SOURCES)
-	ocamlopt -o netkat -g -p -I Test -I Parser  $(SOURCES) Decide_Repl.mli Decide_Repl.ml
+	/home/research/.opam/system/bin/ocamlfind ocamlc -linkpkg -thread -package batteries -o netkat -g $(SOURCES)
+#Decide_Repl.mli Decide_Repl.ml
 
 netkat-prof: $(SOURCES)
-	ocamlcp -o netkat-prof -g -I Test -I Parser -I Dot $(SOURCES) DexterTest.ml SingleTest.ml
+	ocamlfind ocamlcp -linkpkg -thread -package batteries -o netkat-prof -g -I Test -I Parser -I Dot $(SOURCES) DexterTest.ml SingleTest.ml
 
 good-test-dexter: $(SOURCES)
 	ocamlopt -o dexter-test -I Test -I Parser $(SOURCES) DexterTest.ml SingleTest.ml

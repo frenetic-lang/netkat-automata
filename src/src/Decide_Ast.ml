@@ -17,12 +17,13 @@ let biggest_int = ref 0
       | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
       | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
       | Dup of uid *'a option 
-      | Plus of uid * ('a t) BatSet.PSet.t * 'a option 
+      | Plus of uid * 'a term_set * 'a option 
       | Times of uid * 'a t list * 'a option 
       | Not of uid * 'a t *'a option 
       | Star of uid * 'a t * 'a option 
       | Zero of uid * 'a option
       | One of uid * 'a option
+  and 'a term_set = ('a t) BatSet.PSet.t
 
   (* pretty printers + serializers *)
   val to_string : 'a t -> string
@@ -47,12 +48,13 @@ let biggest_int = ref 0
       | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
       | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
       | Dup of uid *'a option 
-      | Plus of uid * ('a t) BatSet.PSet.t * 'a option 
+      | Plus of uid * 'a term_set * 'a option 
       | Times of uid * 'a t list * 'a option 
       | Not of uid * 'a t *'a option 
       | Star of uid * 'a t * 'a option 
       | Zero of uid * 'a option
       | One of uid * 'a option
+  and 'a term_set = ('a t) BatSet.PSet.t
 
     let default_uid = -1
 
@@ -189,9 +191,28 @@ let biggest_int = ref 0
 
   end
 
+
+module TermSet = struct 
+  type 'a t = 'a Term.term_set
+  type 'a elt = 'a Term.t
+  let singleton e = BatSet.PSet.singleton ~cmp:Term.compare e
+  let empty (type sgma) _ = 
+    let ret : sgma t = BatSet.PSet.create Term.compare in 
+    ret
+  let add = BatSet.PSet.add 
+  let map = BatSet.PSet.map
+  let fold = BatSet.PSet.fold
+  let union = BatSet.PSet.union
+  let iter = BatSet.PSet.iter
+  let bind ts f = 
+    fold (fun x t -> union (f x) t) ts (empty ())
+end
+
+
  
 open Term
 type 'a term = 'a Term.t
+type 'a term_set = 'a Term.term_set
 
 module UnivMap = Decide_Util.SetMapF (Field) (Value)
  
@@ -509,7 +530,7 @@ let memoize (f : 'b Term.t -> 'a) =
 
 let memoize_on_arg2 f =
   let hash_version = 
-    let hash = ref BatMap.PMap.empty in 
+    let hash = ref (BatMap.PMap.create Term.compare) in 
     (fun a b -> 
       try let ret = BatMap.PMap.find b !hash in
 	  (hits := !hits + 1;
