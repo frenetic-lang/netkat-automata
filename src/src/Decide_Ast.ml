@@ -206,6 +206,7 @@ module TermSet = struct
   let iter = BatSet.PSet.iter
   let bind ts f = 
     fold (fun x t -> union (f x) t) ts (empty ())
+  let compare = BatSet.PSet.compare
 end
 
 

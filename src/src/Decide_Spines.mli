@@ -1,11 +1,9 @@
-val lspines : unit Decide_Ast.term -> unit Decide_Ast.term_set
-val rspines : unit Decide_Ast.term -> unit Decide_Ast.term_set
-val lrspines : unit Decide_Ast.term -> unit Decide_Ast.term_set
+module Spines : functor (U:Decide_Base.UnivDescr) -> sig
+  module TermMap : sig 
+    include Map.S 
+  end with type key = (Decide_Ast_Cache.Ast(U).Term.t)
 
-module TermMap : sig 
-  include Map.S 
-end with type key = (unit Decide_Ast.term)
-
-val allLRspines : unit Decide_Ast.term -> (unit Decide_Ast.term_set) TermMap.t
+  val allLRspines : (Decide_Ast_Cache.Ast(U).Term.t) -> (Decide_Ast_Cache.Ast(U).cached_info Decide_Ast.term_set) TermMap.t
+end
 
 

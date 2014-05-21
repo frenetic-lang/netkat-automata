@@ -1,5 +1,4 @@
 
-open Decide_Ast
 open Decide_Base
 open Decide_Util
 open Decide_Spines
@@ -43,8 +42,14 @@ open Decide_Spines
 module Deriv = functor(UDesc: UnivDescr) -> struct 
 
   module U = Univ(UDesc)
-  module TermMap = Map.Make(Decide_Ast.Term)
-  type spines_map = Decide_Ast.TermSet.t TermMap.t
+  module Cached = Decide_Ast_Cache.Ast(UDesc)
+  module Spines = Decide_Spines.Spines(UDesc)
+  module TermMap = Spines.TermMap
+  module TermSet = Decide_Ast.TermSet
+  type spines_map = Cached.cached_info Decide_Ast.term_set Spines.TermMap.t
+
+
+  open Cached
 
   module rec DerivTerm : sig
     type e_matrix = | E_Matrix of (unit -> U.Base.Set.t)
@@ -55,18 +60,18 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       | Spine of Term.t (* actual term *) * 
 	(* for speedy Base.Set calculation *) e_matrix ref * 
       (* for speedy Deriv calculation*) d_matrix ref
-      | BetaSpine of U.Base.complete_test * TermSet.t * 
+      | BetaSpine of U.Base.complete_test * Cached.cached_info TermSet.t * 
 	(* for speedy Base.Set calculation *) e_matrix ref * 
 	(* for speedy Deriv calculation*) d_matrix ref
       | Zero of e_matrix ref * d_matrix ref
 
     val to_string : t -> string 
     val compare : t -> t -> int
-    val make_term : Decide_Ast.Term.t -> t
-    val make_spine : spines_map -> Decide_Ast.term -> t
+    val make_term : Cached.Term.t -> t
+    val make_spine : spines_map -> Term.t -> t
     val make_zero : unit -> t
     val make_betaspine : spines_map -> 
-      U.Base.complete_test -> Decide_Ast.TermSet.t -> t
+      U.Base.complete_test -> Cached.cached_info TermSet.t -> t
     val default_d_matrix : (spines_map -> t -> d_matrix) ref
   end = struct 
     type e_matrix = | E_Matrix of (unit -> U.Base.Set.t)
@@ -77,7 +82,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       | Spine of Term.t (* actual term *) * 
 	(* for speedy Base.Set calculation *) e_matrix ref * 
       (* for speedy Deriv calculation*) d_matrix ref
-      | BetaSpine of U.Base.complete_test * TermSet.t * 
+      | BetaSpine of U.Base.complete_test * Cached.cached_info TermSet.t * 
 	(* for speedy Base.Set calculation *) e_matrix ref * 
 	(* for speedy Deriv calculation*) d_matrix ref
       | Zero of e_matrix ref * d_matrix ref
@@ -85,16 +90,12 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 
     let derivterm_to_term e = 
       let f = function 
-	| Spine (d,_,_) -> Decide_Ast.InitialTerm.of_term d
+	| Spine (d,_,_) -> d
 	| BetaSpine (b,tms,_,_) -> 
-	  let open Decide_Ast.InitialTerm in
-	      let tms = Decide_Ast.TermSet.fold 
-		(fun x -> Decide_Ast.InitialTermSet.add (of_term x))
-		tms Decide_Ast.InitialTermSet.empty in 
-	      Times [(U.Base.completetest_to_term_test b); (Plus tms)]
-	| Zero _ -> Decide_Ast.InitialTerm.Zero 
+	  Cached.times (List.flatten [List.map Cached.of_term (U.Base.completetest_to_term_test b); [(Cached.plus tms)]])
+	| Zero _ -> Cached.zero
 	  in
-	  Decide_Ast.InitialTerm.to_term (f e)
+      (f e)
 	
 
     let compare e1 e2 = 
@@ -106,7 +107,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	    | (BetaSpine _, Spine _) -> 1
 	    | (_,Zero _) -> 1
 	    | (Spine (tm1,_,_), Spine (tm2,_,_)) -> 
-	      Decide_Ast.Term.compare tm1 tm2
+	      Term.compare tm1 tm2
 	    | (BetaSpine (b1,s1,_,_),BetaSpine (b2,s2,_,_)) -> 
 	      (match U.Base.compare_complete_test b1 b2 with 
 		| -1 -> -1
@@ -129,12 +130,12 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       let new_matrix = 
       (E_Matrix (fun _ -> match trm with 
 	| Spine (tm,em,_) -> 
-	  let ret = U.Base.Set.of_term tm in 
+	  let ret = (Cached.get_cache tm).e_matrix in 
 	  em := (E_Matrix (fun _ -> ret)); ret
 	| BetaSpine (beta,ts,em,_) -> 
 	  let ret = U.Base.Set.filter_alpha 
-	    (Decide_Ast.TermSet.fold 
-	       (fun t -> U.Base.Set.union (U.Base.Set.of_term t)) 
+	    (TermSet.fold 
+	       (fun t -> U.Base.Set.union (Cached.get_cache t).e_matrix )
 	       ts U.Base.Set.empty) 
 	    beta in 
 	  em := (E_Matrix (fun _ -> ret));
@@ -151,7 +152,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	    | BetaSpine (_,_,em,_)
 	    | Zero (em,_)
 	      -> 
-	      let ret = U.Base.Set.of_term (derivterm_to_term trm) in 
+	      let ret = (Cached.get_cache (derivterm_to_term trm)).e_matrix in 
 	      em := (E_Matrix (fun _ -> ret)); ret
 	   )) in 
 	assert (U.Base.Set.equal
@@ -193,14 +194,14 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 
 	
 	
-    let make_term = (fun e -> make_spine (Decide_Spines.allLRspines e) e)
+    let make_term = (fun e -> make_spine (Spines.allLRspines e) e)
 
     let to_string = function 
       | Zero _ -> "drop"
       | Spine (t,_,_) -> Decide_Ast.Term.to_string t
       | BetaSpine (b,t,_,_) -> 
 	Printf.sprintf "%s;(%s)" (U.Base.complete_test_to_string b) 
-	  (Decide_Ast.TermSet.fold 
+	  (TermSet.fold 
 	     (fun x acc -> 
 	       if acc = "" 
 	       then (Decide_Ast.Term.to_string x)
@@ -242,12 +243,12 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       (fun spine_pair (acc,set_of_points) -> 
 	(* pull out elements of spine pair*)
 	let e1,e2 = match spine_pair with 
-	  | Term.Times (_,[lspine;rspine]) -> lspine,rspine
+	  | Decide_Ast.Term.Times (_,[lspine;rspine],_) -> lspine,rspine
 	  | _ -> failwith "Dexter LIES" in
 	
 	(* calculate e of left spine*)
-	let corresponding_E = U.Base.Set.of_term e1 in
-	let er_E = U.Base.Set.of_term (Decide_Ast.one_dups e2) in
+	let corresponding_E = (Cached.get_cache e1).e_matrix in
+	let er_E = (Cached.get_cache e2).one_dup_e_matrix in
 	let er_E' = U.Base.Set.fold 
 	  (fun base acc -> U.Base.Set.add (U.Base.project_lhs base) acc)
 	  er_E U.Base.Set.empty in
@@ -271,7 +272,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	    | BetaSpine (b,e',_,_) -> failwith "this can't be produced"),
 	more_points)
       (TermMap.find e all_spines) 
-      ((fun _ -> TermSet.empty), U.Base.Set.empty) in
+      ((fun _ -> TermSet.empty()), U.Base.Set.empty) in
     (fun point -> 
       make_betaspine all_spines (U.Base.point_rhs point) (d point)
     ), pts
@@ -281,7 +282,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
   let calculate_deriv all_spines (e : t) : 
       ((U.Base.point -> t) * U.Base.Set.t) = 
     match e with 
-      | (Zero _ | Spine (Term.Zero _,_,_)) -> 
+      | (Zero _ | Spine (Decide_Ast.Term.Zero _,_,_)) -> 
 	(fun _ -> (make_zero ())), 
 	U.Base.Set.empty
       | BetaSpine (beta, spine_set,_,_) -> 
@@ -297,7 +298,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 		      "why did deriv produce a Spine and not a BetaSpine?"
 		  | BetaSpine (_,s,_,_) -> TermSet.union s (acc_d point)
 	      ),(U.Base.Set.union acc_points points)
-	    ) spine_set ((fun _ -> TermSet.empty), U.Base.Set.empty) in
+	    ) spine_set ((fun _ -> TermSet.empty () ), U.Base.Set.empty) in
 	let points = U.Base.Set.filter_alpha points beta in
 	(fun delta_gamma -> 
 	  let delta = U.Base.point_lhs delta_gamma in

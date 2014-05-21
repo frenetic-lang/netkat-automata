@@ -261,14 +261,13 @@ module Univ = functor (U : UnivDescr) -> struct
 
 
 
-    let completetest_to_term_test x : unit Decide_Ast.term = 
-      Decide_Ast.make_times 
-	(U.FieldSet.fold 
-	   (fun field acc -> 
-	     let v = try Map.find field x with Not_found -> 
-	       failwith "Point doesn't match the spec."  in
-	     (Decide_Ast.make_test (field, v))::acc)
-	   U.all_fields [])
+    let completetest_to_term_test x : (unit Decide_Ast.term) list = 
+      (U.FieldSet.fold 
+	 (fun field acc -> 
+	   let v = try Map.find field x with Not_found -> 
+	     failwith "Point doesn't match the spec."  in
+	   (Decide_Ast.make_test (field, v))::acc)
+	 U.all_fields [])
 	
 
     exception Empty_filter

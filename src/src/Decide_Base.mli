@@ -27,7 +27,7 @@ sig
     val point_lhs : point -> complete_test
     val compare_complete_test : complete_test -> complete_test -> int
     val complete_test_to_string : complete_test -> string
-    val completetest_to_term_test : complete_test -> unit Decide_Ast.term
+    val completetest_to_term_test : complete_test -> unit Decide_Ast.term list
 
     val project_lhs : t -> t
     module Set : sig 
