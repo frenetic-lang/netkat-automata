@@ -5,7 +5,7 @@ let init_state = 0
 
 exception ParseError of int * int * string
                               
-let parse (s : string) : Decide_Ast.formula =
+let parse (s : string) : unit Decide_Ast.formula =
   let lexbuf = Lexing.from_string s in
   (try
      Parser.formula_main Lexer.token lexbuf
@@ -19,8 +19,11 @@ let parse (s : string) : Decide_Ast.formula =
 
 let process (input : string) : unit =
   try
-    let parsed = parse input in
-    Decide_Test.test parsed
+    let parsed = Decide_Ast.parse_and_simplify parse input in
+    let l,r = Decide_Ast.terms_in_formula parsed in 
+    Printf.printf "Bisimulation result: %b\n"
+      (Decide_Bisimulation.check_equivalent l r )
+
   with
   | Decide_Ast.Empty -> ()
   | Lexer.LexError s -> Printf.printf "Lex Error: %s\n" s
@@ -61,15 +64,17 @@ let rec repl (state : state) : unit =
     ) 
     else input in
   print_string "process or serialize: ";
-  (match read_line() with 
+  (match (* read_line() *) "process"  with 
     | "process" ->
       Printf.printf "processing...\n%!";
       process input;
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 
-      let formula = parse input in 
-      Decide_Ast.serialize_formula formula file 
+      let formula = Decide_Ast.parse_and_simplify parse input in 
+      ignore file; 
+      ignore formula;
+      failwith "mode not currently supported"
     | _ -> repl state);
   repl state
 
