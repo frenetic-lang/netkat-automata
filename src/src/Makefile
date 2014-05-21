@@ -9,8 +9,8 @@
 export SHELL = /bin/bash
 export PATH = /usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
 
-SOURCES = Decide_Util.mli Decide_Util.ml Decide_Ast.mli Decide_Ast.ml Parser.mli Lexer.ml Parser.ml Decide_Base.mli Decide_Base.ml Decide_Ast_Cache.mli Decide_Ast_Cache.ml Decide_Spines.mli Decide_Spines.ml Decide_Deriv.mli Decide_Deriv.ml 
-#Decide_Dot.ml Decide_Bisimulation.mli Decide_Bisimulation.ml Decide_Test.mli Decide_Test.ml 
+SOURCES = Decide_Util.mli Decide_Util.ml Decide_Ast.mli Decide_Ast.ml Parser.mli Lexer.ml Parser.ml Decide_Base.mli Decide_Base.ml Decide_Ast_Cache.mli Decide_Ast_Cache.ml Decide_Spines.mli Decide_Spines.ml Decide_Deriv.mli Decide_Deriv.ml Decide_Dot.ml Decide_Bisimulation.mli Decide_Bisimulation.ml
+#Decide_Test.mli Decide_Test.ml 
 
 all: netkat
 

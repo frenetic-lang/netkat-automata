@@ -7,6 +7,7 @@ module Bisimulation = functor(UDesc: UnivDescr) -> struct
     
   module U = Univ(UDesc)
   module Deriv = Decide_Deriv.Deriv(UDesc)
+  module Cached = Decide_Ast_Cache.Ast(UDesc)
     
   module WorkList = WorkList(struct 
     type t = (Deriv.DerivTerm.t * Deriv.DerivTerm.t) 
@@ -25,21 +26,21 @@ module Bisimulation = functor(UDesc: UnivDescr) -> struct
     
 end
     
-let check_equivalent (t1:term) (t2:term) : bool = 
+let check_equivalent (t1:'a term) (t2:'a term) : bool = 
 
   (* TODO: this is a heuristic.  Which I can spell, hooray.  *)
-  let module UnivMap = Decide_Util.SetMapF (Decide_Ast.Term.Field) (Decide_Ast.Term.Value) in
+  let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
   let t1vals = values_in_term t1 in 
   let t2vals = values_in_term t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
     begin
       let univ = UnivMap.union t1vals t2vals in 
-      let univ = List.fold_left (fun u x -> UnivMap.add x Term.Value.extra_val u) univ (UnivMap.keys univ) in
+      let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
       let module UnivDescr = struct
-	type field = Decide_Ast.Term.Field.t
-	type value = Decide_Ast.Term.Value.t
-	module FieldSet = Set.Make(Decide_Ast.Term.Field)
+	type field = Decide_Util.Field.t
+	type value = Decide_Util.Value.t
+	module FieldSet = Set.Make(Decide_Util.Field)
 	module ValueSet = UnivMap.Values
 	let all_fields = 
 	(* TODO: fix me when SSM is eliminated *)
@@ -53,6 +54,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
       end in   
       
       let module InnerBsm = Bisimulation(UnivDescr) in
+      let t1 = InnerBsm.Cached.of_term t1 in 
+      let t2 = InnerBsm.Cached.of_term t2 in 
       let open InnerBsm in
 	  let uf_eq,uf_find,uf_union = 
 	    (fun _ _ -> false),
@@ -103,12 +106,8 @@ let check_equivalent (t1:term) (t2:term) : bool =
 		     (U.Base.Set.union q1_points q2_points) rest_work_list in
 		   main_loop work_list) in
 	  let ret = main_loop (WorkList.singleton 
-				 (Deriv.DerivTerm.make_term 
-				    (Decide_Ast.deMorgan
-				       (Decide_Ast.simplify t1)), 
-				  Deriv.DerivTerm.make_term 
-				    (Decide_Ast.deMorgan
-				       (Decide_Ast.simplify t2)))) in 
+				 (Deriv.DerivTerm.make_term t1,  
+				  Deriv.DerivTerm.make_term t2)) in 
 	  U.Base.Set.print_debugging_info (); 
 	  ret
     end

@@ -1,2 +1,2 @@
 
-val check_equivalent : Decide_Ast.term -> Decide_Ast.term -> bool 
+val check_equivalent : 'a Decide_Ast.term -> 'a Decide_Ast.term -> bool 
