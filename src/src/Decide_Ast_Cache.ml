@@ -52,6 +52,22 @@ module Ast = functor (U : Decide_Base.UnivDescr) -> struct
     List.fold_right (fun t acc ->  mult (get_cache t).one_dup_e_matrix acc) tl
       (singleton univ_base) 
 
+  let rec all_caches_empty t = 
+    let open Decide_Ast.Term in 
+    match t with 
+      | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> 
+	(match get_cache_option t with None -> true | Some _ -> false)
+      | Plus(_,x,c) -> 
+	(match c with None -> true | Some _ -> false) && 
+	  (Decide_Ast.TermSet.fold 
+	     (fun e acc -> all_caches_empty e && acc) x true)
+      | Times(_,x,c) -> 
+	(match c with None -> true | Some _ -> false) && 
+	  (List.for_all (fun e -> all_caches_empty e) x)
+      | (Not (_,x,c) | Star (_,x,c)) -> 
+	(match c with None -> true | Some _ -> false) && (all_caches_empty x)
+
+
 
   let add_cache (on_hit : 'a Decide_Ast.term -> cached_info Decide_Ast.term) (t : 'a Decide_Ast.term) : cached_info Decide_Ast.term 
       = 

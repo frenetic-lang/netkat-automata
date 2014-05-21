@@ -72,6 +72,7 @@ val values_in_term : 'a term -> UnivMap.t
 val terms_in_formula : 'a formula -> 'a term * 'a term
 val zero_dups : 'a term -> 'a term 
 val one_dups : 'a term -> 'a term 
+val all_ids_assigned : 'a term -> bool
 
 (* Pretty printing *)
 val term_to_string : 'a term -> string

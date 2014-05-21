@@ -15,6 +15,8 @@ module Ast : functor (U : Decide_Base.UnivDescr) -> sig
   val of_term : 'a Decide_Ast.term -> Term.t
   val refresh_cache : Term.t -> Term.t
 
+  val all_caches_empty : 'a Decide_Ast.term -> bool 
+
   val zero : Term.t
   val one : Term.t
   val plus : cached_info Decide_Ast.TermSet.t -> Term.t

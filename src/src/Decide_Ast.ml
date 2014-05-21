@@ -382,6 +382,13 @@ let contains_dups (t : 'a term) : bool =
     | Star (_,x,_) ->  (contains x) in
   contains t
 
+let rec all_ids_assigned t = 
+  match t with 
+    | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> (extract_uid t) <> -1
+    | Plus(id,x,_) -> id <> -1 && (TermSet.fold (fun e acc -> all_ids_assigned e && acc) x true)
+    | Times(id,x,_) -> id <> -1 && (List.for_all (fun e -> all_ids_assigned e) x)
+    | (Not (id,x,_) | Star (id,x,_)) -> id <> -1 && (all_ids_assigned x) 
+
 
 (* apply De Morgan laws to push negations down to the leaves *)
 let deMorgan (t : 'a term) : 'a term =
@@ -504,8 +511,8 @@ let make_one = one
   
 let parse_and_simplify (parse : string -> 'a formula) (s : string) : 'a formula = 
   match parse s with 
-    | Eq (l,r) -> Eq(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
-    | Le (l,r) -> Le(assign_ids (deMorgan (simplify l)), assign_ids (deMorgan (simplify r)))
+    | Eq (l,r) -> Eq(assign_ids (simplify (deMorgan (simplify l))), assign_ids (simplify (deMorgan (simplify r))))
+    | Le (l,r) -> Le(assign_ids (simplify (deMorgan (simplify l))), assign_ids (simplify (deMorgan (simplify r))))
       
 
 

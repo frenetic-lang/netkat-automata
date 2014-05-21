@@ -21,6 +21,8 @@ let process (input : string) : unit =
   try
     let parsed = Decide_Ast.parse_and_simplify parse input in
     let l,r = Decide_Ast.terms_in_formula parsed in 
+    Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
+    Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
     Printf.printf "Bisimulation result: %b\n"
       (Decide_Bisimulation.check_equivalent l r )
 

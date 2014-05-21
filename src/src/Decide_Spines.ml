@@ -3,6 +3,8 @@ open Decide_Ast
 (* SPINES *)
 
 module Spines = functor(U : Decide_Base.UnivDescr) -> struct 
+
+  module Cached = Decide_Ast_Cache.Ast(U)
     
 module TermMap = Map.Make(struct 
   type t = unit Decide_Ast.Term.t
@@ -81,6 +83,13 @@ end
 	
   (* get all lrspines of e and all lrspines of rspines of e *)
   let allLRspines (e : unit term) : (unit term_set) TermMap.t =
+    Printf.printf "getting all spines of: %s\n" (Decide_Ast.Term.to_string e);
+    if Decide_Util.debug_mode
+    then (
+      assert (Cached.all_caches_empty e);
+      assert (Decide_Ast.all_ids_assigned e);
+    );
+    
     let allLR = TermSet.add e (rspines e) in
     let h = ref TermMap.empty in
     let f d = h := TermMap.add d (lrspines d) !h in
