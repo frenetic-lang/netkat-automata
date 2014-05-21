@@ -18,7 +18,6 @@ Library netkat_decide
     Decide_Spines,
     Decide_Dot,
     Decide_Repl,
-    Decide_Test,
     Decide_Util
   Modules:
     Decide_Ast,
