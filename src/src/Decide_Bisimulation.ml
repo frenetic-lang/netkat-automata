@@ -54,8 +54,8 @@ let check_equivalent (t1:'a term) (t2:'a term) : bool =
       end in   
       
       let module InnerBsm = Bisimulation(UnivDescr) in
-      let t1 = InnerBsm.Cached.of_term t1 in 
-      let t2 = InnerBsm.Cached.of_term t2 in 
+(*      let t1 = InnerBsm.Cached.of_term t1 in 
+      let t2 = InnerBsm.Cached.of_term t2 in *)
       let open InnerBsm in
 	  let uf_eq,uf_find,uf_union = 
 	    (fun _ _ -> false),

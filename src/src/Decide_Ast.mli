@@ -66,7 +66,7 @@ module UnivMap : sig
 end
 
 (* AST Utilities *)
-val simplify : unit term -> unit term
+val simplify : 'a term -> 'a term
 val contains_dups : 'a term -> bool
 val values_in_term : 'a term -> UnivMap.t 
 val terms_in_formula : 'a formula -> 'a term * 'a term

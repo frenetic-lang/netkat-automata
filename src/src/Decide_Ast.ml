@@ -408,19 +408,27 @@ let deMorgan (t : 'a term) : 'a term =
 
 (* smart constructors *)
 
+(*
+type 'a id_cache = { 
+  timehash : (uid list, 'a Term.t) Hashtbl.t; 
+  plushash : (uid list, 'a Term.t) Hashtbl.t; 
+  nothash : (uid, 'a Term.t) Hashtbl.t; 
+  starhash : (uid, 'a Term.t) Hashtbl.t; 
+  testhash : (Decide_Util.Field.t * Decide_Util.Value.t, 'a Term.t) Hashtbl.t; 
+  assghash : (Decide_Util.Field.t * Decide_Util.Value.t, 'a Term.t) Hashtbl.t; 
+  counter : int ref
+}
+*)
+
+
 let timeshash (* : ((uid list) (uid) Hashtbl.t) *) = Hashtbl.create 100
-
-let plushash (* : (uid list) (uid) Hashtbl.t *) = Hashtbl.create 100 
-
+let plushash (* : (uid list) (uid) Hashtbl.t *) = Hashtbl.create 100
 let nothash (* : (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
-
 let starhash (* : (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
-
 let testhash (* :  (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
-
 let assghash (* :  (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
-
 let counter = ref 3
+
 
 let extract_uid_fn1 t = 
   match extract_uid t with 
@@ -431,13 +439,14 @@ let ids_from_list tl =
 let ids_from_set ts = 
   BatSet.PSet.fold (fun t acc -> (extract_uid_fn1 t) :: acc) ts []
 
+let getandinc _ = 
+  let ret = !counter in 
+  if ret > 1073741822
+  then failwith "you're gonna overflow the integers, yo";
+  counter := !counter + 1; 
+  ret 
+
 let get_id hash k = 
-  let getandinc _ = 
-    let ret = !counter in 
-    if ret > 1073741822
-    then failwith "you're gonna overflow the integers, yo";
-    counter := !counter + 1; 
-    ret in
   let new_id hash k = 
     let ret = getandinc() in 
     Hashtbl.replace hash k ret; 
@@ -447,33 +456,32 @@ let get_id hash k =
     
 let rec assign_ids (t : 'a Term.t) : 'a Term.t = 
   match t with 
-    | Dup (-1,o) -> Dup (dup_id,o)
+    | Dup (-1,None) -> Dup (dup_id,None)
     | One (-1,None) -> one
     | Zero (-1,None) -> zero
-    | One (-1,o) -> One(1,o)
-    | Zero (-1,o) -> Zero(0,o)
-    | Assg(-1,f,v,o) -> 
-      Assg(get_id assghash (f,v), f,v,o)
-    | Test(-1,f,v,o) -> 
-      Test(get_id testhash (f,v), f,v,o)
-    | Plus (-1,ts,o) -> 
+    | Assg(-1,f,v,None) -> 
+      Assg(get_id assghash (f,v), f, v, None)
+    | Test(-1,f,v,None) -> 
+      Test(get_id testhash (f,v), f,v,None)
+    | Plus (-1,ts,None) -> 
       let ts = BatSet.PSet.map assign_ids ts in 
       let ids = (ids_from_set ts) in 
-      Plus(get_id plushash ids, ts,o)
-    | Times (-1,tl,o) -> 
+      Plus(get_id plushash ids, ts,None)
+    | Times (-1,tl,None) -> 
       let tl = List.map assign_ids tl in
       let ids = ids_from_list tl in 
-      Times(get_id timeshash ids, tl,o)
-    | Not (-1, t,o) -> 
+      Times(get_id timeshash ids, tl,None)
+    | Not (-1, t,None) -> 
       let t = assign_ids t in 
-      Not(get_id nothash (extract_uid_fn1 t), t,o)
-    | Star (-1, t,o) -> 
+      Not(get_id nothash (extract_uid_fn1 t), t,None)
+    | Star (-1, t,None) -> 
       let t = assign_ids t in 
-      Star(get_id starhash (extract_uid_fn1 t), t, o)
-    | already_assigned -> already_assigned
+      Star(get_id starhash (extract_uid_fn1 t), t, None)
+    | already_assigned when (extract_uid t) <> -1 -> already_assigned
+    | _ -> failwith "ID was invalidated but cache was not!"
 
 
-let make_assg (f,v) = 
+let make_assg  (f,v) = 
   assign_ids (Assg(-1,f,v,None))
 
 let make_test (f,v) = 

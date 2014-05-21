@@ -44,9 +44,9 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
   module U = Univ(UDesc)
   module Cached = Decide_Ast_Cache.Ast(UDesc)
   module Spines = Decide_Spines.Spines(UDesc)
-  module TermMap = Spines.TermMap
+  module TermMap = Map.Make(Cached.Term)
   module TermSet = Decide_Ast.TermSet
-  type spines_map = Cached.cached_info Decide_Ast.term_set Spines.TermMap.t
+  type spines_map = Cached.cached_info Decide_Ast.term_set TermMap.t
 
 
   open Cached
@@ -67,7 +67,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 
     val to_string : t -> string 
     val compare : t -> t -> int
-    val make_term : Cached.Term.t -> t
+    val make_term : unit Decide_Ast.term -> t
     val make_spine : spines_map -> Term.t -> t
     val make_zero : unit -> t
     val make_betaspine : spines_map -> 
@@ -194,7 +194,14 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 
 	
 	
-    let make_term = (fun e -> make_spine (Spines.allLRspines e) e)
+    let make_term = (fun (e : unit Decide_Ast.term) -> 
+      make_spine 
+	(Spines.TermMap.fold 
+	   (fun tm ts acc -> 
+	     TermMap.add (Cached.of_term tm) 
+	       (TermSet.map (fun e -> Cached.of_term e) ts)
+	       acc)
+	   (Spines.allLRspines e) TermMap.empty ) (Cached.of_term e))
 
     let to_string = function 
       | Zero _ -> "drop"
