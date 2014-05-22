@@ -1,8 +1,8 @@
 
 module Ast : functor (U : Decide_Base.UnivDescr) -> sig 
 
-  type cached_info = { e_matrix : Decide_Base.Univ(U).Base.Set.t;
-		       one_dup_e_matrix : Decide_Base.Univ(U).Base.Set.t 
+  type cached_info = { e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t;
+		       one_dup_e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t 
 		     }
 
   module Term : sig 

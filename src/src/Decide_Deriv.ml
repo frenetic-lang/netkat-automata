@@ -136,11 +136,11 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       (E_Matrix (fun _ -> match trm with 
 	| Spine (tm,em,_) -> 
 	  let ret = (Cached.get_cache tm).e_matrix in 
-	  em := (E_Matrix (fun _ -> ret)); ret
+	  em := (E_Matrix (fun _ -> ret ())); ret ()
 	| BetaSpine (beta,ts,em,_) -> 
 	  let ret = U.Base.Set.filter_alpha 
 	    (TermSet.fold 
-	       (fun t -> U.Base.Set.union (Cached.get_cache t).e_matrix )
+	       (fun t -> U.Base.Set.union ((Cached.get_cache t).e_matrix ()) )
 	       ts U.Base.Set.empty) 
 	    beta in 
 	  em := (E_Matrix (fun _ -> ret));
@@ -158,7 +158,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	    | Zero (em,_)
 	      -> 
 	      let ret = (Cached.get_cache (derivterm_to_term trm)).e_matrix in 
-	      em := (E_Matrix (fun _ -> ret)); ret
+	      em := (E_Matrix (fun _ -> ret ())); ret ()
 	   )) in 
 	assert (U.Base.Set.equal
 	    (match old_matrix with E_Matrix f -> (f ())) 
@@ -255,8 +255,8 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       (fun (e1,e2) (acc,set_of_points) -> 
 	
 	(* calculate e of left spine*)
-	let corresponding_E = (Cached.get_cache e1).e_matrix in
-	let er_E = (Cached.get_cache e2).one_dup_e_matrix in
+	let corresponding_E = (Cached.get_cache e1).e_matrix () in
+	let er_E = (Cached.get_cache e2).one_dup_e_matrix () in
 	let er_E' = U.Base.Set.fold 
 	  (fun base acc -> U.Base.Set.add (U.Base.project_lhs base) acc)
 	  er_E U.Base.Set.empty in

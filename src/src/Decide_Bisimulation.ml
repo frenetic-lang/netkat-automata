@@ -105,9 +105,12 @@ let check_equivalent (t1:'a term) (t2:'a term) : bool =
 		     )
 		     (U.Base.Set.union q1_points q2_points) rest_work_list in
 		   main_loop work_list) in
-	  let ret = main_loop (WorkList.singleton 
-				 (Deriv.DerivTerm.make_term t1,  
-				  Deriv.DerivTerm.make_term t2)) in 
+	  Printf.printf "Beginning term conversion\n%!" ;
+	  let t2 = Deriv.DerivTerm.make_term t2 in
+	  Printf.printf "rhs term complete\n%!";
+	  let t1 = Deriv.DerivTerm.make_term t1 in 
+	  Printf.printf "Term construction complete\n%!";
+	  let ret = main_loop (WorkList.singleton (t1,t2)) in
 	  U.Base.Set.print_debugging_info (); 
 	  ret
     end

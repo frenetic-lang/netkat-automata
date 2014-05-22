@@ -28,7 +28,7 @@ clean:
     done
 
 netkat: $(SOURCES)
-	/home/research/.opam/system/bin/ocamlfind ocamlopt -linkpkg -thread -package batteries -o netkat $(SOURCES) Decide_Repl.mli Decide_Repl.ml
+	/home/research/.opam/system/bin/ocamlfind ocamlopt -linkpkg -thread -package batteries -p -g -o netkat $(SOURCES) Decide_Repl.mli Decide_Repl.ml
 
 netkat-prof: $(SOURCES)
 	ocamlfind ocamlcp -linkpkg -thread -package batteries -o netkat-prof -g -I Test -I Parser -I Dot $(SOURCES) DexterTest.ml SingleTest.ml
