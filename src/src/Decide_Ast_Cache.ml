@@ -142,9 +142,10 @@ module Ast = functor (U : Decide_Base.UnivDescr) -> struct
 		  | Star (id,x,_) ->
 		    let x = of_term x in
 		    let get_fixpoint s = 
+		      Printf.printf "getting fixpoint...\n%!";
 		      let s1 = add univ_base s in
 		      let rec f s r  =
-			if equal s r then s
+			if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
 			else f (mult s s) s in
 		      f (mult s1 s1) s1 in 
 		    let me = thunkify (fun _ -> get_fixpoint ((get_cache x).e_matrix())) in 
