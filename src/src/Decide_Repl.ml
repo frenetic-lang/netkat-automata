@@ -19,7 +19,7 @@ let parse (s : string) : unit Decide_Ast.formula =
 
 let process (input : string) : unit =
   try
-    let parsed = Decide_Ast.parse_and_simplify parse input in
+    let parsed = Decide_Ast.convert_and_simplify parse input in
     let l,r = Decide_Ast.terms_in_formula parsed in 
     Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
     Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
@@ -73,7 +73,7 @@ let rec repl (state : state) : unit =
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 
-      let formula = Decide_Ast.parse_and_simplify parse input in 
+      let formula = Decide_Ast.convert_and_simplify parse input in 
       ignore file; 
       ignore formula;
       failwith "mode not currently supported"

@@ -170,16 +170,6 @@ let plus (l : cached_info Decide_Ast.TermSet.t) : Term.t =
 let times (l : Term.t list) : Term.t = 
   match l with 
     | [x] -> x
-    | _ -> begin 
-      match Decide_Ast.make_times l with 
-	| Times(id,l,_) -> 
-	  Times(id,l,Some {e_matrix = of_times l; one_dup_e_matrix = of_times_onedup l})
-	| Zero(id,_) -> Zero (id,Some {e_matrix = empty; one_dup_e_matrix = empty})
-	| One(id,_) -> One (id, Some {e_matrix = singleton univ_base; one_dup_e_matrix = singleton univ_base})
-	| o -> Printf.eprintf "make_times gave us this: %s\n%!" (Decide_Ast.Term.to_string o); 
-	  Printf.eprintf "we gave it these as input: %s\n%!" 
-	    (List.fold_right (fun e -> Printf.sprintf "%s\n%s" (Decide_Ast.Term.to_string e)) l "");
-	  failwith "bug in make_times"
-    end
+    | _ -> refresh_cache (Decide_Ast.make_times l)
 
 end

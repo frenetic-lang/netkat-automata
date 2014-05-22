@@ -509,7 +509,7 @@ let make_zero = zero
   
 let make_one = one 
   
-let parse_and_simplify (parse : string -> 'a formula) (s : string) : 'a formula = 
+let convert_and_simplify (parse : 's -> 'a formula) (s : 's) : 'a formula = 
   match parse s with 
     | Eq (l,r) -> Eq(assign_ids (simplify (deMorgan (simplify l))), assign_ids (simplify (deMorgan (simplify r))))
     | Le (l,r) -> Le(assign_ids (simplify (deMorgan (simplify l))), assign_ids (simplify (deMorgan (simplify r))))

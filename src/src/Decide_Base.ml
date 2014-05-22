@@ -501,6 +501,8 @@ module Univ = functor (U : UnivDescr) -> struct
 	then (assert (equal (old_mult left right) phase3); phase3)
 	else phase3
 
+      let mult = old_mult
+
       let biggest_cardinal = ref 0 
 
 

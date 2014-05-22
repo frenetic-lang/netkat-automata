@@ -59,7 +59,7 @@ val make_times : 'a Term.t list -> 'a Term.t
 val make_zero : 'a Term.t
 val make_one : 'a Term.t
 
-val parse_and_simplify : (string -> 'a formula) -> string -> 'a formula
+val convert_and_simplify : ('s -> 'a formula) -> 's -> 'a formula
 
 module UnivMap : sig 
   type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
