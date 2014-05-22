@@ -128,6 +128,18 @@ let biggest_int = ref 0
 
     let int_of_uid x = x
 
+    let remove_cache = function
+      | Assg (a,b,c,_) -> Assg(a,b,c,None)
+      | Test (a,b,c,_) -> Test(a,b,c,None)
+      | Dup (a,_) -> Dup(a,None)
+      | Plus (a,b,_) -> Plus (a,b,None)
+      | Times (a,b,_) -> Times (a,b,None)
+      | Not (a,b,_) -> Not (a,b,None)
+      | Star (a,b,_) -> Star (a,b,None)
+      | Zero (a,_) -> Zero(a,None)
+      | One (a,_) -> One(a,None)
+
+
     let old_compare =   
       (let rec oldcomp = (fun e1 e2 -> 
 	match e1,e2 with 
@@ -146,7 +158,7 @@ let biggest_int = ref 0
 	    )
 	  | ((Not (_,t1,_),Not (_,t2,_)) | (Star (_,t1,_),Star (_,t2,_))) -> 
 	    oldcomp t1 t2
-	  | _ -> Pervasives.compare e1 e2)
+	  | _ -> Pervasives.compare (remove_cache e1) (remove_cache e2))
        in oldcomp )
 	
 
