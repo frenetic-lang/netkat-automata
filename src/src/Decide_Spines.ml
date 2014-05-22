@@ -24,8 +24,23 @@ module TermSet = struct
   let iter = TermSet.iter
 end
 
+
 type term = unit Decide_Ast.term
 
+module TermPairSet = struct 
+  include Set.Make(struct 
+    type t = term * term 
+    let compare (al,ar) (bl,br) = 
+      match Decide_Ast.Term.compare al bl with 
+	| 0 -> Decide_Ast.Term.compare ar br
+	| o -> o 
+  end)
+  let map f ts = 
+    fold (fun (l,r) acc -> add (f (l,r)) acc) ts empty
+  let bind ts f = 
+    fold (fun (l,r) t -> union (f (l,r)) t) ts empty
+end
+  
 open Decide_Ast.Term
 
 let rspines (e : term) : TermSet.t =
@@ -47,38 +62,36 @@ let rspines (e : term) : TermSet.t =
         TermSet.map (fun x -> Decide_Ast.make_times [x; e]) s
 	| (Assg _ | Test _ | Not _ | Zero _ | One _) -> TermSet.empty in
   TermSet.map Decide_Ast.simplify (sp e)
+
+
   
-let rec lrspines (e : term) : TermSet.t =
+let rec lrspines (e : term) =
   match e with
-    | Dup _ -> TermSet.singleton (Decide_Ast.make_times [Decide_Ast.make_one; Decide_Ast.make_one])
-    | Plus (_,ts,_) -> TermSet.bind ts lrspines
+    | Dup _ -> TermPairSet.singleton (Decide_Ast.make_one, Decide_Ast.make_one)
     | Times (_,l,_) ->
     (match l with
-      | [] -> TermSet.empty
+      | [] -> TermPairSet.empty
       | [d] -> lrspines d
       | d :: t ->
 	let u = lrspines d in
 	let v = lrspines (Decide_Ast.make_times t) in
-	let f x = match x with
-	  | Times (_,[l;r],_) -> Decide_Ast.make_times [l; Decide_Ast.simplify (Decide_Ast.make_times (r :: t))]
-	  | _ -> failwith "lrspines 1" in
-	let r = TermSet.map f u in
-	let g x = match x with
-	  | Times (_,[l;r],_) -> Decide_Ast.make_times [Decide_Ast.simplify (Decide_Ast.make_times [d;l]); r]
-	  | _ -> failwith "lrspines 2" in
-	let s = TermSet.map g v in
-      TermSet.union r s)
+	let f (l,r) = 
+	  l, Decide_Ast.simplify (Decide_Ast.make_times (r :: t)) in
+	let r = TermPairSet.map f u in
+	let g (l,r) = (Decide_Ast.simplify (Decide_Ast.make_times [d;l]),r) in
+	let s = TermPairSet.map g v in
+      TermPairSet.union r s)
     | Star (_,d,_) ->
       let s = lrspines d in
-      let f x = match x with
-	| Times (_,[l;r],_) -> Decide_Ast.make_times [Decide_Ast.simplify (Decide_Ast.make_times [e;l]);
-				Decide_Ast.simplify (Decide_Ast.make_times [r;e])]
-	| _ -> failwith "lrspines 3" in
-      TermSet.map f s
-    | (Assg _ | Test _ | Not _ | Zero _ | One _) -> TermSet.empty      
+      let f (l,r) = Decide_Ast.simplify (Decide_Ast.make_times [e;l]),
+	Decide_Ast.simplify (Decide_Ast.make_times [r;e]) in
+      TermPairSet.map f s
+    | Plus (_,ts,_) -> 
+      TermSet.fold (fun x t -> TermPairSet.union (lrspines x) t) ts TermPairSet.empty
+    | (Assg _ | Test _ | Not _ | Zero _ | One _) -> TermPairSet.empty      
       
   (* get all lrspines of e and all lrspines of rspines of e *)
-  let allLRspines (e :  term) : (unit term_set) TermMap.t =
+  let allLRspines (e :  term) : TermPairSet.t TermMap.t =
     Printf.printf "getting all spines of: %s\n" (Decide_Ast.Term.to_string e);
     if Decide_Util.debug_mode
     then (

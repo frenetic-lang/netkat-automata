@@ -46,7 +46,12 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
   module Spines = Decide_Spines.Spines(UDesc)
   module TermMap = Map.Make(Cached.Term)
   module TermSet = Decide_Ast.TermSet
-  type spines_map = Cached.cached_info Decide_Ast.term_set TermMap.t
+  module CachedTermPairSet = Set.Make(struct type t = Cached.cached_info Decide_Ast.term * Cached.cached_info Decide_Ast.term
+					     let compare (al,ar) (bl,br) = 
+					       match Decide_Ast.Term.compare al bl with 
+						 | 0 -> Decide_Ast.Term.compare ar br
+						 | a -> a end)
+  type spines_map = CachedTermPairSet.t TermMap.t
 
 
   open Cached
@@ -199,7 +204,7 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	(Spines.TermMap.fold 
 	   (fun tm ts acc -> 
 	     TermMap.add (Cached.of_term tm) 
-	       (TermSet.map (fun e -> Cached.of_term e) ts)
+	       (Spines.TermPairSet.fold (fun (el,er) acc -> CachedTermPairSet.add (Cached.of_term el,Cached.of_term er) acc) ts CachedTermPairSet.empty)
 	       acc)
 	   (Spines.allLRspines e) TermMap.empty ) (Cached.of_term e))
 
@@ -246,12 +251,8 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
       
   let calc_deriv_main all_spines (e : Term.t) : 
       ((U.Base.point -> t) * U.Base.Set.t)  = 
-    let d,pts = TermSet.fold 
-      (fun spine_pair (acc,set_of_points) -> 
-	(* pull out elements of spine pair*)
-	let e1,e2 = match spine_pair with 
-	  | Decide_Ast.Term.Times (_,[lspine;rspine],_) -> lspine,rspine
-	  | _ -> failwith "Dexter LIES" in
+    let d,pts = CachedTermPairSet.fold 
+      (fun (e1,e2) (acc,set_of_points) -> 
 	
 	(* calculate e of left spine*)
 	let corresponding_E = (Cached.get_cache e1).e_matrix in
