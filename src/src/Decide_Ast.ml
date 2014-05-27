@@ -381,14 +381,6 @@ let flatten_star o (t : Term.t) : Term.t =
   | Star _ -> t1
   | _ -> (Term.Star (-1,t1,o))
     
-let rec simplify (t : Term.t) : Term.t =
-  match t with
-  | Plus (_,x,_) -> flatten_sum None (List.map simplify 
-			       (BatSet.PSet.elements x))
-  | Times (_,x,_) -> flatten_product None (List.map simplify x)
-  | Not (_,x,_) -> flatten_not None (simplify x)
-  | Star (_,x,_) -> flatten_star None (simplify x)
-  | _ -> t
 
     
 let contains_dups (t : term) : bool =
@@ -411,28 +403,32 @@ let rec all_ids_assigned t =
     | Times(id,x,_) -> id <> -1 && (List.for_all (fun e -> all_ids_assigned e) x)
     | (Not (id,x,_) | Star (id,x,_)) -> id <> -1 && (all_ids_assigned x) 
 
+let get_cache_option t :  'a option = 
+  match t with 
+    | Assg (_,_,_,c) -> c
+    | Test (_,_,_,c) -> c
+    | Dup (_,c) -> c
+    | Plus (_,_,c) -> c
+    | Times (_,_,c) -> c
+    | Not (_,_,c) -> c
+    | Star (_,_,c) -> c
+    | Zero (_,c) -> c
+    | One (_,c) -> c
 
-(* apply De Morgan laws to push negations down to the leaves *)
-let deMorgan (t : term) : term =
-  let rec dM (t : term) : term =
-    let f o x = dM (Not (-1,x,o)) in
-    match t with 
-      | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> t
-      | Star (_, x, o) -> Star (-1, dM x, o)
-      | Plus (_,x, o) -> Plus (-1,BatSet.PSet.map dM x, o)
-      | Times (_,x, o) -> Times (-1,List.map dM x, o)
-      | Not (_,(Not (_,x,_)),_) -> dM x
-      | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (None) e)) (BatSet.PSet.elements s), None)
-      | Not (_,Times (_,s,_),_) -> Plus (-1, BatSet.PSet.of_list (List.map (fun e -> f (None) e) s), None)
-      | Not (_,Star (_,x,_),_) ->
-	if is_test x then zero
-	else failwith "May not negate an action"
-      | Not (_, (Zero _),_ ) -> one
-      | Not (_, (One _),_ ) -> zero
-      | Not(_, (Dup _),_) -> failwith "you may not negate a dup!"
-      | Not(_, (Assg _),_) -> failwith "you may not negate an assg!"
-      | Not (_, (Test _),_) -> t in
-  simplify (dM t)
+let rec no_caches_empty t = 
+  let is_some a = match a with None -> false | Some _ -> true in 
+  match t with 
+    | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> 
+      is_some (get_cache_option t)
+    | Plus(_,x,c) -> 
+      (is_some c) && 
+	(TermSet.fold 
+	   (fun e acc -> no_caches_empty e && acc) x true)
+    | Times(_,x,c) -> 
+      (is_some c) && 
+	(List.for_all (fun e -> no_caches_empty e) x)
+    | (Not (_,x,c) | Star (_,x,c)) -> 
+      (is_some c) && (no_caches_empty x)
 
 
 (* smart constructors *)
@@ -459,19 +455,7 @@ let assghash (* :  (uid) (uid) Hashtbl.t *) = Hashtbl.create 100
 let counter = ref 3
 
      
-let get_cache_option t :  'a option = 
-  match t with 
-    | Assg (_,_,_,c) -> c
-    | Test (_,_,_,c) -> c
-    | Dup (_,c) -> c
-    | Plus (_,_,c) -> c
-    | Times (_,_,c) -> c
-    | Not (_,_,c) -> c
-    | Star (_,_,c) -> c
-    | Zero (_,c) -> c
-    | One (_,c) -> c
-
-      
+     
 let get_cache t :  cached_info  = 
   match get_cache_option t with 
     | Some c -> c
@@ -508,7 +492,7 @@ let rec fill_cache t0 =
   let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
     Base.Set.singleton(Base.of_neg_test x v) in
   match get_cache_option t0 with 
-    | Some _ -> t0
+    | Some _ -> if Decide_Util.debug_mode then assert (no_caches_empty t0); t0
     | None -> 
       begin 
 	match t0 with 
@@ -587,9 +571,10 @@ let get_or_make hash k cnstr =
     Hashtbl.replace hash k ret; 
     ret
 
+let cache_exists t = match get_cache_option t with None -> false | Some _ -> true
 
 let rec hashcons (t : Term.t) : Term.t = 
-  match t with 
+  let ret = match t with 
     | Dup (-1,None) -> dup
     | One (-1,None) -> one
     | Zero (-1,None) -> zero
@@ -611,8 +596,12 @@ let rec hashcons (t : Term.t) : Term.t =
     | Star (-1, t,None) -> 
       let t = hashcons t in 
       get_or_make starhash (extract_uid_fn1 t) (fun id -> Star(id,t,None))
-    | already_assigned when (extract_uid t) <> -1 -> already_assigned
-    | _ -> failwith "ID was invalidated but cache was not!"
+    | already_assigned when (extract_uid t) <> -1 && (cache_exists t) -> already_assigned
+    | already_assigned when (extract_uid t) <> -1 -> failwith "Cache was invalidated but ID was not!"
+    | already_assigned when (cache_exists t) -> failwith "ID was invalidated but cache was not!"
+    | _ -> failwith "some other failure occured!" in 
+  if Decide_Util.debug_mode then (assert (no_caches_empty ret); assert (all_ids_assigned ret));
+  ret
 
 
 let make_assg  (f,v) = 
@@ -635,31 +624,56 @@ let make_star t =
 let make_zero = zero
   
 let make_one = one 
+
+let rec simplify (t : Term.t) : Term.t =
+  let ret = match t with
+    | Plus (_,x,_) -> hashcons (flatten_sum None (List.map simplify 
+						    (BatSet.PSet.elements x)))
+    | Times (_,x,_) -> hashcons (flatten_product None (List.map simplify x))
+    | Not (_,x,_) -> hashcons (flatten_not None (simplify x))
+    | Star (_,x,_) -> hashcons (flatten_star None (simplify x))
+    | _ -> hashcons t  in 
+  if Decide_Util.debug_mode then assert (no_caches_empty ret); ret
+      
+
+(* apply De Morgan laws to push negations down to the leaves *)
+let deMorgan (t : term) : term =
+  let rec dM (t : term) : term =
+    let f o x = dM (Not (-1,x,o)) in
+    match t with 
+      | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> t
+      | Star (_, x, o) -> Star (-1, dM x, o)
+      | Plus (_,x, o) -> Plus (-1,BatSet.PSet.map dM x, o)
+      | Times (_,x, o) -> Times (-1,List.map dM x, o)
+      | Not (_,(Not (_,x,_)),_) -> dM x
+      | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (None) e)) (BatSet.PSet.elements s), None)
+      | Not (_,Times (_,s,_),_) -> Plus (-1, BatSet.PSet.of_list (List.map (fun e -> f (None) e) s), None)
+      | Not (_,Star (_,x,_),_) ->
+	if is_test x then zero
+	else failwith "May not negate an action"
+      | Not (_, (Zero _),_ ) -> one
+      | Not (_, (One _),_ ) -> zero
+      | Not(_, (Dup _),_) -> failwith "you may not negate a dup!"
+      | Not(_, (Assg _),_) -> failwith "you may not negate an assg!"
+      | Not (_, (Test _),_) -> t in
+  simplify (dM t)
+
   
 let convert_and_simplify (parse : 's -> formula) (s : 's) : formula = 
+  let debug_actions t = 
+    if Decide_Util.debug_mode
+    then (assert (no_caches_empty t); t)
+    else t in
   match parse s with 
-    | Eq (l,r) -> Eq(hashcons (simplify (deMorgan (simplify l))), hashcons (simplify (deMorgan (simplify r))))
-    | Le (l,r) -> Le(hashcons (simplify (deMorgan (simplify l))), hashcons (simplify (deMorgan (simplify r))))
+    | Eq (l,r) -> Eq(debug_actions (deMorgan (simplify l)), 
+		     debug_actions (deMorgan (simplify r)))
+    | Le (l,r) -> Le(debug_actions (deMorgan (simplify l)), 
+		     debug_actions (deMorgan (simplify r)))
       
 
 
 let hits = ref 0 
 let misses = ref 1 
-
-
-let rec all_caches_empty t = 
-  match t with 
-    | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> 
-      (match get_cache_option t with None -> true | Some _ -> false)
-    | Plus(_,x,c) -> 
-      (match c with None -> true | Some _ -> false) && 
-	(TermSet.fold 
-	   (fun e acc -> all_caches_empty e && acc) x true)
-    | Times(_,x,c) -> 
-      (match c with None -> true | Some _ -> false) && 
-	(List.for_all (fun e -> all_caches_empty e) x)
-    | (Not (_,x,c) | Star (_,x,c)) -> 
-      (match c with None -> true | Some _ -> false) && (all_caches_empty x)
 
 
 let memoize (f : Term.t -> 'a) =

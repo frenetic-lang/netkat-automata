@@ -80,7 +80,7 @@ let rec lrspines (e : term) =
     Printf.printf "getting all spines of: %s\n" (Decide_Ast.Term.to_string e);
     if Decide_Util.debug_mode
     then (
-      assert (Decide_Ast.all_caches_empty e);
+      assert (Decide_Ast.no_caches_empty e);
       assert (Decide_Ast.all_ids_assigned e);
     );
     

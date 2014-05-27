@@ -78,7 +78,7 @@ module Term : sig
   val terms_in_formula : formula -> term * term
   val zero_dups : term -> term 
   val all_ids_assigned : term -> bool
-  val all_caches_empty : term -> bool
+  val no_caches_empty : term -> bool
     
 (* Pretty printing *)
   val term_to_string : term -> string
