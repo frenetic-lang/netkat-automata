@@ -341,7 +341,7 @@ let collection_to_string fold elt_to_string sep c =
     let project_lhs (Base(a,b)) = 
       Base(a,(assg_empty ()))
 
-    let univ_base = (Base((atom_empty ()), (assg_empty ())))
+    let univ_base _ = (Base((atom_empty ()), (assg_empty ())))
 
     let of_assg field v = Base((atom_empty ()), Map.singleton field v )
 

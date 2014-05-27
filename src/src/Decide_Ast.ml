@@ -243,11 +243,11 @@ open Decide_Base
 
 let zero = Zero (0,Some {e_matrix = (fun _ -> Base.Set.empty);
 			 one_dup_e_matrix = (fun _ -> Base.Set.empty)})
-let one = One (1,Some {e_matrix = (fun _ -> Base.Set.singleton Base.univ_base);
-		       one_dup_e_matrix = (fun _ -> Base.Set.singleton Base.univ_base)})
+let one = One (1,Some {e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()));
+		       one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
 let dup_id = 2
 let dup = Dup (dup_id,Some {e_matrix = (fun _ -> Base.Set.empty); 
-			    one_dup_e_matrix = (fun _ -> Base.Set.singleton Base.univ_base)})
+			    one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
 
 
 (***********************************************
@@ -493,13 +493,13 @@ let of_times tl =
   let open Base in 
   let open Base.Set in
   thunkify (fun _ -> List.fold_right (fun t acc ->  mult ((get_cache t).e_matrix ()) acc) tl
-    (singleton univ_base) )
+    (singleton (univ_base ())) )
     
 let of_times_onedup tl = 
   let open Base in 
   let open Base.Set in
   thunkify (fun _ -> List.fold_right (fun t acc ->  mult ((get_cache t).one_dup_e_matrix ()) acc) tl
-    (singleton univ_base) )
+    (singleton (univ_base ())) )
 
 
 let rec fill_cache t0 = 
@@ -513,8 +513,8 @@ let rec fill_cache t0 =
       begin 
 	match t0 with 
 	  | One (id,_) -> 
-	    One (id,Some {e_matrix = (fun _ -> singleton univ_base);
-			  one_dup_e_matrix = (fun _ -> singleton univ_base)})
+	    One (id,Some {e_matrix = (fun _ -> singleton (univ_base ()));
+			  one_dup_e_matrix = (fun _ -> singleton (univ_base ()))})
 	  | Zero (id,_) -> 
 	    Zero(id,Some {e_matrix = (fun _ -> empty);
 			  one_dup_e_matrix = (fun _ -> empty)})
@@ -525,7 +525,7 @@ let rec fill_cache t0 =
 	    let r = thunkify (fun _ -> singleton (of_test field v)) in
 	    Test(id,field,v, Some {e_matrix = r; one_dup_e_matrix = r})
 	  | Dup (id,_) -> 
-	    Dup(id,Some {e_matrix = (fun _ -> empty); one_dup_e_matrix = (fun _ -> singleton univ_base)})
+	    Dup(id,Some {e_matrix = (fun _ -> empty); one_dup_e_matrix = (fun _ -> singleton (univ_base ()))})
 	  | Plus (id,ts,_) ->
 	    let ts = TermSet.map fill_cache ts in
 	    Plus(id,ts,Some {e_matrix = of_plus ts; one_dup_e_matrix = of_plus_onedup ts})
@@ -535,7 +535,7 @@ let rec fill_cache t0 =
 	  | Not (id,x,_) -> 
 	    let x = fill_cache x in 
 	    let m = thunkify (fun _ -> match x with
-	      | Zero _ -> singleton univ_base
+	      | Zero _ -> singleton (univ_base ())
 	      | One _ -> empty
 	      | Test (_,x,v,_) -> negate x v
 	      | _ -> failwith "De Morgan law should have been applied") in 
@@ -544,7 +544,7 @@ let rec fill_cache t0 =
 	    let x = fill_cache x in
 	    let get_fixpoint s = 
 	      Printf.printf "getting fixpoint...\n%!";
-	      let s1 = add univ_base s in
+	      let s1 = add (univ_base ()) s in
 	      (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
 	      let rec f s r  =
 		if equal s r then (Printf.printf "got fixpoint!\n%!"; s)

@@ -1,7 +1,7 @@
   module Base : sig
     type t
     val compare : t -> t -> int
-    val univ_base : t
+    val univ_base : unit -> t
     val of_assg : Decide_Util.Field.t -> Decide_Util.Value.t -> t
     val of_test : Decide_Util.Field.t -> Decide_Util.Value.t -> t
     val of_neg_test : Decide_Util.Field.t -> Decide_Util.Value.t -> t

@@ -20,7 +20,7 @@ let run_bisimulation t1 t2 =
 	let _ = assert (FieldSet.cardinal all_fields > 0 )
 	let all_values f : Decide_Util.ValueSet.t = 
 	  try 
-	    UnivMap.Values.fold (fun _ _ -> failwith "hi" ) (UnivMap.find_all f univ) 
+	    UnivMap.Values.fold (fun v acc -> Decide_Util.ValueSet.add v acc ) (UnivMap.find_all f univ) 
 	      Decide_Util.ValueSet.empty
 	  with Not_found -> 
 	    Decide_Util.ValueSet.empty
