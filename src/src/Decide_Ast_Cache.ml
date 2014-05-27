@@ -109,19 +109,10 @@ module Ast = functor (U : Decide_Base.UnivDescr) -> struct
 		    Zero(id,Some {e_matrix = (fun _ -> empty);
 				  one_dup_e_matrix = (fun _ -> empty)})
 		  | Assg(id,field,v,_) -> 
-		    let r = (let ret = ref None in 
-				       (fun _ -> 
-					 match !ret with 
-					   | None -> let v = singleton (of_assg field v) in ret := Some v; v
-					   | Some v -> v
-				       )) in
+		    let r = thunkify (fun _ -> singleton (of_assg field v)) in
 		    Assg(id,field,v,Some {e_matrix = r; one_dup_e_matrix = r})
 		  | Test(id,field,v,_) ->  
-		    let r = (let ret = ref None in 
-				       (fun _ -> 
-					 match !ret with 
-					   | None -> let v = singleton (of_test field v) in ret := Some v; v
-					   | Some v -> v)) in
+		    let r = thunkify (fun _ -> singleton (of_test field v)) in
 		    Test(id,field,v, Some {e_matrix = r; one_dup_e_matrix = r})
 		  | Dup (id,_) -> 
 		    Dup(id,Some {e_matrix = (fun _ -> empty); one_dup_e_matrix = (fun _ -> singleton univ_base)})
