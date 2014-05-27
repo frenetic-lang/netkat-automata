@@ -2,14 +2,13 @@
 open Decide_Base
 open Decide_Util
 
-module Bisimulation = functor(UDesc: UnivDescr) -> struct 
     
-  module U = Univ(UDesc)
-  module Ast = Decide_Ast.Ast(UDesc)
-  module Deriv = Decide_Deriv.Deriv(UDesc)
-    
-  module WorkList = WorkList(struct 
-    type t = (Deriv.DerivTerm.t * Deriv.DerivTerm.t) 
+module U = Decide_Base
+module Ast = Decide_Ast
+module Deriv = Decide_Deriv
+  
+module WorkList = WorkList(struct 
+  type t = (Deriv.DerivTerm.t * Deriv.DerivTerm.t) 
     let compare = (fun (a1,b1) (a2,b2) -> 
       match (Deriv.DerivTerm.compare a1 a2) with 
 	| 0 -> (Deriv.DerivTerm.compare b1 b2)
@@ -83,5 +82,3 @@ module Bisimulation = functor(UDesc: UnivDescr) -> struct
     let ret = main_loop (WorkList.singleton (t1,t2)) in
     U.Base.Set.print_debugging_info (); 
     ret
-      
-end

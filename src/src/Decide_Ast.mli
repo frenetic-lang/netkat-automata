@@ -1,30 +1,28 @@
 exception Empty
 
-module Ast : functor (U : Decide_Base.UnivDescr) -> sig 
-
-  type cached_info = 
-      { e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t;
-	one_dup_e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t 
-      }
-	
-  module Term : sig
+type cached_info = 
+    { e_matrix : unit -> Decide_Base.Base.Set.t;
+      one_dup_e_matrix : unit -> Decide_Base.Base.Set.t 
+    }
       
-    type uid
-
-    type t =
-      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
-      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option
-      | Dup of uid * cached_info option
-      | Plus of uid * term_set * cached_info option 
-      | Times of uid * t list * cached_info option 
-      | Not of uid * t * cached_info option 
-      | Star of uid * t * cached_info option 
-      | Zero of uid * cached_info option
-      | One of uid * cached_info option
-    and term_set = (t) BatSet.PSet.t
-	
+module Term : sig
+    
+  type uid
+    
+  type t =
+    | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
+    | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option
+    | Dup of uid * cached_info option
+    | Plus of uid * term_set * cached_info option 
+    | Times of uid * t list * cached_info option 
+    | Not of uid * t * cached_info option 
+    | Star of uid * t * cached_info option 
+    | Zero of uid * cached_info option
+    | One of uid * cached_info option
+  and term_set = (t) BatSet.PSet.t
+      
     (* only for use in the parser *)
-    val default_uid : uid
+  val default_uid : uid
       
     val compare : t -> t -> int
       
@@ -91,6 +89,3 @@ module Ast : functor (U : Decide_Base.UnivDescr) -> sig
   val memoize : (Term.t -> 'b) -> (Term.t -> 'b) 
   val memoize_on_arg2 : ('a -> Term.t -> 'c) -> ('a -> Term.t -> 'c)
  
-end
-
-module DummyUniv : Decide_Base.UnivDescr

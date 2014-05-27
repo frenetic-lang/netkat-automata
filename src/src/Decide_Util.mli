@@ -43,6 +43,9 @@ module ValueArray : sig
 end 
 module ValueSet : Set.S with type elt = Value.t
 
+val all_fields : (unit -> FieldSet.t) ref 
+val all_values : (unit -> (Field.t -> ValueSet.t)) ref
+
 module SetMapF :
   functor (K : Map.OrderedType) ->
   functor (V : Set.OrderedType) -> sig

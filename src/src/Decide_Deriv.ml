@@ -39,13 +39,11 @@ open Decide_Spines
 
 (* the base-case for + is 0; the base-case for * is 1.*)
 
-module Deriv = functor(UDesc: UnivDescr) -> struct 
 
-  module U = Univ(UDesc)
-  module Decide_Ast = Decide_Ast.Ast(UDesc)
-  module Spines = Decide_Spines.Spines(UDesc)
+  module Spines = Decide_Spines
   module TermMap = Spines.TermMap
   module TermSet = Decide_Ast.TermSet
+  module U = Decide_Base
   type spines_map = Spines.TermPairSet.t TermMap.t
 
   open Decide_Ast
@@ -316,4 +314,3 @@ module Deriv = functor(UDesc: UnivDescr) -> struct
 	  dm := D_Matrix((fun _ -> ret));
 	  ret)) 
     
-end

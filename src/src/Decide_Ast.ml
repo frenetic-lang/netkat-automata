@@ -4,14 +4,6 @@ exception Empty
 
 let utf8 = ref false 
 
-module DummyUniv : Decide_Base.UnivDescr = struct 
-  let all_fields = Decide_Util.FieldSet.empty
-  let all_values = (fun _ -> failwith "don't use the dummy")
-
-end
-
-module Ast = functor (U : Decide_Base.UnivDescr) -> struct
-
 (***********************************************
  * syntax
  ***********************************************)
@@ -19,8 +11,8 @@ module Ast = functor (U : Decide_Base.UnivDescr) -> struct
 let biggest_int = ref 0  
      
   type cached_info = 
-      { e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t;
-	one_dup_e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t 
+      { e_matrix : unit -> Decide_Base.Base.Set.t;
+	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t 
       }
 
 
@@ -247,9 +239,7 @@ module UnivMap = Decide_Util.SetMapF (Field) (Value)
 type formula = Eq of Term.t * Term.t
 	       | Le of Term.t * Term.t
 
-
-module Univ = Decide_Base.Univ(U)
-open Univ
+open Decide_Base
 
 let zero = Zero (0,Some {e_matrix = (fun _ -> Base.Set.empty);
 			 one_dup_e_matrix = (fun _ -> Base.Set.empty)})
@@ -515,8 +505,8 @@ let of_times_onedup tl =
 let rec fill_cache t0 = 
   let open Base in 
   let open Base.Set in
-  let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Univ.Base.Set.t =
-    Univ.Base.Set.singleton(Univ.Base.of_neg_test x v) in
+  let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
+    Base.Set.singleton(Base.of_neg_test x v) in
   match get_cache_option t0 with 
     | Some _ -> t0
     | None -> 
@@ -739,4 +729,3 @@ let zero_dups (t : term) : term =
   let zero = memoize zero in 
   hashcons (simplify (zero t))
 
-end

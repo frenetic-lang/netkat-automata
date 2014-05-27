@@ -3,24 +3,11 @@ open Decide_Util
 type state = int
 let init_state = 0
 
-let convert_term t = failwith "later" (* match t with 
-  | Dup -> 
-  | One (-1,None) -> 
-  | Zero (-1,None) ->
-  | Assg(-1,f,v,None) -> 
-  | Test(-1,f,v,None) -> 
-  | Plus (-1,ts,None) -> 
-  | Times (-1,tl,None) -> 
-  | Not (-1, t,None) -> 
-  | Star (-1, t,None) -> 
-				      *)
-
 let run_bisimulation t1 t2 = 
 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
-  let module InitialAst = Decide_Ast.Ast(Decide_Ast.DummyUniv) in 
-  let t1vals = InitialAst.values_in_term t1 in 
-  let t2vals = InitialAst.values_in_term t2 in 
+  let t1vals = Decide_Ast.values_in_term t1 in 
+  let t2vals = Decide_Ast.values_in_term t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
     begin
@@ -38,9 +25,9 @@ let run_bisimulation t1 t2 =
 	  with Not_found -> 
 	    Decide_Util.ValueSet.empty
       end in   
-      
-      let module Bisimulation = Decide_Bisimulation.Bisimulation(UnivDescr) in 
-      Bisimulation.check_equivalent (convert_term t1) (convert_term t2)
+      Decide_Util.all_fields := (fun _ -> UnivDescr.all_fields);
+      Decide_Util.all_values := (fun _ -> UnivDescr.all_values);
+      Decide_Bisimulation.check_equivalent t1 t2
     end      
   else (
     Printf.eprintf "comparing empty terms!\n";
@@ -63,12 +50,11 @@ let parse (s : string) =
     raise (ParseError (line, char, token)))
 
 let process (input : string) : unit =
-  let module Decide_Ast' = Decide_Ast.Ast(Decide_Ast.DummyUniv) in 
   try
-    let parsed = Decide_Ast'.convert_and_simplify parse input in
-    let l,r = Decide_Ast'.terms_in_formula parsed in 
-    Printf.printf "Left term in formula: %s\n" (Decide_Ast'.Term.to_string l);
-    Printf.printf "Right term in formula: %s\n" (Decide_Ast'.Term.to_string r);
+    let parsed = Decide_Ast.convert_and_simplify parse input in
+    let l,r = Decide_Ast.terms_in_formula parsed in 
+    Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
+    Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )
 
@@ -119,7 +105,6 @@ let rec repl (state : state) : unit =
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 
-      let module Decide_Ast = Decide_Ast.Ast(Decide_Ast.DummyUniv) in
       let formula = Decide_Ast.convert_and_simplify parse input in 
       ignore file; 
       ignore formula;

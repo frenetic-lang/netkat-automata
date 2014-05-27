@@ -27,24 +27,6 @@ module Field = struct
     let max_elem _ = !counter in
     of_string,to_string,max_elem
 end
-module FieldArray = struct
-  type 'a t = 'a array
-  let make (a : 'a) : 'a t = 
-    Array.make (Field.hash (Field.max_elem ())) a
-  let init f = 
-    Array.init (Field.hash (Field.max_elem ())) f
-  let set this k = 
-    Array.set this (Field.hash k)
-  let get this k = 
-    Array.get this (Field.hash k)
-  let fold f arr acc =
-    let accr = ref acc in 
-    Array.iteri (fun indx elem -> 
-      let acc = !accr in 
-      accr := (f indx elem acc)) arr;
-    !accr
-  let copy = Array.copy
-end 
 module FieldSet = Set.Make(Field)
       
   
@@ -73,16 +55,42 @@ module Value = struct
     of_string,to_string,(fun _ -> !counter)
   let extra_val = -1
 end
+module ValueSet = Set.Make(Value) 
+
+let all_fields = ref (fun _ -> failwith "fill me in!")
+let all_values = ref (fun _ -> failwith "fill me in!")
+
+module FieldArray = struct
+  type 'a t = 'a array
+  let make (a : 'a) : 'a t = 
+    let _ = !all_fields () in 
+    Array.make (Field.hash (Field.max_elem ())) a
+  let init f = 
+    let _ = !all_fields () in 
+    Array.init (Field.hash (Field.max_elem ())) f
+  let set this k = 
+    Array.set this (Field.hash k)
+  let get this k = 
+    Array.get this (Field.hash k)
+  let fold f arr acc =
+    let accr = ref acc in 
+    Array.iteri (fun indx elem -> 
+      let acc = !accr in 
+      accr := (f indx elem acc)) arr;
+    !accr
+  let copy = Array.copy
+end 
 module ValueArray = struct
   type 'a t = 'a array
   let make (a : 'a) : 'a t = 
+    let _ = !all_fields () in 
     Array.make (Value.hash (Value.max_elem ())) a
   let set this k = 
     Array.set this (Value.hash k)
   let get this k = 
     Array.get this (Value.hash k)
 end
-module ValueSet = Set.Make(Value) 
+
   
 let output_endline (out : out_channel) (s : string) : unit =
   output_string out s;

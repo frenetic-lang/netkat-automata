@@ -1,16 +1,9 @@
-module type UnivDescr = sig 
-  val all_fields : Decide_Util.FieldSet.t
-  val all_values : Decide_Util.Field.t -> Decide_Util.ValueSet.t
-end
 
 let collection_to_string fold elt_to_string sep c =
   fold (fun x acc ->
     if acc = "" 
     then acc ^ elt_to_string x 
     else acc ^ sep ^ elt_to_string x) c ""
-
-module Univ = functor (U : UnivDescr) -> struct 
-
     		  
   let values_to_string (vs:Decide_Util.ValueSet.t) : string = 
     Printf.sprintf "{%s}"
@@ -30,7 +23,7 @@ module Univ = functor (U : UnivDescr) -> struct
       | Pos (_,s) -> 
         values_to_string s
       | Neg (f,s) -> 
-        values_to_string (Decide_Util.ValueSet.diff (U.all_values f) s)
+        values_to_string (Decide_Util.ValueSet.diff ((!Decide_Util.all_values ()) f) s)
 
     let empty (f:Decide_Util.Field.t) : t = Pos(f, Decide_Util.ValueSet.empty)
       
@@ -47,9 +40,9 @@ module Univ = functor (U : UnivDescr) -> struct
         | Neg (_,s1), Neg (_,s2) -> 
           -1 * Decide_Util.ValueSet.compare s1 s2
         | Pos (_,s1), Neg (f,s2) -> 
-          Decide_Util.ValueSet.compare s1 (Decide_Util.ValueSet.diff (U.all_values f) s2)
+          Decide_Util.ValueSet.compare s1 (Decide_Util.ValueSet.diff ((!Decide_Util.all_values ()) f) s2)
         | Neg (f,s1), Pos (_,s2) -> 
-          Decide_Util.ValueSet.compare (Decide_Util.ValueSet.diff (U.all_values f) s1) s2
+          Decide_Util.ValueSet.compare (Decide_Util.ValueSet.diff ((!Decide_Util.all_values ()) f) s1) s2
             
     let contains (pn:t) (v:Decide_Util.Value.t) : bool = 
       match pn with 
@@ -74,13 +67,13 @@ module Univ = functor (U : UnivDescr) -> struct
         | Pos(_,s) -> 
           Decide_Util.ValueSet.is_empty s
         | Neg(f,s) -> 
-          Decide_Util.ValueSet.equal (U.all_values f) s
+          Decide_Util.ValueSet.equal ((!Decide_Util.all_values ()) f) s
 
     let elements (pn : t) : Decide_Util.ValueSet.t = 
       match pn with 
 	| Pos (_,elts) -> elts
 	| Neg (f,elts) -> 
-	  (Decide_Util.ValueSet.diff (U.all_values f) elts)
+	  (Decide_Util.ValueSet.diff ((!Decide_Util.all_values ()) f) elts)
 	      
   end (* PosNeg *)
   module Base = struct
@@ -123,7 +116,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		  cmpr a' b'
 		| a',b' -> 
 		  Pervasives.compare a' b'
-	    else acc) U.all_fields 0 
+	    else acc) (!Decide_Util.all_fields ()) 0 
       
       let add (a : key) (b : 'a) (arr : 'a t) : 'a t = 
 	let newarr = Decide_Util.FieldArray.copy arr in 
@@ -159,7 +152,7 @@ module Univ = functor (U : UnivDescr) -> struct
           (if acc = "" then acc else acc ^ ", ") 
           (Decide_Util.Field.to_string f)
           pnstr)
-        U.all_fields ""
+        (!Decide_Util.all_fields ()) ""
         
     let assg_to_string (b:assg) : string = 
       Decide_Util.FieldSet.fold (fun f acc -> 
@@ -171,7 +164,7 @@ module Univ = functor (U : UnivDescr) -> struct
           (if acc = "" then acc else acc ^ ", ") 
           (Decide_Util.Field.to_string f)
           vstr)
-        U.all_fields ""
+        (!Decide_Util.all_fields ()) ""
         
     let atom_compare (a1:atom) (a2:atom) : int = 
       Map.compare PosNeg.compare a1 a2
@@ -201,7 +194,7 @@ module Univ = functor (U : UnivDescr) -> struct
           (if acc = "" then acc else acc ^ ", ") 
           (Decide_Util.Field.to_string f)
           vstr)
-        U.all_fields ""
+        (!Decide_Util.all_fields ()) ""
 
     let point_to_string (Point(x,y)) = 
       Printf.sprintf "<%s,%s>" (complete_test_to_string x) (assg_to_string y)
@@ -253,7 +246,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	    (try y = (Map.find field b)
 	     with Not_found -> y = x)
 	  && acc
-	) U.all_fields true
+	) (!Decide_Util.all_fields ()) true
 
 
 (*
@@ -263,7 +256,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	   let v = try Map.find field x with Not_found -> 
 	     failwith "Point doesn't match the spec."  in
 	   (Decide_Ast.make_test (field, v))::acc)
-	 U.all_fields [])
+	 Decide_Util.all_fields [])
       *)	
 
     exception Empty_filter
@@ -316,7 +309,7 @@ module Univ = functor (U : UnivDescr) -> struct
                  match o' with
                    | None -> b
                    | Some v' -> Map.add field v' b))
-          (U.all_fields) (Base((atom_empty ()), (assg_empty ()))))
+          ((!Decide_Util.all_fields ())) (Base((atom_empty ()), (assg_empty ()))))
       with Empty_mult -> 
         None
 
@@ -340,7 +333,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		      (Point(Map.add field v x, Map.add field v y)) :: acc
 		    ) a acc
 		) partial_list []
-	    ) U.all_fields [Point((assg_empty ()), (assg_empty ()))]
+	    ) (!Decide_Util.all_fields ()) [Point((assg_empty ()), (assg_empty ()))]
       in
       let pts = (extract_points b) in
       List.fold_right f pts acc
@@ -469,7 +462,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	  left (Decide_Util.FieldSet.fold 
 		  (fun f acc -> 
 		    (f,Decide_Util.ValueSet.empty,ValHash.make empty,empty)::acc) 
-		  U.all_fields []) in
+		  (!Decide_Util.all_fields ()) []) in
 
 	let phase2 = 
 	  fold 
@@ -523,11 +516,10 @@ module Univ = functor (U : UnivDescr) -> struct
       Printf.printf "size of biggest BaseSet: %u" (!biggest_cardinal);
       Printf.printf "size of the universe (for reference): %u" 
 	(Decide_Util.FieldSet.fold (fun fld acc -> 
-	  Decide_Util.ValueSet.cardinal (U.all_values fld) * acc) U.all_fields 1) ;
+	  Decide_Util.ValueSet.cardinal (Decide_Util.all_values fld) * acc) Decide_Util.all_fields 1) ;
       *)      
 
 
     end (* Base.Set *)	    
 
   end (* Base *)
-end (* Univ *)

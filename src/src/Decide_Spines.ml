@@ -1,10 +1,7 @@
 
 (* SPINES *)
 
-module Spines = functor(U : Decide_Base.UnivDescr) -> struct 
-
-  module Decide_Ast = Decide_Ast.Ast(U)
-   
+  
 module TermMap = Map.Make(struct 
   type t = Decide_Ast.Term.t
   let compare = Decide_Ast.Term.compare
@@ -107,4 +104,3 @@ let rec lrspines (e : term) =
       | _ -> failwith "display_lrspines" in
     TermSet.iter f ts
 *)
-end

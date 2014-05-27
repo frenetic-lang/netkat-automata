@@ -1,10 +1,3 @@
-module type UnivDescr = sig
-  val all_fields : Decide_Util.FieldSet.t
-  val all_values : Decide_Util.Field.t -> Decide_Util.ValueSet.t
-end
-
-module Univ : functor (U:UnivDescr) ->
-sig
   module Base : sig
     type t
     val compare : t -> t -> int
@@ -36,4 +29,3 @@ sig
       val print_debugging_info : unit -> unit
     end
   end
-end
