@@ -23,6 +23,7 @@ module FieldArray : sig
   val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   val copy : 'a t-> 'a t
 end 
+module FieldSet : Set.S with type elt = Field.t
   
 module Value : sig
   type t 
@@ -40,7 +41,7 @@ module ValueArray : sig
   val set : 'a t -> Value.t -> 'a -> unit 
   val get : 'a t -> Value.t -> 'a
 end 
-
+module ValueSet : Set.S with type elt = Value.t
 
 module SetMapF :
   functor (K : Map.OrderedType) ->
@@ -109,5 +110,5 @@ end
 
 val remove_duplicates : 'a list -> 'a list
 
-
+val thunkify : (unit -> 'a) -> (unit -> 'a)
 

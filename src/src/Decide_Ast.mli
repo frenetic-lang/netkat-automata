@@ -1,85 +1,96 @@
 exception Empty
 
-module Term : sig
+module Ast : functor (U : Decide_Base.UnivDescr) -> sig 
 
-  type uid
+  type cached_info = 
+      { e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t;
+	one_dup_e_matrix : unit -> Decide_Base.Univ(U).Base.Set.t 
+      }
+	
+  module Term : sig
+      
+    type uid
 
-  type 'a t =
-    | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option 
-    | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * 'a option
-    | Dup of uid * 'a option
-    | Plus of uid * 'a term_set * 'a option 
-    | Times of uid * 'a t list * 'a option 
-    | Not of uid * 'a t *'a option 
-    | Star of uid * 'a t * 'a option 
-    | Zero of uid * 'a option
-    | One of uid * 'a option
-  and 'a term_set = ('a t) BatSet.PSet.t
-
-  (* only for use in the parser *)
-  val default_uid : uid
-
-  val compare : 'a t -> 'a t -> int
-
-  (* pretty printing *)
-  val to_string : 'a t -> string 
-  val int_of_uid : uid -> int
-
-end 
-
-module TermSet : sig 
-  type 'a t = 'a Term.term_set
-  type 'a elt = 'a Term.t
-  val singleton : 'a elt -> 'a t
-  val empty : unit -> 'a t
-  val add : 'a elt -> 'a t -> 'a t
-  val map : ('a elt -> 'b elt) -> 'a t -> 'b t
-  val fold : ('a elt -> 'b -> 'b) -> 'a t -> 'b -> 'b
-  val union : 'a t -> 'a t -> 'a t
-  val bind : 'a t -> ('a elt -> 'a t) -> 'a t
-  val iter : ('a elt -> unit) -> 'a t -> unit
-  val compare : 'a t -> 'a t -> int
-  val elements : 'a t -> 'a elt list 
-end
-
-
-type 'a term = 'a Term.t
-type 'a term_set = 'a Term.term_set
-
-type 'a formula = Eq of 'a Term.t * 'a Term.t
-	       | Le of 'a Term.t * 'a Term.t
-
+    type t =
+      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
+      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option
+      | Dup of uid * cached_info option
+      | Plus of uid * term_set * cached_info option 
+      | Times of uid * t list * cached_info option 
+      | Not of uid * t * cached_info option 
+      | Star of uid * t * cached_info option 
+      | Zero of uid * cached_info option
+      | One of uid * cached_info option
+    and term_set = (t) BatSet.PSet.t
+	
+    (* only for use in the parser *)
+    val default_uid : uid
+      
+    val compare : t -> t -> int
+      
+    (* pretty printing *)
+    val to_string : t -> string 
+    val int_of_uid : uid -> int
+      
+  end 
+    
+  module TermSet : sig 
+    type t = Term.term_set
+    type elt = Term.t
+    val singleton : elt -> t
+    val empty : t
+    val add : elt -> t -> t
+    val map : (elt -> elt) -> t -> t
+    val fold : (elt -> 'b -> 'b) -> t -> 'b -> 'b
+    val union : t -> t -> t
+    val bind : t -> (elt -> t) -> t
+    val iter : (elt -> unit) -> t -> unit
+    val compare : t -> t -> int
+    val elements : t -> elt list 
+  end
+    
+    
+  type term = Term.t
+  type term_set = Term.term_set
+      
+  type formula = Eq of Term.t * Term.t
+		 | Le of Term.t * Term.t
+		     
 (* smart constructors *)
-
-val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  'a Term.t
-val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  'a Term.t
-val make_dup :  'a Term.t
-val make_plus : 'a Term.t list -> 'a Term.t
-val make_times : 'a Term.t list -> 'a Term.t
-val make_zero : 'a Term.t
-val make_one : 'a Term.t
-
-val convert_and_simplify : ('s -> 'a formula) -> 's -> 'a formula
-
-module UnivMap : sig 
-  type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
+		     
+  val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  Term.t
+  val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  Term.t
+  val make_dup :  Term.t
+  val make_plus : Term.t list -> Term.t
+  val make_times : Term.t list -> Term.t
+  val make_zero : Term.t
+  val make_one : Term.t
+    
+  val convert_and_simplify : ('s -> formula) -> 's -> formula
+    
+  module UnivMap : sig 
+    type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
+  end
+    
+(* AST Utilities *)
+  val get_cache : term -> cached_info
+  val simplify : term -> term
+  val contains_dups : term -> bool
+  val values_in_term : term -> UnivMap.t 
+  val terms_in_formula : formula -> term * term
+  val zero_dups : term -> term 
+  val all_ids_assigned : term -> bool
+  val all_caches_empty : term -> bool
+    
+(* Pretty printing *)
+  val term_to_string : term -> string
+  val termset_to_string : (term) BatSet.PSet.t -> string
+  val formula_to_string : formula -> string
+    
+(* more utils *)
+  val memoize : (Term.t -> 'b) -> (Term.t -> 'b) 
+  val memoize_on_arg2 : ('a -> Term.t -> 'c) -> ('a -> Term.t -> 'c)
+ 
 end
 
-(* AST Utilities *)
-val simplify : 'a term -> 'a term
-val contains_dups : 'a term -> bool
-val values_in_term : 'a term -> UnivMap.t 
-val terms_in_formula : 'a formula -> 'a term * 'a term
-val zero_dups : 'a term -> 'a term 
-val one_dups : 'a term -> 'a term 
-val all_ids_assigned : 'a term -> bool
-
-(* Pretty printing *)
-val term_to_string : 'a term -> string
-val termset_to_string : ('a term) BatSet.PSet.t -> string
-val formula_to_string : 'a formula -> string
-
-(* more utils *)
-val memoize : ('a Term.t -> 'b) -> ('a Term.t -> 'b) 
-val memoize_on_arg2 : ('a -> 'b Term.t -> 'c) -> ('a -> 'b Term.t -> 'c)
- 
+module DummyUniv : Decide_Base.UnivDescr

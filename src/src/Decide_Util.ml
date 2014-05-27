@@ -1,7 +1,7 @@
 exception Quit
 exception Undo
 
-let debug_mode = true
+let debug_mode = false
 let failed_Count = ref 0
 let success_count = ref 1
 
@@ -45,6 +45,7 @@ module FieldArray = struct
     !accr
   let copy = Array.copy
 end 
+module FieldSet = Set.Make(Field)
       
   
 module Value = struct 
@@ -81,7 +82,7 @@ module ValueArray = struct
   let get this k = 
     Array.get this (Value.hash k)
 end
- 
+module ValueSet = Set.Make(Value) 
   
 let output_endline (out : out_channel) (s : string) : unit =
   output_string out s;
@@ -105,6 +106,15 @@ let rec remove_duplicates list =
 (* perform f on all pairs *)
 let cross (f : 'a -> 'b -> 'c) (s : 'a list) (t : 'b list) : 'c list =
   List.concat (List.map (fun x -> List.map (f x) t) s)
+
+    
+let thunkify f = 
+  let ret = ref None in 
+  (fun _ -> 
+    match !ret with 
+      | None -> let v = f() in ret := Some v; v
+      | Some v -> v)
+
 
 (*****************************************************
  * A functional version

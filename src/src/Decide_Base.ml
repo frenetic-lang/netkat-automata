@@ -1,10 +1,6 @@
 module type UnivDescr = sig 
-  type field = Decide_Util.Field.t
-  type value = Decide_Util.Value.t
-  module FieldSet : Set.S with type elt = field
-  module ValueSet : Set.S with type elt = value
-  val all_fields : FieldSet.t
-  val all_values : field -> ValueSet.t
+  val all_fields : Decide_Util.FieldSet.t
+  val all_values : Decide_Util.Field.t -> Decide_Util.ValueSet.t
 end
 
 let collection_to_string fold elt_to_string sep c =
@@ -16,75 +12,75 @@ let collection_to_string fold elt_to_string sep c =
 module Univ = functor (U : UnivDescr) -> struct 
 
     		  
-  let values_to_string (vs:U.ValueSet.t) : string = 
+  let values_to_string (vs:Decide_Util.ValueSet.t) : string = 
     Printf.sprintf "{%s}"
       (collection_to_string 
-	 U.ValueSet.fold Decide_Util.Value.to_string ", " vs)
+	 Decide_Util.ValueSet.fold Decide_Util.Value.to_string ", " vs)
 
-  let fields_to_string (vs:U.FieldSet.t) : string = 
+  let fields_to_string (vs:Decide_Util.FieldSet.t) : string = 
     Printf.sprintf "{%s}"
       (collection_to_string 
-	 U.FieldSet.fold Decide_Util.Field.to_string ", " vs)
+	 Decide_Util.FieldSet.fold Decide_Util.Field.to_string ", " vs)
 
   module PosNeg = struct
     type t = 
-        Pos of U.field * U.ValueSet.t
-      | Neg of U.field * U.ValueSet.t
+        Pos of Decide_Util.Field.t * Decide_Util.ValueSet.t
+      | Neg of Decide_Util.Field.t * Decide_Util.ValueSet.t
     let to_string = function
       | Pos (_,s) -> 
         values_to_string s
       | Neg (f,s) -> 
-        values_to_string (U.ValueSet.diff (U.all_values f) s)
+        values_to_string (Decide_Util.ValueSet.diff (U.all_values f) s)
 
-    let empty (f:U.field) : t = Pos(f, U.ValueSet.empty)
+    let empty (f:Decide_Util.Field.t) : t = Pos(f, Decide_Util.ValueSet.empty)
       
-    let singleton (f: U.field) (e : U.ValueSet.elt) : t = 
-      Pos(f,U.ValueSet.singleton e)
+    let singleton (f: Decide_Util.Field.t) (e : Decide_Util.ValueSet.elt) : t = 
+      Pos(f,Decide_Util.ValueSet.singleton e)
 
-    let any (f:U.field) : t = Neg(f, U.ValueSet.empty) 
+    let any (f:Decide_Util.Field.t) : t = Neg(f, Decide_Util.ValueSet.empty) 
 
     (* pre: pn1 and pn2 should be defined over the same field *)
     let compare pn1 pn2 = 
       match pn1, pn2 with 
         | Pos (_,s1), Pos (_,s2) -> 
-          U.ValueSet.compare s1 s2
+          Decide_Util.ValueSet.compare s1 s2
         | Neg (_,s1), Neg (_,s2) -> 
-          -1 * U.ValueSet.compare s1 s2
+          -1 * Decide_Util.ValueSet.compare s1 s2
         | Pos (_,s1), Neg (f,s2) -> 
-          U.ValueSet.compare s1 (U.ValueSet.diff (U.all_values f) s2)
+          Decide_Util.ValueSet.compare s1 (Decide_Util.ValueSet.diff (U.all_values f) s2)
         | Neg (f,s1), Pos (_,s2) -> 
-          U.ValueSet.compare (U.ValueSet.diff (U.all_values f) s1) s2
+          Decide_Util.ValueSet.compare (Decide_Util.ValueSet.diff (U.all_values f) s1) s2
             
-    let contains (pn:t) (v:U.value) : bool = 
+    let contains (pn:t) (v:Decide_Util.Value.t) : bool = 
       match pn with 
         | Pos(_,s) -> 
-          U.ValueSet.mem v s 
+          Decide_Util.ValueSet.mem v s 
         | Neg(_,s) -> 
-          not (U.ValueSet.mem v s)
+          not (Decide_Util.ValueSet.mem v s)
           
     let intersect (pn1:t) (pn2:t) : t = 
       match pn1, pn2 with
         | Pos(f,s1), Pos(_,s2) -> 
-          Pos(f,U.ValueSet.inter s1 s2)
+          Pos(f,Decide_Util.ValueSet.inter s1 s2)
         | Neg(f,s1), Neg(_,s2) -> 
-          Neg(f,U.ValueSet.union s1 s2)
+          Neg(f,Decide_Util.ValueSet.union s1 s2)
         | Pos(f,s1), Neg(_,s2) -> 
-          Pos(f,U.ValueSet.diff s1 s2)
+          Pos(f,Decide_Util.ValueSet.diff s1 s2)
         | Neg(f,s1), Pos(_,s2) -> 
-          Pos(f,U.ValueSet.diff s2 s1)
+          Pos(f,Decide_Util.ValueSet.diff s2 s1)
 
     let is_empty (pn:t) : bool = 
       match pn with 
         | Pos(_,s) -> 
-          U.ValueSet.is_empty s
+          Decide_Util.ValueSet.is_empty s
         | Neg(f,s) -> 
-          U.ValueSet.equal (U.all_values f) s
+          Decide_Util.ValueSet.equal (U.all_values f) s
 
-    let elements (pn : t) : U.ValueSet.t = 
+    let elements (pn : t) : Decide_Util.ValueSet.t = 
       match pn with 
 	| Pos (_,elts) -> elts
 	| Neg (f,elts) -> 
-	  (U.ValueSet.diff (U.all_values f) elts)
+	  (Decide_Util.ValueSet.diff (U.all_values f) elts)
 	      
   end (* PosNeg *)
   module Base = struct
@@ -118,7 +114,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		     (elt_to_string b) acc) m "")
 
       let compare (cmpr : 'a -> 'a -> int) (a : 'a t) (b : 'a t) : int = 
-	U.FieldSet.fold 
+	Decide_Util.FieldSet.fold 
 	  (fun fld acc -> 
 	    if acc = 0
 	    then 
@@ -147,12 +143,12 @@ module Univ = functor (U : UnivDescr) -> struct
     end
 
     type atom = PosNeg.t Map.t
-    type assg = U.ValueSet.elt Map.t
+    type assg = Decide_Util.ValueSet.elt Map.t
     let (atom_empty : unit -> atom) = Map.empty
     let (assg_empty : unit -> assg) = Map.empty
 
     let atom_to_string (a:atom) : string = 
-      U.FieldSet.fold (fun f acc -> 
+      Decide_Util.FieldSet.fold (fun f acc -> 
 	let pnstr = 
 	  try 
 	    PosNeg.to_string (Map.find f a)
@@ -166,7 +162,7 @@ module Univ = functor (U : UnivDescr) -> struct
         U.all_fields ""
         
     let assg_to_string (b:assg) : string = 
-      U.FieldSet.fold (fun f acc -> 
+      Decide_Util.FieldSet.fold (fun f acc -> 
 	let vstr = 
 	  try Decide_Util.Value.to_string (Map.find f b)
 	  with Not_found -> "_"
@@ -196,7 +192,7 @@ module Univ = functor (U : UnivDescr) -> struct
 
     let compare_complete_test = assg_compare 
     let complete_test_to_string b =       
-      U.FieldSet.fold (fun f acc -> 
+      Decide_Util.FieldSet.fold (fun f acc -> 
 	let vstr = 
 	  try Decide_Util.Value.to_string (Map.find f b)
 	  with Not_found -> "_"
@@ -239,13 +235,13 @@ module Univ = functor (U : UnivDescr) -> struct
 	Map.init 
 	  (fun f -> 
 	    match Map.get f x with 
-	      | Some v -> (PosNeg.Pos(f,U.ValueSet.singleton v))
+	      | Some v -> (PosNeg.Pos(f,Decide_Util.ValueSet.singleton v))
 	      | None -> failwith "point doesn't match the spec") in 
       Base(x,y)
 
     
     let contains_point (Point(x,y) : point) (Base(a,b) : t) : bool = 
-      U.FieldSet.fold 
+      Decide_Util.FieldSet.fold 
 	(fun field acc -> 
 	  let x = try Map.find field x with Not_found -> 
 	    failwith "Point doesn't match the spec." in
@@ -260,15 +256,15 @@ module Univ = functor (U : UnivDescr) -> struct
 	) U.all_fields true
 
 
-
+(*
     let completetest_to_term_test x : (unit Decide_Ast.term) list = 
-      (U.FieldSet.fold 
+      (Decide_Util.FieldSet.fold 
 	 (fun field acc -> 
 	   let v = try Map.find field x with Not_found -> 
 	     failwith "Point doesn't match the spec."  in
 	   (Decide_Ast.make_test (field, v))::acc)
 	 U.all_fields [])
-	
+      *)	
 
     exception Empty_filter
 
@@ -300,7 +296,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	     
     let mult (Base(a1,b1):t) (Base(a2,b2):t) : t option = 
       try 
-        Some (U.FieldSet.fold 
+        Some (Decide_Util.FieldSet.fold 
           (fun field (Base(a,b)) ->
             let pn1 = try Map.find field a1 with Not_found -> 
 	      PosNeg.any field in 
@@ -327,7 +323,7 @@ module Univ = functor (U : UnivDescr) -> struct
     let fold_points (f : (point -> 'a -> 'a)) (Base(a,b) : t) (acc : 'a) 
 	: 'a =
       let extract_points bse : point list = 
-	  U.FieldSet.fold
+	  Decide_Util.FieldSet.fold
 	    (fun field partial_list -> 
 	      let a = PosNeg.elements (try Map.find field a 
 		with Not_found -> 
@@ -336,11 +332,11 @@ module Univ = functor (U : UnivDescr) -> struct
 		(fun (Point(x,y)) (acc : point list) -> 
 		  try 
 		    let b = Map.find field b in
-		    U.ValueSet.fold (fun v acc -> 
+		    Decide_Util.ValueSet.fold (fun v acc -> 
 		      (Point(Map.add field v x, Map.add field b y)) :: acc
 		    ) a acc
 		  with Not_found ->		    
-		    U.ValueSet.fold (fun v acc -> 
+		    Decide_Util.ValueSet.fold (fun v acc -> 
 		      (Point(Map.add field v x, Map.add field v y)) :: acc
 		    ) a acc
 		) partial_list []
@@ -357,11 +353,11 @@ module Univ = functor (U : UnivDescr) -> struct
     let of_assg field v = Base((atom_empty ()), Map.singleton field v )
 
     let of_test field v = 
-      Base(Map.singleton field (PosNeg.Pos (field,U.ValueSet.singleton v)), assg_empty ())
+      Base(Map.singleton field (PosNeg.Pos (field,Decide_Util.ValueSet.singleton v)), assg_empty ())
 
     let of_neg_test x v = 
       Base(
-	Map.singleton x (PosNeg.Neg(x,U.ValueSet.singleton v)), 
+	Map.singleton x (PosNeg.Neg(x,Decide_Util.ValueSet.singleton v)), 
 	assg_empty ())
 	
     module Set = struct
@@ -433,15 +429,15 @@ module Univ = functor (U : UnivDescr) -> struct
 
       let mult (left : t)  (right : t) : t = 
 	let module ValHash = Decide_Util.ValueArray in
-	let extract_test (f : U.field) (Base(atom,_)) = 
+	let extract_test (f : Decide_Util.Field.t) (Base(atom,_)) = 
 	  try Map.find f atom 
 	  with Not_found -> PosNeg.any f in 
-	let pn_intersect (a : U.ValueSet.t) (b : PosNeg.t) : U.ValueSet.t = 
+	let pn_intersect (a : Decide_Util.ValueSet.t) (b : PosNeg.t) : Decide_Util.ValueSet.t = 
 	  match a, b with
             | s1, PosNeg.Pos(_,s2) -> 
-              U.ValueSet.inter s1 s2
+              Decide_Util.ValueSet.inter s1 s2
             | s1, PosNeg.Neg(_,s2) -> 
-              U.ValueSet.diff s1 s2 in
+              Decide_Util.ValueSet.diff s1 s2 in
 	let intersect_all lst = 
 	  List.fold_left 
 	    (fun acc e -> inter e acc) (List.hd lst) (List.tl lst) in 
@@ -449,7 +445,7 @@ module Univ = functor (U : UnivDescr) -> struct
 	  ValHash.set hash k (add v (ValHash.get hash k));
 	  hash in
 	let incr_add_all ks v hash = 
-	  U.ValueSet.iter 
+	  Decide_Util.ValueSet.iter 
 	    (fun k -> 
 	      ValHash.set hash k (add v (ValHash.get hash k))) ks;
 	  hash in
@@ -461,18 +457,18 @@ module Univ = functor (U : UnivDescr) -> struct
 	      (fun (field,valset,valhash,others) -> 
 		try 
 		  let a = Map.find field assg in 
-		  field,U.ValueSet.add a valset,incr_add a b valhash, others
+		  field,Decide_Util.ValueSet.add a valset,incr_add a b valhash, others
 		with Not_found -> 
 		  try 
 		    let a = Map.find field test in 
 		    match a with 
-		      | PosNeg.Pos(_,a) -> field,U.ValueSet.union a valset,incr_add_all a b valhash, others
+		      | PosNeg.Pos(_,a) -> field,Decide_Util.ValueSet.union a valset,incr_add_all a b valhash, others
 		      | _ -> raise Not_found
 		  with Not_found -> 
 		    field,valset,valhash,add b others) acc)
-	  left (U.FieldSet.fold 
+	  left (Decide_Util.FieldSet.fold 
 		  (fun f acc -> 
-		    (f,U.ValueSet.empty,ValHash.make empty,empty)::acc) 
+		    (f,Decide_Util.ValueSet.empty,ValHash.make empty,empty)::acc) 
 		  U.all_fields []) in
 
 	let phase2 = 
@@ -483,7 +479,7 @@ module Univ = functor (U : UnivDescr) -> struct
 		  (fun (f,vs,vh,bs) -> 
 		    let i = pn_intersect vs (extract_test f b) in 
 		    union 
-		      (U.ValueSet.fold 
+		      (Decide_Util.ValueSet.fold 
 			 (fun a -> union (ValHash.get vh a)) i empty) 
 		      bs) phase1 in 
 	      (b,intersect_all to_intersect)::acc) right [] in 
@@ -526,8 +522,8 @@ module Univ = functor (U : UnivDescr) -> struct
 	 ((!wasted_cycles * 100) / !total_cycles));
       Printf.printf "size of biggest BaseSet: %u" (!biggest_cardinal);
       Printf.printf "size of the universe (for reference): %u" 
-	(U.FieldSet.fold (fun fld acc -> 
-	  U.ValueSet.cardinal (U.all_values fld) * acc) U.all_fields 1) ;
+	(Decide_Util.FieldSet.fold (fun fld acc -> 
+	  Decide_Util.ValueSet.cardinal (U.all_values fld) * acc) U.all_fields 1) ;
       *)      
 
 

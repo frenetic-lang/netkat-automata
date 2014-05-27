@@ -1,10 +1,6 @@
 module type UnivDescr = sig
-  type field = Decide_Util.Field.t
-  type value = Decide_Util.Value.t
-  module FieldSet : Set.S with type elt = field
-  module ValueSet : Set.S with type elt = value
-  val all_fields : FieldSet.t
-  val all_values : field -> ValueSet.t
+  val all_fields : Decide_Util.FieldSet.t
+  val all_values : Decide_Util.Field.t -> Decide_Util.ValueSet.t
 end
 
 module Univ : functor (U:UnivDescr) ->
@@ -27,7 +23,6 @@ sig
     val point_lhs : point -> complete_test
     val compare_complete_test : complete_test -> complete_test -> int
     val complete_test_to_string : complete_test -> string
-    val completetest_to_term_test : complete_test -> unit Decide_Ast.term list
 
     val project_lhs : t -> t
     module Set : sig 

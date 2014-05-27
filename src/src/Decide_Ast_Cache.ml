@@ -111,7 +111,7 @@ module Ast = functor (U : Decide_Base.UnivDescr) -> struct
 		  | Assg(id,field,v,_) -> 
 		    let r = thunkify (fun _ -> singleton (of_assg field v)) in
 		    Assg(id,field,v,Some {e_matrix = r; one_dup_e_matrix = r})
-		  | Test(id,field,v,_) ->  
+		  | Test(id,field,v,_) ->
 		    let r = thunkify (fun _ -> singleton (of_test field v)) in
 		    Test(id,field,v, Some {e_matrix = r; one_dup_e_matrix = r})
 		  | Dup (id,_) -> 
@@ -135,6 +135,7 @@ module Ast = functor (U : Decide_Base.UnivDescr) -> struct
 		    let get_fixpoint s = 
 		      Printf.printf "getting fixpoint...\n%!";
 		      let s1 = add univ_base s in
+		      (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
 		      let rec f s r  =
 			if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
 			else f (mult s s) s in

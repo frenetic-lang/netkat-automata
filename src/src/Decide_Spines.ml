@@ -3,29 +3,17 @@
 
 module Spines = functor(U : Decide_Base.UnivDescr) -> struct 
 
-  module Cached = Decide_Ast_Cache.Ast(U)
-    
+  module Decide_Ast = Decide_Ast.Ast(U)
+   
 module TermMap = Map.Make(struct 
-  type t = unit Decide_Ast.Term.t
+  type t = Decide_Ast.Term.t
   let compare = Decide_Ast.Term.compare
 end
 )
 
-module TermSet = struct 
-  open Decide_Ast
-  type t = unit TermSet.t
-  let singleton = TermSet.singleton
-  let empty = TermSet.empty ()
-  let add = TermSet.add 
-  let map = TermSet.map
-  let fold = TermSet.fold 
-  let union = TermSet.union 
-  let bind = TermSet.bind
-  let iter = TermSet.iter
-end
+module TermSet = Decide_Ast.TermSet
 
-
-type term = unit Decide_Ast.term
+type term = Decide_Ast.term
 
 module TermPairSet = struct 
   include Set.Make(struct 
@@ -95,7 +83,7 @@ let rec lrspines (e : term) =
     Printf.printf "getting all spines of: %s\n" (Decide_Ast.Term.to_string e);
     if Decide_Util.debug_mode
     then (
-      assert (Cached.all_caches_empty e);
+      assert (Decide_Ast.all_caches_empty e);
       assert (Decide_Ast.all_ids_assigned e);
     );
     
@@ -105,14 +93,14 @@ let rec lrspines (e : term) =
     TermSet.iter f allLR; !h
       
   (* (* remove dups of lspines *)                                            *)
-  (* let remove_dups_from_Lspines (h : (term, (unit term_set)) Hashtbl.t) : unit = *)
+  (* let remove_dups_from_Lspines (h : (term, (term_set)) Hashtbl.t) : = *)
   (*   let f x = match x with                                                *)
   (*   | Times [l;r] -> Times [Decide_Ast.zero_dups l; r]                           *)
   (*   | _ -> failwith "remove_dups_from_Lspines" in                         *)
   (*   let g ts = TermSet.map f ts in                                        *)
       
 (*
-  let display_lrspines (ts : (unit term_set)) : unit =
+  let display_lrspines (ts : (term_set)) : =
     let f x = match x with
       | Term.Times (_,[l;r],_) -> Printf.printf "%s ||| %s\n" 
 	(Term.to_string l) (Term.to_string r)

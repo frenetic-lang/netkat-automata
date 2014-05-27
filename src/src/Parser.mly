@@ -1,6 +1,7 @@
 %{
-open Decide_Ast
-open Decide_Ast.Term
+module Decide_Ast' = Decide_Ast.Ast(Decide_Ast.DummyUniv)
+open Decide_Ast'
+open Decide_Ast'.Term
 %}
 
 %token <string> VAR
@@ -18,14 +19,14 @@ open Decide_Ast.Term
 %nonassoc NOT STAR /* highest precedence */
 
 %start formula_main term_main  /* entry points */
-%type <unit Decide_Ast.formula> formula_main
-%type <unit Decide_Ast.term> term_main
+%type <Decide_Ast.Ast(Decide_Ast.DummyUniv).formula> formula_main
+%type <Decide_Ast.Ast(Decide_Ast.DummyUniv).term> term_main
 
 %%
 
 formula_main:
   | formula EOL { $1 }
-  | EOL { raise Empty } 
+  | EOL { raise Decide_Ast.Empty } 
 ;
 
 term_main:

@@ -1,14 +1,14 @@
 module Spines : functor (U:Decide_Base.UnivDescr) -> sig
   module TermMap : sig 
     include Map.S 
-  end with type key = unit Decide_Ast.term
+  end with type key = Decide_Ast.Ast(U).term
 
   module TermPairSet : sig
     include Set.S
     val map : (elt -> elt) -> t -> t
-  end with type elt = unit Decide_Ast.term * unit Decide_Ast.term
+  end with type elt = Decide_Ast.Ast(U).term * Decide_Ast.Ast(U).term
 
-  val allLRspines : unit Decide_Ast.term -> TermPairSet.t  TermMap.t
+  val allLRspines : Decide_Ast.Ast(U).term -> TermPairSet.t  TermMap.t
 end
 
 
