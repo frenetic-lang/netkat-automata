@@ -13,8 +13,6 @@ sig
     val of_test : Decide_Util.Field.t -> Decide_Util.Value.t -> t
     val of_neg_test : Decide_Util.Field.t -> Decide_Util.Value.t -> t
 
-
-
     type point
     val compare_point : point -> point -> int
     val point_to_string : point -> string
