@@ -57,8 +57,10 @@ module Value = struct
 end
 module ValueSet = Set.Make(Value) 
 
-let all_fields = ref (fun _ -> failwith "fill me in!")
-let all_values = ref (fun _ -> failwith "fill me in!")
+let all_fields = ref (fun _ -> failwith 
+  "Please set all_fields in Decide_Util.ml before trying to run any calculations!")
+let all_values = ref (fun _ -> failwith 
+  "Please set all_values in Decide_Util.ml before trying to run any calculations!")
 
 module FieldArray = struct
   type 'a t = 'a array
