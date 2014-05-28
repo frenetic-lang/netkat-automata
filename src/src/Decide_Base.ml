@@ -124,9 +124,19 @@ let collection_to_string fold elt_to_string sep c =
 	newarr 
 
       let init f = Decide_Util.FieldArray.init 
-	(fun a -> Some (f a))
+	(fun a -> 
+	  if (Decide_Util.FieldSet.mem a (!Decide_Util.all_fields ()))
+	  then Some (f a)
+	  else None
+	)
+	
 
-      let init' = Decide_Util.FieldArray.init
+      let init' f = Decide_Util.FieldArray.init
+	(fun a -> 
+	  if (Decide_Util.FieldSet.mem a (!Decide_Util.all_fields ()))
+	  then (f a)
+	  else None
+	)
 
       let singleton k v = 
 	init' (fun k' -> if k = k' then Some v else None)
@@ -220,16 +230,26 @@ let collection_to_string fold elt_to_string sep c =
       let compare = compare
       let equal = equal
     end)
+
+    let univ_base _ = (Base((atom_empty ()), (assg_empty ())))
       
     exception Empty_mult
 
     let base_of_point (Point(x,y) : point) : t = 
       let x = 
-	Map.init 
+	Map.init
 	  (fun f -> 
 	    match Map.get f x with 
 	      | Some v -> (PosNeg.Pos(f,Decide_Util.ValueSet.singleton v))
-	      | None -> failwith "point doesn't match the spec") in 
+	      | None -> 
+		(Printf.eprintf "Point doen't have this field: %s\n" (Decide_Util.Field.to_string f); 
+		 Printf.eprintf "This was the point: %s\n" (point_to_string (Point(x,y)));
+		 Printf.eprintf "The universe is: %s\n" (to_string (univ_base ()));
+		 Printf.eprintf "all_fields is: %s\n" 
+		   (Decide_Util.FieldSet.fold 
+		      (fun y -> Printf.sprintf "%s %s" (Decide_Util.Field.to_string y)) 
+		      (!Decide_Util.all_fields ()) "");
+		 failwith "point doesn't match the spec: base_of_point")) in 
       Base(x,y)
 
     
@@ -237,9 +257,9 @@ let collection_to_string fold elt_to_string sep c =
       Decide_Util.FieldSet.fold 
 	(fun field acc -> 
 	  let x = try Map.find field x with Not_found -> 
-	    failwith "Point doesn't match the spec." in
+	    failwith "Point doesn't match the spec: contains_point 1." in
 	  let y = try Map.find field y with Not_found -> 
-	    failwith "Point doesn't match the spec." in
+	    failwith "Point doesn't match the spec: contains_point 2." in
 	  let a = try Map.find field a with Not_found -> 
 	    (PosNeg.any field) in
 	  PosNeg.contains a x && 
@@ -254,7 +274,7 @@ let collection_to_string fold elt_to_string sep c =
       (Decide_Util.FieldSet.fold 
 	 (fun field acc -> 
 	   let v = try Map.find field x with Not_found -> 
-	     failwith "Point doesn't match the spec."  in
+	     failwith "Point doesn't match the spec: completetest_to_term_test."  in
 	   (Decide_Ast.make_test (field, v))::acc)
 	 Decide_Util.all_fields [])
       *)	
@@ -340,8 +360,6 @@ let collection_to_string fold elt_to_string sep c =
 
     let project_lhs (Base(a,b)) = 
       Base(a,(assg_empty ()))
-
-    let univ_base _ = (Base((atom_empty ()), (assg_empty ())))
 
     let of_assg field v = Base((atom_empty ()), Map.singleton field v )
 

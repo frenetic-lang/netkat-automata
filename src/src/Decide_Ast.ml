@@ -111,9 +111,9 @@ let biggest_int = ref 0
 
 
   let rec to_string_sexpr = function 
-    | Assg ( _, var, value,_) -> Printf.sprintf "(%s:=%s)"
+    | Assg ( _, var, value,_) -> Printf.sprintf "(:= %s %s)"
       (Field.to_string var) (Value.to_string value)
-    | Test ( _, var, value,_) -> Printf.sprintf "(%s=%s)"
+    | Test ( _, var, value,_) -> Printf.sprintf "(= %s %s)"
       (Field.to_string var) (Value.to_string value)
     | Dup _ -> "dup"
     | Plus (_,x,_) -> 

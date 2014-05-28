@@ -28,6 +28,7 @@ module Term : sig
       
     (* pretty printing *)
     val to_string : t -> string 
+    val to_string_sexpr : t -> string
     val int_of_uid : uid -> int
       
   end 

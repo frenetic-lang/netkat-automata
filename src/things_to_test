@@ -60,3 +60,4 @@ sw = 0; sw := 1; dup; sw = 1; sw := 2; dup  ==  sw = 0; sw := 1; dup; sw := 2; d
 
 sw = 0; sw := 1; dup; sw = 1 == sw = 0; sw := 1; dup
 
+(y = 3 + z = 4;z := 4)*;(y = 4 + z = 5)*== (y = 3 + z = 4; z := 4)*;(y = 4 + z = 5)*

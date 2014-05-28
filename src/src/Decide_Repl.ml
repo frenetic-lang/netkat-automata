@@ -6,7 +6,9 @@ let init_state = 0
 let run_bisimulation t1 t2 = 
 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t1);
   let t1vals = Decide_Ast.values_in_term t1 in 
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t2);
   let t2vals = Decide_Ast.values_in_term t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
@@ -16,7 +18,10 @@ let run_bisimulation t1 t2 =
       let module UnivDescr = struct
 	let all_fields : Decide_Util.FieldSet.t = 
 	    (* TODO: fix me when SSM is eliminated *)
-	  List.fold_right FieldSet.add (UnivMap.keys univ) FieldSet.empty
+	  List.fold_right 
+	    (fun f -> 
+	      Printf.printf "adding field to universe: %s\n" (Decide_Util.Field.to_string f);
+	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
 	let _ = assert (FieldSet.cardinal all_fields > 0 )
 	let all_values f : Decide_Util.ValueSet.t = 
 	  try 
@@ -52,6 +57,7 @@ let parse (s : string) =
 let process (input : string) : unit =
   try
     let parsed = Decide_Ast.convert_and_simplify parse input in
+    Printf.printf "Formula: %s\n" (Decide_Ast.formula_to_string parsed);
     let l,r = Decide_Ast.terms_in_formula parsed in 
     Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
     Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
