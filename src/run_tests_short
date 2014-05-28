@@ -1,0 +1,20 @@
+#!/bin/bash
+while read line; 
+do 
+    if echo $line | grep -q '#'
+    then continue
+    elif [[ `echo $line | tr -d ' '` ]]
+    then echo -n ""
+    else continue
+    fi
+    if echo $line | grep -q '<='
+    then desired_result="false"
+    else desired_result="true"
+    fi
+    if [[ `echo "$line""
+process
+quit" | ./netkat | grep 'Bisimulation result' | rev | cut -d\  -f1 | rev` = $desired_result ]]
+    then echo -n "" 
+    else echo "TEST FAILED: $line"
+    fi
+done
