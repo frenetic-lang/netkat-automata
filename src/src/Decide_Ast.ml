@@ -530,10 +530,11 @@ let rec fill_cache t0 =
 	      Printf.printf "getting fixpoint...\n%!";
 	      let s1 = add (univ_base ()) s in
 	      (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
-	      let rec f s r  =
+	      let rec f cntr s r  =
+		if cntr > 1000 then Printf.printf "%u" cntr; 
 		if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
-		else f (mult s s) s in
-	      f (mult s1 s1) s1 in 
+		else f (cntr + 1) (mult s s) s in
+	      f 0 (mult s1 s1) s1 in 
 	    let me = thunkify (fun _ -> get_fixpoint ((get_cache x).e_matrix())) in 
 	    let mo = thunkify (fun _ -> get_fixpoint ((get_cache x).one_dup_e_matrix())) in
 	    Star(id,x,Some {e_matrix = me; one_dup_e_matrix = mo}) end 
