@@ -3,9 +3,46 @@ open Decide_Util
 type state = int
 let init_state = 0
 
+let run_bisimulation t1 t2 = 
+
+  let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t1);
+  let t1vals = Decide_Ast.values_in_term t1 in 
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t2);
+  let t2vals = Decide_Ast.values_in_term t2 in 
+  if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
+  then 
+    begin
+      let univ = UnivMap.union t1vals t2vals in 
+      let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
+      let module UnivDescr = struct
+	let all_fields : Decide_Util.FieldSet.t = 
+	    (* TODO: fix me when SSM is eliminated *)
+	  List.fold_right 
+	    (fun f -> 
+	      Printf.printf "adding field to universe: %s\n" (Decide_Util.Field.to_string f);
+	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
+	let _ = assert (FieldSet.cardinal all_fields > 0 )
+	let all_values f : Decide_Util.ValueSet.t = 
+	  try 
+	    UnivMap.Values.fold (fun v acc -> Decide_Util.ValueSet.add v acc ) (UnivMap.find_all f univ) 
+	      Decide_Util.ValueSet.empty
+	  with Not_found -> 
+	    Decide_Util.ValueSet.empty
+      end in   
+      Decide_Util.all_fields := (fun _ -> UnivDescr.all_fields);
+      Decide_Util.all_values := (fun _ -> UnivDescr.all_values);
+      Decide_Bisimulation.check_equivalent t1 t2
+    end      
+  else (
+    Printf.eprintf "comparing empty terms!\n";
+    true)
+
+
+
 exception ParseError of int * int * string
                               
-let parse (s : string) : Decide_Ast.formula =
+let parse (s : string) = 
   let lexbuf = Lexing.from_string s in
   (try
      Parser.formula_main Lexer.token lexbuf
@@ -19,8 +56,14 @@ let parse (s : string) : Decide_Ast.formula =
 
 let process (input : string) : unit =
   try
-    let parsed = parse input in
-    Decide_Test.test parsed
+    let parsed = Decide_Ast.convert_and_simplify parse input in
+    Printf.printf "Formula: %s\n" (Decide_Ast.formula_to_string parsed);
+    let l,r = Decide_Ast.terms_in_formula parsed in 
+    Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
+    Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
+    Printf.printf "Bisimulation result: %b\n"
+      (run_bisimulation l r )
+
   with
   | Decide_Ast.Empty -> ()
   | Lexer.LexError s -> Printf.printf "Lex Error: %s\n" s
@@ -61,15 +104,17 @@ let rec repl (state : state) : unit =
     ) 
     else input in
   print_string "process or serialize: ";
-  (match read_line() with 
+  (match (* read_line() *) "process"  with 
     | "process" ->
       Printf.printf "processing...\n%!";
       process input;
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 
-      let formula = parse input in 
-      Decide_Ast.serialize_formula formula file 
+      let formula = Decide_Ast.convert_and_simplify parse input in 
+      ignore file; 
+      ignore formula;
+      failwith "mode not currently supported"
     | _ -> repl state);
   repl state
 

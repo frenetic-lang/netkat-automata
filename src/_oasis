@@ -11,13 +11,13 @@ BuildTools:
 
 Library netkat_decide
   Path: src
+  BuildDepends: batteries
   InternalModules: 
     Decide_Base,
     Decide_Deriv,
     Decide_Spines,
     Decide_Dot,
     Decide_Repl,
-    Decide_Test,
     Decide_Util
   Modules:
     Decide_Ast,
@@ -28,4 +28,4 @@ Executable netkat
   MainIs: Decide_Repl.ml
   Install: false
   BuildDepends:
-    str
+    batteries

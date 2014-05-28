@@ -1,6 +1,6 @@
 %{
 open Decide_Ast
-open Decide_Ast.InitialTerm
+open Decide_Ast.Term
 %}
 
 %token <string> VAR
@@ -19,13 +19,13 @@ open Decide_Ast.InitialTerm
 
 %start formula_main term_main  /* entry points */
 %type <Decide_Ast.formula> formula_main
-%type <Decide_Ast.InitialTerm.t> term_main
+%type <Decide_Ast.term> term_main
 
 %%
 
 formula_main:
   | formula EOL { $1 }
-  | EOL { raise Empty } 
+  | EOL { raise Decide_Ast.Empty } 
 ;
 
 term_main:
@@ -33,18 +33,18 @@ term_main:
 ;
 
 term:
-  | VAR ASSG STRING { Assg ( Decide_Ast.Term.Field.of_string $1, Decide_Ast.Term.Value.of_string  $3) }
-  | VAR EQ STRING   { Test ( Decide_Ast.Term.Field.of_string $1, Decide_Ast.Term.Value.of_string $3) }
-  | VAR NEQ STRING  { Not (Test ( Decide_Ast.Term.Field.of_string  $1, Decide_Ast.Term.Value.of_string $3)) }
-  | ZERO            { Zero }
-  | ONE             { One }
-  | DUP             { Dup }
+  | VAR ASSG STRING { Assg ( default_uid, Decide_Util.Field.of_string $1, Decide_Util.Value.of_string  $3, None) }
+  | VAR EQ STRING   { Test ( default_uid, Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3, None) }
+  | VAR NEQ STRING  { Not (default_uid, Test ( default_uid, Decide_Util.Field.of_string  $1, Decide_Util.Value.of_string $3, None), None) }
+  | ZERO            { Zero (default_uid, None) }
+  | ONE             { One (default_uid, None)}
+  | DUP             { Dup (default_uid, None)}
   | LPAREN term RPAREN { $2 }
-  | term PLUS term  { Plus (InitialTermSet.from_list [$1; $3]) }
-  | term TIMES term { Times [$1; $3] }
-  | term STAR       { Star $1 }
-  | NOT term        { Not $2 }
-  | term term %prec TIMES { Times [$1; $2] }
+  | term PLUS term  { Plus (default_uid, BatSet.PSet.of_list [$1; $3], None) }
+  | term TIMES term { Times (default_uid, [$1; $3], None) }
+  | term STAR       { Star (default_uid, $1, None) }
+  | NOT term        { Not (default_uid, $2, None) }
+  | term term %prec TIMES { Times (default_uid, [$1; $2], None) }
 ;
 
 formula:

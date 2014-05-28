@@ -4,6 +4,93 @@ exception Undo
 let debug_mode = false
 let failed_Count = ref 0
 let success_count = ref 1
+
+module Field = struct 
+  type t = int
+  let compare = Pervasives.compare
+  let hash x = x
+  let equal a b = 0 = (compare a b)
+  let of_string,to_string,max_elem = 
+    let stringtoint = Hashtbl.create 11 in 
+    let inttostring = Hashtbl.create 11 in 
+    let counter = ref 0 in 
+    let of_string (x : string) : t = 
+      try Hashtbl.find stringtoint x 
+      with Not_found -> 
+	let id = !counter in 
+	counter := !counter + 1 ;
+	Hashtbl.replace stringtoint x id;
+	Hashtbl.replace inttostring id x;
+	id in 
+    let to_string (x : t) : string = 
+      Hashtbl.find inttostring x in 
+    let max_elem _ = !counter in
+    of_string,to_string,max_elem
+end
+module FieldSet = Set.Make(Field)
+      
+  
+module Value = struct 
+  type t = int
+  let compare = Pervasives.compare
+  let hash x = x
+  let equal a b = 0 = (compare a b)
+  let of_string,to_string,max_elem = 
+    let stringtoint = Hashtbl.create 11 in 
+    let inttostring = Hashtbl.create 11 in 
+    let snowman =  "☃" in
+    Hashtbl.replace stringtoint snowman (-1);
+    Hashtbl.replace inttostring (-1) snowman;
+    let counter = ref 0 in 
+    let of_string (x : string) : t = 
+      try Hashtbl.find stringtoint x 
+      with Not_found -> 
+	let id = !counter in 
+	counter := !counter + 1 ;
+	Hashtbl.replace stringtoint x id;
+	Hashtbl.replace inttostring id x;
+	id in 
+    let to_string (x : t) : string = 
+      Hashtbl.find inttostring x in 
+    of_string,to_string,(fun _ -> !counter)
+  let extra_val = -1
+end
+module ValueSet = Set.Make(Value) 
+
+let all_fields = ref (fun _ -> failwith "fill me in!")
+let all_values = ref (fun _ -> failwith "fill me in!")
+
+module FieldArray = struct
+  type 'a t = 'a array
+  let make (a : 'a) : 'a t = 
+    let _ = !all_fields () in 
+    Array.make (Field.hash (Field.max_elem ())) a
+  let init f = 
+    let _ = !all_fields () in 
+    Array.init (Field.hash (Field.max_elem ())) f
+  let set this k = 
+    Array.set this (Field.hash k)
+  let get this k = 
+    Array.get this (Field.hash k)
+  let fold f arr acc =
+    let accr = ref acc in 
+    Array.iteri (fun indx elem -> 
+      let acc = !accr in 
+      accr := (f indx elem acc)) arr;
+    !accr
+  let copy = Array.copy
+end 
+module ValueArray = struct
+  type 'a t = 'a array
+  let make (a : 'a) : 'a t = 
+    let _ = !all_fields () in 
+    Array.make (Value.hash (Value.max_elem ())) a
+  let set this k = 
+    Array.set this (Value.hash k)
+  let get this k = 
+    Array.get this (Value.hash k)
+end
+
   
 let output_endline (out : out_channel) (s : string) : unit =
   output_string out s;
@@ -27,6 +114,15 @@ let rec remove_duplicates list =
 (* perform f on all pairs *)
 let cross (f : 'a -> 'b -> 'c) (s : 'a list) (t : 'b list) : 'c list =
   List.concat (List.map (fun x -> List.map (f x) t) s)
+
+    
+let thunkify f = 
+  let ret = ref None in 
+  (fun _ -> 
+    match !ret with 
+      | None -> let v = f() in ret := Some v; v
+      | Some v -> v)
+
 
 (*****************************************************
  * A functional version
