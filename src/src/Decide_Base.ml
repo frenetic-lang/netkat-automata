@@ -53,14 +53,15 @@ let collection_to_string fold elt_to_string sep c =
           
     let intersect (pn1:t) (pn2:t) : t = 
       match pn1, pn2 with
-        | Pos(f,s1), Pos(_,s2) -> 
+        | Pos(f,s1), Pos(f',s2) when f = f' -> 
           Pos(f,Decide_Util.ValueSet.inter s1 s2)
-        | Neg(f,s1), Neg(_,s2) -> 
+        | Neg(f,s1), Neg(f',s2) when f = f' -> 
           Neg(f,Decide_Util.ValueSet.union s1 s2)
-        | Pos(f,s1), Neg(_,s2) -> 
+        | Pos(f,s1), Neg(f',s2) when f = f' -> 
           Pos(f,Decide_Util.ValueSet.diff s1 s2)
-        | Neg(f,s1), Pos(_,s2) -> 
+        | Neg(f,s1), Pos(f',s2) when f = f' -> 
           Pos(f,Decide_Util.ValueSet.diff s2 s1)
+	| _ -> failwith "intersecting two posnegs with non-equal field!"
 
     let is_empty (pn:t) : bool = 
       match pn with 
@@ -68,6 +69,20 @@ let collection_to_string fold elt_to_string sep c =
           Decide_Util.ValueSet.is_empty s
         | Neg(f,s) -> 
           Decide_Util.ValueSet.equal ((!Decide_Util.all_values ()) f) s
+
+    let subset small big : bool = 
+      let open Decide_Util.ValueSet in 
+      match small,big with 
+        | Pos(f,s1), Pos(f',s2) when f = f' -> 
+	  subset s1 s2
+        | Neg(f,s1), Neg(f',s2) when f = f' -> 
+	  subset s2 s1
+        | Pos(f,s1), Neg(f',s2) when f = f' -> 
+	  (cardinal (inter s1 s2)) = 0
+        | Neg(f,s1), Pos(f',s2) when f = f' -> 
+	  equal (union s1 s2) ((!Decide_Util.all_values ()) f)
+	| _ -> failwith "subset-testing two posnegs with non-equal field!"
+
 
     let elements (pn : t) : Decide_Util.ValueSet.t = 
       match pn with 
@@ -85,6 +100,9 @@ let collection_to_string fold elt_to_string sep c =
 	match Decide_Util.FieldArray.get b a with 
 	  | Some r -> r
 	  | None -> raise Not_found
+
+      let option_find a b = 
+	Decide_Util.FieldArray.get b a
 	    
       let get a b = Decide_Util.FieldArray.get b a
     
@@ -94,6 +112,9 @@ let collection_to_string fold elt_to_string sep c =
 	      match b with 
 		| Some e -> (f indx e acc)
 		| None -> acc) st acc 
+
+      let fold_all_keys (f : key -> 'a option -> 'b -> 'b) (st : 'a t) (acc : 'b) : 'b = 
+	Decide_Util.FieldArray.fold f st acc
 
       let to_string m elt_to_string = 
 	Printf.sprintf "[%s]\n"
@@ -181,6 +202,17 @@ let collection_to_string fold elt_to_string sep c =
 
     let assg_compare (b1:assg) (b2:assg) : int = 
       Map.compare Decide_Util.Value.compare b1 b2
+
+	
+    let atom_subset (a : atom) (b : atom) : bool = 
+      Map.fold_all_keys
+	(fun f a acc -> 
+	  let b = Map.option_find f b in 
+	  match a,b with 
+	    | Some a, Some b -> PosNeg.subset a b && acc
+	    | _, None -> acc
+	    | None, Some e -> (PosNeg.compare e (PosNeg.any f)) = 0 && acc
+	) a true
 
     type t = Base of atom * assg 
     (* must be a Pos * completely-filled-in thing*)
@@ -281,6 +313,19 @@ let collection_to_string fold elt_to_string sep c =
 
     exception Empty_filter
 
+    (* just captures subsets for now *)
+    let union ( a :t ) (b : t) : t list = 
+      let Base(al,ar) = a in 
+      let Base(bl,br) = b in 
+      if assg_compare ar br <> 0 then [a;b]
+      else 
+	match atom_subset al bl, atom_subset bl al with 
+	  | true,_ -> [b]
+	  | _,true -> [a]
+	  | _ -> [a;b]
+	    
+    let bunion = union 
+
     let filter_alpha (Base(a1,b1):t) (a2: complete_test) : t option =
       try
 	let test_Fun = 
@@ -378,7 +423,7 @@ let collection_to_string fold elt_to_string sep c =
         Printf.sprintf "{%s}" 
           (S.fold 
 	     (fun x s -> 
-	       (if s = "" then s else s ^ ", ") ^ to_string x) bs "")
+	       (if s = "" then s else s ^ ",\n") ^ to_string x) bs "")
 	  
 
       let failed_Count = Decide_Util.failed_Count
@@ -435,7 +480,44 @@ let collection_to_string fold elt_to_string sep c =
 
 
       let union (a : t) (b : t) : t = 
-	union a b
+	let a_filtered, b_enhanced = fold 
+	  (fun ae (acc,b) -> 
+	    match fold 
+	      (fun be acc -> 
+		match acc with 
+		  | Some ae, new_b -> 
+		    (match bunion ae be with 
+		      | [a';b'] -> Some ae, add be new_b
+		      | [a'] -> None, add a' new_b
+		      | _ -> failwith "union returned bad number!")
+		  | None, new_b -> None, add be new_b
+	      ) b (Some ae,empty) with 
+		| Some ae, b -> add ae acc, b
+		| None , b -> acc,b
+	  )
+	  a (empty,b) in 
+	let res = union a_filtered b_enhanced in 
+	if Decide_Util.debug_mode then 
+	  assert (fold_points (fun pt acc -> contains_point res pt && acc) a true
+		  && fold_points (fun pt acc -> contains_point res pt && acc) b true
+		  && fold_points (fun pt acc -> (contains_point a pt || contains_point b pt)  && acc) res true);
+	res
+
+      let add b s : t = 
+	let res = match fold 
+	    (fun e (acc,s') -> 
+	      match bunion e b with 
+		| [a;b] -> acc,add e s' 
+		| [a] -> None, add a s'
+		| _ -> failwith "shouldn't happen") s (Some b, empty)
+	  with 
+	    | Some b, s' -> add b s' 
+	    | None, s' -> s' in 
+
+	if Decide_Util.debug_mode then 
+	  (let olds = add b s in 
+	  assert (equal olds res));
+	res 
 
 
       let mult (left : t)  (right : t) : t = 
@@ -473,7 +555,8 @@ let collection_to_string fold elt_to_string sep c =
 		  try 
 		    let a = Map.find field test in 
 		    match a with 
-		      | PosNeg.Pos(_,a) -> field,Decide_Util.ValueSet.union a valset,incr_add_all a b valhash, others
+		      | PosNeg.Pos(_,a) -> field,
+			Decide_Util.ValueSet.union a valset,incr_add_all a b valhash, others
 		      | _ -> raise Not_found
 		  with Not_found -> 
 		    field,valset,valhash,add b others) acc)
@@ -504,9 +587,17 @@ let collection_to_string fold elt_to_string sep c =
 		  | None -> failed_Count := !failed_Count + 1; assert (!failed_Count > 0); acc
 	      ) cnds acc) phase2 empty in 
 
-	if Decide_Util.debug_mode (* TODO : make this debug mode only *)
-	then (assert (equal (old_mult left right) phase3); phase3)
+	if Decide_Util.debug_mode 
+	then (
+	  let old_res = (old_mult left right) in
+	  if not (equal old_res phase3)
+	  then (Printf.eprintf "LHS of mult: %s\nRHS of mult: %s\nNew result: %s\nOld result: %s\n"
+		  (to_string left) (to_string right) (to_string phase3) (to_string old_res);
+		failwith "new mult and old mult don't agree!");
+	  phase3)
 	else phase3
+
+
 
       let biggest_cardinal = ref 0 
 
