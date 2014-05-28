@@ -64,6 +64,8 @@ module Term : sig
   val make_times : Term.t list -> Term.t
   val make_zero : Term.t
   val make_one : Term.t
+  val make_not : Term.t -> Term.t
+  val make_star : Term.t -> Term.t
     
   val convert_and_simplify : ('s -> formula) -> 's -> formula
     

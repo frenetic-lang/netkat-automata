@@ -17,9 +17,9 @@ Library netkat_decide
     Decide_Deriv,
     Decide_Spines,
     Decide_Dot,
-    Decide_Repl,
-    Decide_Util
+    Decide_Repl
   Modules:
+    Decide_Util,
     Decide_Ast,
     Decide_Bisimulation
 

@@ -626,6 +626,9 @@ let make_zero = zero
   
 let make_one = one 
 
+let make_not t = 
+  (hashcons (flatten_not None t))
+
 let rec simplify (t : Term.t) : Term.t =
   let ret = match t with
     | Plus (_,x,_) -> hashcons (flatten_sum None (List.map simplify 
