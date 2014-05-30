@@ -283,8 +283,8 @@ let collection_to_string fold elt_to_string sep c =
       Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
         
     let compare (Base(a1,b1):t) (Base(a2,b2):t) : int =
-      let cmp = atom_compare a1 a2 in
-      if cmp <> 0 then cmp else assg_compare b1 b2
+      let cmp = assg_compare b1 b2 in
+      if cmp <> 0 then cmp else atom_compare a1 a2
 
     let compar = compare
 
