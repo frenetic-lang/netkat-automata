@@ -32,6 +32,18 @@ let collection_to_string fold elt_to_string sep c =
 
     let any (f:Decide_Util.Field.t) : t = Neg(f, Decide_Util.ValueSet.empty) 
 
+    let add e pn = 
+      match e,pn with 
+	| e,Pos(f,s) -> Pos(f,Decide_Util.ValueSet.add e s)
+	| e,Neg(f,s) -> Neg(f,Decide_Util.ValueSet.remove e s)
+
+    let union pn1 pn2 = 
+      match pn1,pn2 with 
+	| Pos(f,s1),Pos(_,s2) -> Pos(f,Decide_Util.ValueSet.union s1 s2)
+	| (Pos(f,s1),Neg(_,s2) | Neg(_,s2),Pos(f,s1)) -> 
+	  Neg(f,Decide_Util.ValueSet.diff s2 s1)
+	| Neg(f,s1), Neg(_,s2) -> Neg(f,Decide_Util.ValueSet.inter s1 s2)
+
     (* pre: pn1 and pn2 should be defined over the same field *)
     let compare pn1 pn2 = 
       match pn1, pn2 with 
@@ -116,6 +128,13 @@ let collection_to_string fold elt_to_string sep c =
       let fold_all_keys (f : key -> 'a option -> 'b -> 'b) (st : 'a t) (acc : 'b) : 'b = 
 	Decide_Util.FieldArray.fold f st acc
 
+      let fold2_all_keys 
+	  (f : key -> 'a option -> 'c option -> 'b -> 'b) (st1 : 'a t) (st2 : 'c t) (acc : 'b) : 'b = 
+	Decide_Util.FieldArray.fold 
+	  (fun fld e1 -> let e2 = option_find fld st2 in f fld e1 e2)
+	  st1 acc
+
+
       let to_string m elt_to_string = 
 	Printf.sprintf "[%s]\n"
 	  (Decide_Util.FieldArray.fold 
@@ -143,6 +162,12 @@ let collection_to_string fold elt_to_string sep c =
 	let newarr = Decide_Util.FieldArray.copy arr in 
 	Decide_Util.FieldArray.set newarr a (Some b);
 	newarr 
+
+      let add' (a : key) (b : 'a option) (arr : 'a t) : 'a t = 
+	let newarr = Decide_Util.FieldArray.copy arr in 
+	Decide_Util.FieldArray.set newarr a b;
+	newarr 
+
 
       let init f = Decide_Util.FieldArray.init 
 	(fun a -> 
@@ -213,6 +238,16 @@ let collection_to_string fold elt_to_string sep c =
 	    | _, None -> acc
 	    | None, Some e -> (PosNeg.compare e (PosNeg.any f)) = 0 && acc
 	) a true
+
+
+    let atom_union (a : atom) (b : atom) : atom = 
+      Map.fold2_all_keys
+	(fun f a' b' acc -> 
+	  Map.add' 
+	    f (match a',b' with 
+	      | Some a'', Some b'' -> Some (PosNeg.union a'' b'')
+	      | (None,_ | _, None) -> None ) acc) a b (Map.empty ())
+
 
     type t = Base of atom * assg 
     (* must be a Pos * completely-filled-in thing*)
@@ -313,16 +348,63 @@ let collection_to_string fold elt_to_string sep c =
 
     exception Empty_filter
 
-    (* just captures subsets for now *)
+
+    let fold_points (f : (point -> 'a -> 'a)) (Base(a,b) : t) (acc : 'a) 
+	: 'a =
+      let extract_points bse : point list = 
+	  Decide_Util.FieldSet.fold
+	    (fun field partial_list -> 
+	      let a = PosNeg.elements (try Map.find field a 
+		with Not_found -> 
+		  (PosNeg.any field)) in
+	      List.fold_right 
+		(fun (Point(x,y)) (acc : point list) -> 
+		  try 
+		    let b = Map.find field b in
+		    Decide_Util.ValueSet.fold (fun v acc -> 
+		      (Point(Map.add field v x, Map.add field b y)) :: acc
+		    ) a acc
+		  with Not_found ->		    
+		    Decide_Util.ValueSet.fold (fun v acc -> 
+		      (Point(Map.add field v x, Map.add field v y)) :: acc
+		    ) a acc
+		) partial_list []
+	    ) (!Decide_Util.all_fields ()) [Point((assg_empty ()), (assg_empty ()))]
+      in
+      let pts = (extract_points b) in
+      List.fold_right f pts acc
+
+
     let union ( a :t ) (b : t) : t list = 
+      let get_pn_field = function 
+      (PosNeg.Pos(f,_) | PosNeg.Neg(f,_)) -> f in 
+      let all_but_one_match a' b' = 
+	snd 
+	  (Map.fold2_all_keys
+	     (fun f ae be (seen_diff,acc) -> 
+	       if seen_diff
+	       then match ae,be with 
+		 | Some ae', Some be' -> seen_diff,acc && ((PosNeg.compare ae' be') = 0)
+		 | (None, Some e' | Some e',None) -> 
+		   seen_diff,acc && ((PosNeg.compare e' (PosNeg.any (get_pn_field e'))) = 0)
+		 | None, None -> seen_diff,acc
+	       else match ae,be with 
+		 | Some ae', Some be' -> ((PosNeg.compare ae' be') <> 0),acc
+		 | (None, Some e' | Some e',None) -> 
+		   ((PosNeg.compare e' (PosNeg.any (get_pn_field e'))) <> 0),acc
+		 | None, None -> seen_diff,acc
+	     ) a' b' (false,true)) in 
       let Base(al,ar) = a in 
       let Base(bl,br) = b in 
       if assg_compare ar br <> 0 then [a;b]
-      else 
-	match atom_subset al bl, atom_subset bl al with 
-	  | true,_ -> [b]
-	  | _,true -> [a]
-	  | _ -> [a;b]
+      else if (atom_subset al bl) || atom_subset bl al || all_but_one_match al bl 
+      then let res = Base(atom_union al bl,ar) in 
+	   if Decide_Util.debug_mode
+	   then (assert (fold_points (fun pt acc -> contains_point pt res && acc) a true
+		  && fold_points (fun pt acc -> contains_point pt res && acc) b true
+		  && fold_points (fun pt acc -> (contains_point pt a || contains_point pt b)  && acc) res true));
+	   [res]
+      else [a;b]
 	    
     let bunion = union 
 
@@ -364,12 +446,14 @@ let collection_to_string fold elt_to_string sep c =
             let o2 = try Some (Map.find field b2) with Not_found -> None in 
             let pn',o' = 
               match o1,o2 with 
-                | (Some v1, Some v2) -> (pn1, o2)
-                | (Some v1, None) -> (pn1, o1)
+                | (Some v1, Some v2) when PosNeg.contains pn2 v1 -> (pn1, o2)
+                | (Some v1, None) when PosNeg.contains pn2 v1 -> (pn1, o1)
 		| (None, _) -> 
 		  let inter = (PosNeg.intersect pn1 pn2) in
 		    if (PosNeg.is_empty inter) then raise Empty_mult;
-		    inter,o2 in
+		    inter,o2 
+
+		| _ -> raise Empty_mult in
             Base(Map.add field pn' a, 
                  match o' with
                    | None -> b
@@ -377,31 +461,6 @@ let collection_to_string fold elt_to_string sep c =
           ((!Decide_Util.all_fields ())) (Base((atom_empty ()), (assg_empty ()))))
       with Empty_mult -> 
         None
-
-    let fold_points (f : (point -> 'a -> 'a)) (Base(a,b) : t) (acc : 'a) 
-	: 'a =
-      let extract_points bse : point list = 
-	  Decide_Util.FieldSet.fold
-	    (fun field partial_list -> 
-	      let a = PosNeg.elements (try Map.find field a 
-		with Not_found -> 
-		  (PosNeg.any field)) in
-	      List.fold_right 
-		(fun (Point(x,y)) (acc : point list) -> 
-		  try 
-		    let b = Map.find field b in
-		    Decide_Util.ValueSet.fold (fun v acc -> 
-		      (Point(Map.add field v x, Map.add field b y)) :: acc
-		    ) a acc
-		  with Not_found ->		    
-		    Decide_Util.ValueSet.fold (fun v acc -> 
-		      (Point(Map.add field v x, Map.add field v y)) :: acc
-		    ) a acc
-		) partial_list []
-	    ) (!Decide_Util.all_fields ()) [Point((assg_empty ()), (assg_empty ()))]
-      in
-      let pts = (extract_points b) in
-      List.fold_right f pts acc
 
     let project_lhs (Base(a,b)) = 
       Base(a,(assg_empty ()))
@@ -479,29 +538,29 @@ let collection_to_string fold elt_to_string sep c =
 	&& fold_points (fun pt acc -> contains_point a pt && acc) b true
 
 
+      let compact a = a
+(*
+      let rec compact e = 
+	let old_cardinal = cardinal e in 
+	let e' = fold (fun a e' -> 
+	  let a = ref a in 
+	  add !a (fold (fun b acc -> 
+	    match bunion !a b with 
+	      | [a'] -> let olda = !a in a:= a'; (remove olda acc)
+	      | [a;b] -> add b acc
+	      | _ -> failwith "bunion didn't work like i wanted.") 
+		    e' empty )) e e  in 
+	if Decide_Util.debug_mode 
+	then assert (equal e e');
+	if old_cardinal = (cardinal e')
+	then e' 
+	else compact e'
+
+	  
       let union (a : t) (b : t) : t = 
-	let a_filtered, b_enhanced = fold 
-	  (fun ae (acc,b) -> 
-	    match fold 
-	      (fun be acc -> 
-		match acc with 
-		  | Some ae, new_b -> 
-		    (match bunion ae be with 
-		      | [a';b'] -> Some ae, add be new_b
-		      | [a'] -> None, add a' new_b
-		      | _ -> failwith "union returned bad number!")
-		  | None, new_b -> None, add be new_b
-	      ) b (Some ae,empty) with 
-		| Some ae, b -> add ae acc, b
-		| None , b -> acc,b
-	  )
-	  a (empty,b) in 
-	let res = union a_filtered b_enhanced in 
-	if Decide_Util.debug_mode then 
-	  assert (fold_points (fun pt acc -> contains_point res pt && acc) a true
-		  && fold_points (fun pt acc -> contains_point res pt && acc) b true
-		  && fold_points (fun pt acc -> (contains_point a pt || contains_point b pt)  && acc) res true);
-	res
+	let res = union a b in 
+	compact res
+
 
       let add b s : t = 
 	let res = match fold 
@@ -517,8 +576,8 @@ let collection_to_string fold elt_to_string sep c =
 	if Decide_Util.debug_mode then 
 	  (let olds = add b s in 
 	  assert (equal olds res));
-	res 
-
+	compact res 
+*)
 
       let mult (left : t)  (right : t) : t = 
 	let module ValHash = Decide_Util.ValueArray in
@@ -578,6 +637,11 @@ let collection_to_string fold elt_to_string sep c =
 		      bs) phase1 in 
 	      (b,intersect_all to_intersect)::acc) right [] in 
 
+	(* TODO: take (lhs - phase2) and do mult with that as well.  assert that 
+	   the result is empty for each pair.  If it's not empty, print out the pair that 
+	   is non-empty.
+	*)
+
 	let phase3 = 
 	  List.fold_right
 	    (fun (rhs,cnds) acc -> 
@@ -592,7 +656,10 @@ let collection_to_string fold elt_to_string sep c =
 	  let old_res = (old_mult left right) in
 	  if not (equal old_res phase3)
 	  then (Printf.eprintf "LHS of mult: %s\nRHS of mult: %s\nNew result: %s\nOld result: %s\n"
-		  (to_string left) (to_string right) (to_string phase3) (to_string old_res);
+		  (to_string left) 
+		  (to_string right) 
+		  (to_string (compact (compact (compact (compact phase3)))))
+		  (to_string (compact (compact (compact (compact old_res)))));
 		failwith "new mult and old mult don't agree!");
 	  phase3)
 	else phase3
