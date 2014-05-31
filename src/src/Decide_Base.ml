@@ -281,6 +281,8 @@ let collection_to_string fold elt_to_string sep c =
 
     let to_string (Base(a,b) : t) : string =
       Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
+
+    let bto_string = to_string 
         
     let compare (Base(a1,b1):t) (Base(a2,b2):t) : int =
       let cmp = assg_compare b1 b2 in
@@ -580,28 +582,31 @@ let collection_to_string fold elt_to_string sep c =
 	  (fun a s -> let a',s' = merge_element a (remove a s) in add a' s' )
 	  bs bs
 
+      let compare_rhs (Base(_,a)) (Base(_,b)) = assg_compare a b
 
       (* other way *)
       let rec compact e = 
 	let old_cardinal = cardinal e in 
 	let e' = fold (fun a e' -> 
 	  let a = ref a in 
-	  let to_remove = (fold_range 	    
+	  let to_remove = 
+	    (fold_range 	    
+	       (fun e -> Printf.sprintf 
+		 "Trying to merge: %s\nWith this:%s\nCompare is:%d\n"
+		 (bto_string !a) (bto_string e) (compare_rhs e !a))
+	       (fun e -> compare_rhs e !a <> 0)
 	    (* minimal base with equal RHS *)
-	    (fun e -> let Base(_,ar) = !a in 
-		      let Base(_,er) = e in 
-		      match assg_compare er ar with 
-			| (-1 | 0) -> false
-			| 1 -> true
+	    (fun e -> match compare_rhs e !a with 
+			| -1 -> false
+			| (0 | 1) -> true
 			| _ -> failwith "bad compare function")
 	    (* maximal base with equal RHS *)
-	    (fun e -> let Base(_,ar) = !a in 
-		      let Base(_,er) = e in 
-		      match assg_compare er ar with 
+	    (fun e -> match compare_rhs e !a with 
 			| (-1 | 0) -> true 
 			| 1 -> false
 			| _ -> failwith "bad compare function" )
 	    (fun b acc -> 
+	      assert (compare_rhs !a b = 0);
 	      match bunion !a b with 
 		| [a'] -> let olda = !a in a:= a'; (add olda (add b acc))
 		| [a;b] -> acc
@@ -634,7 +639,7 @@ let collection_to_string fold elt_to_string sep c =
 	);
 	if old_cardinal = (cardinal e')
 	then e' 
-	else compact e'
+	else slow_compact e'
 	  
       let union (a : t) (b : t) : t = 
 	let res = union a b in 
@@ -645,8 +650,8 @@ let collection_to_string fold elt_to_string sep c =
 	else let a',b' = merge_element a b in 
 	     add a' b' in 
 	res
+(*
 
-      (*
 
       let add b s : t = 
 	let res = match fold 

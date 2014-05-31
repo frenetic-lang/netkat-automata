@@ -38,7 +38,7 @@ module type S =
     val iter: (elt -> unit) -> t -> unit
     val iter_range_until_some : (elt -> int) -> (elt -> int) -> (elt -> 'a option) -> t -> 'a option
     val fold: (elt -> 'a -> 'a) -> t -> 'a -> 'a
-    val fold_range : (elt -> bool) -> (elt -> bool) -> (elt -> 'a -> 'a) -> t -> 'a -> 'a
+    val fold_range : (elt -> string) -> (elt -> bool) -> (elt -> bool) -> (elt -> bool) -> (elt -> 'a -> 'a) -> t -> 'a -> 'a
     val for_all: (elt -> bool) -> t -> bool
     val exists: (elt -> bool) -> t -> bool
     val filter: (elt -> bool) -> t -> t
@@ -351,15 +351,24 @@ or true if s contains an element equal to x. *)
 	| Node(l, v, r, _) -> fold f r (f v (fold f l accu))
 
 
-    let rec fold_less_than below_max f set (acc : 'a) : 'a = 
-      match set with 
-      | Empty -> acc 
-      | Node(l,v,r,_) -> 
-	if below_max v
-	then fold_less_than below_max f r (f v (fold f l acc))
-	else fold_less_than below_max f l acc
+    let rec for_all p = function
+        Empty -> true
+      | Node(l, v, r, _) -> p v && for_all p l && for_all p r
 
-    let fold_range above_min below_max f set acc = 
+
+    let fold_range to_string assert_fun above_min below_max f set acc = 
+      let rec fold_less_than below_max f set (acc : 'a) : 'a = 
+	match set with 
+	  | Empty -> acc 
+	  | Node(l,v,r,_) -> 
+	    if below_max v
+	    then fold_less_than below_max f r (f v (fold f l acc))
+	    else begin 
+	      if Decide_Util.debug_mode 
+	      then assert (((assert_fun v) ) && 
+			      (for_all assert_fun r));
+	      fold_less_than below_max f l acc 
+	    end in
       let rec fold_range acc = function
 	| Empty -> acc 
 	| Node(l,v,r,_) ->
@@ -368,14 +377,19 @@ or true if s contains an element equal to x. *)
 	       if below_max v
 	       then let acc'' = f v acc' in 
 		    fold_less_than below_max f r acc''
-	       else acc' 
-	  else fold_range acc r in 
+	       else (
+		 if Decide_Util.debug_mode 
+		 then assert (assert_fun v && for_all assert_fun r);
+		 acc' )
+	  else (
+	    if Decide_Util.debug_mode 
+	    then (if not (assert_fun v && for_all assert_fun l)
+	      then (
+		Printf.printf "%s" (to_string v);
+		failwith "our sorting isn't working, it seems")
+	      );
+	    fold_range acc r) in 
       fold_range acc set
-
-
-    let rec for_all p = function
-        Empty -> true
-      | Node(l, v, r, _) -> p v && for_all p l && for_all p r
 
     let rec exists p = function
         Empty -> false
