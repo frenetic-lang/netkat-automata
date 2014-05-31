@@ -122,6 +122,8 @@ with respect to the ordering over the type of the elements. *)
     (** [fold f s a] computes [(f xN ... (f x2 (f x1 a))...)],
 where [x1 ... xN] are the elements of [s], in increasing order. *)
 
+    val fold_range : (elt -> bool) -> (elt -> bool) -> (elt -> 'a -> 'a) -> t -> 'a -> 'a
+
     val for_all: (elt -> bool) -> t -> bool
     (** [for_all p s] checks if all elements of the set
 satisfy the predicate [p]. *)

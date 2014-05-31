@@ -580,6 +580,44 @@ let collection_to_string fold elt_to_string sep c =
 	  (fun a s -> let a',s' = merge_element a (remove a s) in add a' s' )
 	  bs bs
 
+
+      (* other way *)
+      let rec compact e = 
+	let old_cardinal = cardinal e in 
+	let e' = fold (fun a e' -> 
+	  let a = ref a in 
+	  let to_remove = (fold_range 	    
+	    (* minimal base with equal RHS *)
+	    (fun e -> let Base(_,ar) = !a in 
+		      let Base(_,er) = e in 
+		      match assg_compare er ar with 
+			| (-1 | 0) -> false
+			| 1 -> true
+			| _ -> failwith "bad compare function")
+	    (* maximal base with equal RHS *)
+	    (fun e -> let Base(_,ar) = !a in 
+		      let Base(_,er) = e in 
+		      match assg_compare er ar with 
+			| (-1 | 0) -> true 
+			| 1 -> false
+			| _ -> failwith "bad compare function" )
+	    (fun b acc -> 
+	      match bunion !a b with 
+		| [a'] -> let olda = !a in a:= a'; (add olda (add b acc))
+		| [a;b] -> acc
+		| _ -> failwith "bunion didn't work like i wanted.") 
+	    e' empty ) in 
+	  add !a (diff e' to_remove)
+	) e e  in 
+	if Decide_Util.debug_mode 
+	then (assert (equal e e');
+	      assert (old_cardinal >= (cardinal e'))
+	);
+	if old_cardinal = (cardinal e')
+	then e' 
+	else compact e'
+
+
       let rec slow_compact e = 
 	let old_cardinal = cardinal e in 
 	let e' = fold (fun a e' -> 
@@ -629,8 +667,8 @@ let collection_to_string fold elt_to_string sep c =
 
       let mult (left : t)  (right : t) : t = 
 	let open Decide_Util in 
-	let left' = slow_compact left in 
-	let right' = slow_compact right in 	
+	let left' = compact left in 
+	let right' = compact right in 	
 	if Decide_Util.profile_mode
 	then begin 
 	  let divspecial a b = 
