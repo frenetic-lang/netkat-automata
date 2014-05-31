@@ -111,7 +111,7 @@ the set [s2]. *)
 The elements of [s] are presented to [f] in increasing order
 with respect to the ordering over the type of the elements. *)
 
-    val iter_range: (elt -> int) -> (elt -> int) -> (elt -> unit) -> t -> unit
+    val iter_range_until_some: (elt -> int) -> (elt -> int) -> (elt -> 'a option) -> t -> 'a option 
     (** [iter_range f s] applies [f] in turn to all elements of [s] 
 	which compare greater than the first argument and less than 
 	the second argument.

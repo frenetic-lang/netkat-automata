@@ -541,11 +541,11 @@ let collection_to_string fold elt_to_string sep c =
       (* is it faster to check all things with equal RHS first and then restart, 
 	 or should you restart as soon as you've succeeded on a merge? *)
 
-      exception Merge_Success of this_t * t
+      let compact a = a
 
       let rec compact (bs : t) = 
 	let find_merge a bs' = 
-	  iter_range 
+	  iter_range_until_some
 	    (* minimal base with equal RHS *)
 	    (fun e -> let Base(_,ar) = a in 
 		      let Base(_,er) = e in 
@@ -564,25 +564,27 @@ let collection_to_string fold elt_to_string sep c =
 			| _ -> failwith "bad compare function" )
 	    (fun e -> 
 	      match bunion a e with 
-		| [a;e] -> ()
-		| [a'] -> raise (Merge_Success (a',remove a (remove e bs')))
+		| [a;e] -> None
+		| [a'] -> Some  (a',remove a (remove e bs'))
 		| _ -> failwith "bunion had a weird return") bs' in 
 	let rec keep_trying (a : this_t) bs : this_t * t = 
-	  try find_merge a bs; (a,bs)
-	  with Merge_Success (merge,bs') -> 
-	    keep_trying merge bs'
+	  match find_merge a bs with 
+	    | None -> a,bs 
+	    | Some (merge,bs') -> keep_trying merge bs'
 	in 
 	fold 
-	  (fun a s -> let a',s' = keep_trying a s in add a' s' ) 
+	  (fun a s -> let a',s' = keep_trying a (remove a s) in add a' s' )
 	  bs bs
-
-(*
 	  
       let union (a : t) (b : t) : t = 
 	let res = union a b in 
 	compact res
 
+      let add a b = 
+	let res = add a b in 
+	compact res
 
+      (*
 
       let add b s : t = 
 	let res = match fold 

@@ -36,7 +36,7 @@ module type S =
     val equal: t -> t -> bool
     val subset: t -> t -> bool
     val iter: (elt -> unit) -> t -> unit
-    val iter_range : (elt -> int) -> (elt -> int) -> (elt -> unit) -> t -> unit
+    val iter_range_until_some : (elt -> int) -> (elt -> int) -> (elt -> 'a option) -> t -> 'a option
     val fold: (elt -> 'a -> 'a) -> t -> 'a -> 'a
     val for_all: (elt -> bool) -> t -> bool
     val exists: (elt -> bool) -> t -> bool
@@ -306,24 +306,41 @@ or true if s contains an element equal to x. *)
       | Node(l, v, r, _) -> iter f l; f v; iter f r
 
 	
-    let iter_range small big f = 
-      let rec iter_less_than = function 
-	| Empty -> () 
-	| Node(l,v,r,_) -> 
-	  let c = big v in 
-	  if c < 0 then (iter f l; f v; iter_less_than r)
-	  else if c > 0 then iter_less_than l 
-	  else failwith "don't need this functionality right now" in 
+    
+	
+    let iter_range_until_some small big f = 
+    let rec iter_until_some = function 
+      | Empty -> None
+      | Node(l,v,r,_) -> (match iter_until_some l with 
+	  | None -> (match f v with 
+	      | None -> iter_until_some r
+	      | r -> r)
+	  | r -> r) in 
+    let rec iter_less_than = function 
+      | Empty -> None
+      | Node(l,v,r,_) -> 
+	let c = big v in 
+	if c < 0 then match iter_until_some l with 
+	  | None -> (match  f v with 
+	      | None -> iter_less_than r
+	      | r -> r)
+	  | r -> r
+	else if c > 0 then iter_less_than l 
+	else failwith "don't need this functionality right now" in 
       let rec iter_range = function 
-	| Empty -> () 
+	| Empty -> None
 	| Node(l,v,r,_) -> 
 	  let c = small v in 
-	  if c < 0 then (iter_range l; f v; iter_less_than r)
+	  if c < 0 then (match iter_range l with 
+	    | None -> if (big v) > 0 
+	      then (match f v with 
+		| None -> iter_less_than r
+		| r -> r)
+	      else None 
+	    | r -> r)
 	  else if c > 0 then iter_range r 
 	  else failwith "don't need this functionality right now" in 
       iter_range
-
-	  
 
 
     let rec fold f s accu =
