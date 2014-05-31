@@ -543,7 +543,8 @@ let collection_to_string fold elt_to_string sep c =
 
       let compact a = a
 
-      let rec compact (bs : t) = 
+
+      let merge_element = 	
 	let find_merge a bs' = 
 	  iter_range_until_some
 	    (* minimal base with equal RHS *)
@@ -570,19 +571,44 @@ let collection_to_string fold elt_to_string sep c =
 	let rec keep_trying (a : this_t) bs : this_t * t = 
 	  match find_merge a bs with 
 	    | None -> a,bs 
-	    | Some (merge,bs') -> keep_trying merge bs'
-	in 
+	    | Some (merge,bs') -> keep_trying merge bs' in 
+	keep_trying
+
+	
+      let rec compact (bs : t) = 
 	fold 
-	  (fun a s -> let a',s' = keep_trying a (remove a s) in add a' s' )
+	  (fun a s -> let a',s' = merge_element a (remove a s) in add a' s' )
 	  bs bs
+
+      let rec slow_compact (bs : t) = 
+	let find_merge a bs' = 
+	  fold (fun a bs -> 
+	    match  (fold (fun b (r,bs) -> 
+	      match r with 
+		| Some r' -> r,add b bs
+		| None -> (match bunion a b with 
+		    | [a';b'] -> None,add b bs
+		    | [a'] -> Some a',remove a bs
+		    | _ -> failwith "meh" )) bs (None,empty))
+	    with 
+	      | Some r,bs -> add r bs 
+	      | None,bs -> bs) bs' bs' in 
+	let old_card = cardinal bs in 
+	let res = find_merge (choose bs) bs in 
+	let new_card = cardinal res in 
+	if (new_card < old_card) 
+	then find_merge (choose res) res
+	else res
 	  
       let union (a : t) (b : t) : t = 
 	let res = union a b in 
-	compact res
+	res
 
       let add a b = 
-	let res = add a b in 
-	compact res
+	let res = if mem a b then b
+	else let a',b' = merge_element a b in 
+	     add a' b' in 
+	res
 
       (*
 
@@ -604,6 +630,25 @@ let collection_to_string fold elt_to_string sep c =
 *)
 
       let mult (left : t)  (right : t) : t = 
+	let open Decide_Util in 
+	let left' = slow_compact left in 
+	let right' = slow_compact right in 	
+	if Decide_Util.profile_mode
+	then begin 
+	  let divspecial a b = 
+	    if b = 0 then 100 else a/b in 
+	  (Decide_Util.stats.compact_percent) := 
+	    let pre_cardinal1 = cardinal left in 
+	    let post_cardinal1 = cardinal left' in
+	    assert (post_cardinal1 >= pre_cardinal1);
+	    let pre_cardinal2 = cardinal right in 
+	    let post_cardinal2 = cardinal right' in 
+	    assert (post_cardinal2 >= pre_cardinal2);
+	    (divspecial (100 * post_cardinal1) (pre_cardinal1))::
+	      (divspecial (100 * post_cardinal2) (pre_cardinal2))::
+	      !(Decide_Util.stats.compact_percent);
+	end;
+
 	let module ValHash = Decide_Util.ValueArray in
 	let extract_test (f : Decide_Util.Field.t) (Base(atom,_)) = 
 	  try Map.find f atom 
@@ -615,7 +660,7 @@ let collection_to_string fold elt_to_string sep c =
             | s1, PosNeg.Neg(_,s2) -> 
               Decide_Util.ValueSet.diff s1 s2 in
 	let intersect_all lst = 
-	  List.fold_left 
+	  List.fold_left
 	    (fun acc e -> inter e acc) (List.hd lst) (List.tl lst) in 
 	let incr_add k v hash = 
 	  ValHash.set hash k (add v (ValHash.get hash k));
@@ -643,7 +688,7 @@ let collection_to_string fold elt_to_string sep c =
 		      | _ -> raise Not_found
 		  with Not_found -> 
 		    field,valset,valhash,add b others) acc)
-	  left (Decide_Util.FieldSet.fold 
+	  left' (Decide_Util.FieldSet.fold 
 		  (fun f acc -> 
 		    (f,Decide_Util.ValueSet.empty,ValHash.make empty,empty)::acc) 
 		  (!Decide_Util.all_fields ()) []) in
@@ -659,7 +704,7 @@ let collection_to_string fold elt_to_string sep c =
 		      (Decide_Util.ValueSet.fold 
 			 (fun a -> union (ValHash.get vh a)) i empty) 
 		      bs) phase1 in 
-	      (b,intersect_all to_intersect)::acc) right [] in 
+	      (b,intersect_all to_intersect)::acc) right' [] in 
 
 	(* TODO: take (lhs - phase2) and do mult with that as well.  assert that 
 	   the result is empty for each pair.  If it's not empty, print out the pair that 
@@ -677,11 +722,11 @@ let collection_to_string fold elt_to_string sep c =
 
 	if Decide_Util.debug_mode 
 	then (
-	  let old_res = (old_mult left right) in
+	  let old_res = (old_mult left' right') in
 	  if not (equal old_res phase3)
 	  then (Printf.eprintf "LHS of mult: %s\nRHS of mult: %s\nNew result: %s\nOld result: %s\n"
-		  (to_string left) 
-		  (to_string right) 
+		  (to_string left') 
+		  (to_string right') 
 		  (to_string (compact (compact (compact (compact phase3)))))
 		  (to_string (compact (compact (compact (compact old_res)))));
 		failwith "new mult and old mult don't agree!");

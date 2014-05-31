@@ -19,6 +19,7 @@
     module Set : sig 
       include Set.S with type elt = t
       val shallow_equal : t -> t -> bool
+      val compact : t -> t
       val to_string : t -> string
       val fold_points : (point -> 'a -> 'a) -> t -> 'a -> 'a
       val contains_point : t -> point -> bool

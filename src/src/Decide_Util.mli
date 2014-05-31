@@ -1,9 +1,17 @@
 exception Quit
 
 val debug_mode : bool
+val profile_mode : bool
 val failed_Count : int ref
 val success_count : int ref
 
+type stats = {
+  compact_percent : int list ref
+}
+
+val stats : stats
+
+val print_debugging_info : unit -> unit
 
 module Field : sig
   type t

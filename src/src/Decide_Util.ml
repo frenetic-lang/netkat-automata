@@ -2,8 +2,22 @@ exception Quit
 exception Undo
 
 let debug_mode = false
+let profile_mode = true
 let failed_Count = ref 0
 let success_count = ref 1
+
+type stats = {
+  compact_percent : int list ref
+}
+
+let stats = {compact_percent = ref []}
+
+let print_debugging_info _  =
+  Printf.printf "%s"
+    (List.fold_right 
+       (Printf.sprintf "BaseSet natural compaction rate: %u\n%s")
+       !(stats.compact_percent) "")
+    
 
 module Field = struct 
   type t = int

@@ -44,6 +44,23 @@ module WorkList = WorkList(struct
 	let rest_work_list = WorkList.tl work_list in
 	let q1_E = Deriv.run_e q1 in 
 	let q2_E = Deriv.run_e q2 in 
+	if Decide_Util.profile_mode
+	then begin 
+	  let divspecial a b = 
+	    if b = 0 then 100 else a/b in 
+	  Decide_Util.stats.compact_percent := 
+	    let pre_cardinal1 = Base.Set.cardinal q1_E in 
+	    let post_cardinal1 = 
+	      Base.Set.cardinal (Base.Set.compact q1_E) in
+	    assert (post_cardinal1 >= pre_cardinal1);
+	    let pre_cardinal2 = Base.Set.cardinal q2_E in 
+	    let post_cardinal2 = 
+	      Base.Set.cardinal (Base.Set.compact q2_E) in
+	    assert (post_cardinal2 >= pre_cardinal2);
+	    (divspecial (100 * post_cardinal1) (pre_cardinal1))::
+	      (divspecial (100 * post_cardinal2) (pre_cardinal2))::
+	      !(Decide_Util.stats.compact_percent);
+	end;
 	if not (U.Base.Set.equal q1_E q2_E)
 	then false
 	else
@@ -80,5 +97,5 @@ module WorkList = WorkList(struct
     let t1 = Deriv.DerivTerm.make_term t1 in 
     Printf.printf "Term construction complete\n%!";
     let ret = main_loop (WorkList.singleton (t1,t2)) in
-    U.Base.Set.print_debugging_info (); 
+    Decide_Util.print_debugging_info (); 
     ret
