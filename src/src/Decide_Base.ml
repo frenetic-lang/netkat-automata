@@ -543,52 +543,10 @@ let collection_to_string fold elt_to_string sep c =
       (* is it faster to check all things with equal RHS first and then restart, 
 	 or should you restart as soon as you've succeeded on a merge? *)
 
-      let compact a = a
-
-
-      let merge_element = 	
-	let find_merge a bs' = 
-	  iter_range_until_some
-	    (* minimal base with equal RHS *)
-	    (fun e -> let Base(_,ar) = a in 
-		      let Base(_,er) = e in 
-		      match assg_compare ar er with 
-			| -1 -> -1 
-			| 0 -> 1
-			| 1 -> 1
-			| _ -> failwith "bad compare function")
-	    (* maximal base with equal RHS *)
-	    (fun e -> let Base(_,ar) = a in 
-		      let Base(_,er) = e in 
-		      match assg_compare ar er with 
-			| -1 -> -1 
-			| 0 -> -1
-			| 1 -> 1
-			| _ -> failwith "bad compare function" )
-	    (fun e -> 
-	      match bunion a e with 
-		| [a;e] -> None
-		| [a'] -> Some  (a',remove a (remove e bs'))
-		| _ -> failwith "bunion had a weird return") bs' in 
-	let rec keep_trying (a : this_t) bs : this_t * t = 
-	  match find_merge a bs with 
-	    | None -> a,bs 
-	    | Some (merge,bs') -> keep_trying merge bs' in 
-	keep_trying
-
-	
-      let rec compact (bs : t) = 
-	fold 
-	  (fun a s -> let a',s' = merge_element a (remove a s) in add a' s' )
-	  bs bs
-
       let compare_rhs (Base(_,a)) (Base(_,b)) = assg_compare a b
 
-      (* other way *)
-      let rec compact e = 
-	let old_cardinal = cardinal e in 
-	let e' = fold (fun a e' -> 
-	  let a = ref a in 
+      let merge_element : this_t -> t -> t = (fun a e' -> 
+	let a = ref a in 
 	  let to_remove = 
 	    (fold_range 	    
 	       (fun e -> Printf.sprintf 
@@ -596,24 +554,28 @@ let collection_to_string fold elt_to_string sep c =
 		 (bto_string !a) (bto_string e) (compare_rhs e !a))
 	       (fun e -> compare_rhs e !a <> 0)
 	    (* minimal base with equal RHS *)
-	    (fun e -> match compare_rhs e !a with 
-			| -1 -> false
-			| (0 | 1) -> true
-			| _ -> failwith "bad compare function")
-	    (* maximal base with equal RHS *)
-	    (fun e -> match compare_rhs e !a with 
-			| (-1 | 0) -> true 
-			| 1 -> false
-			| _ -> failwith "bad compare function" )
-	    (fun b acc -> 
-	      assert (compare_rhs !a b = 0);
-	      match bunion !a b with 
-		| [a'] -> let olda = !a in a:= a'; (add olda (add b acc))
-		| [a;b] -> acc
-		| _ -> failwith "bunion didn't work like i wanted.") 
-	    e' empty ) in 
+	       (fun e -> match compare_rhs e !a with 
+		 | -1 -> false
+		 | (0 | 1) -> true
+		 | _ -> failwith "bad compare function")
+	       (* maximal base with equal RHS *)
+	       (fun e -> match compare_rhs e !a with 
+		 | (-1 | 0) -> true 
+		 | 1 -> false
+		 | _ -> failwith "bad compare function" )
+	       (fun b acc -> 
+		 assert (compare_rhs !a b = 0);
+		 match bunion !a b with 
+		   | [a'] -> let olda = !a in a:= a'; (add olda (add b acc))
+		   | [a;b] -> acc
+		   | _ -> failwith "bunion didn't work like i wanted.") 
+	       e' empty ) in 
 	  add !a (diff e' to_remove)
-	) e e  in 
+      )
+
+      let rec compact e = 
+	let old_cardinal = cardinal e in 
+	let e' = fold merge_element e e  in 
 	if Decide_Util.debug_mode 
 	then (assert (equal e e');
 	      assert (old_cardinal >= (cardinal e'))
@@ -621,34 +583,15 @@ let collection_to_string fold elt_to_string sep c =
 	if old_cardinal = (cardinal e')
 	then e' 
 	else compact e'
-
-
-      let rec slow_compact e = 
-	let old_cardinal = cardinal e in 
-	let e' = fold (fun a e' -> 
-	  let a = ref a in 
-	  add !a (fold (fun b acc -> 
-	    match bunion !a b with 
-	      | [a'] -> let olda = !a in a:= a'; (remove olda acc)
-	      | [a;b] -> add b acc
-	      | _ -> failwith "bunion didn't work like i wanted.") 
-		    e' empty )) e e  in 
-	if Decide_Util.debug_mode 
-	then (assert (equal e e');
-	      assert (old_cardinal >= (cardinal e'))
-	);
-	if old_cardinal = (cardinal e')
-	then e' 
-	else slow_compact e'
 	  
       let union (a : t) (b : t) : t = 
 	let res = union a b in 
 	res
 
       let add a b = 
-	let res = if mem a b then b
-	else let a',b' = merge_element a b in 
-	     add a' b' in 
+	let res = 
+	  if mem a b then b
+	  else merge_element a b in 
 	res
 (*
 
