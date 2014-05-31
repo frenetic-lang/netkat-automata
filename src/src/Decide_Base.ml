@@ -292,7 +292,7 @@ let collection_to_string fold elt_to_string sep c =
       compare x y = 0
 
     type this_t = t
-    module S = Set.Make(struct
+    module S = Decide_Set.Make(struct
       type t = this_t
       let compare = compare
       let equal = equal
@@ -538,28 +538,50 @@ let collection_to_string fold elt_to_string sep c =
 	&& fold_points (fun pt acc -> contains_point a pt && acc) b true
 
 
-      let compact a = a
-(*
-      let rec compact e = 
-	let old_cardinal = cardinal e in 
-	let e' = fold (fun a e' -> 
-	  let a = ref a in 
-	  add !a (fold (fun b acc -> 
-	    match bunion !a b with 
-	      | [a'] -> let olda = !a in a:= a'; (remove olda acc)
-	      | [a;b] -> add b acc
-	      | _ -> failwith "bunion didn't work like i wanted.") 
-		    e' empty )) e e  in 
-	if Decide_Util.debug_mode 
-	then assert (equal e e');
-	if old_cardinal = (cardinal e')
-	then e' 
-	else compact e'
+      (* is it faster to check all things with equal RHS first and then restart, 
+	 or should you restart as soon as you've succeeded on a merge? *)
 
+      exception Merge_Success of this_t * t
+
+      let rec compact (bs : t) = 
+	let find_merge a bs' = 
+	  iter_range 
+	    (* minimal base with equal RHS *)
+	    (fun e -> let Base(_,ar) = a in 
+		      let Base(_,er) = e in 
+		      match assg_compare ar er with 
+			| -1 -> -1 
+			| 0 -> 1
+			| 1 -> 1
+			| _ -> failwith "bad compare function")
+	    (* maximal base with equal RHS *)
+	    (fun e -> let Base(_,ar) = a in 
+		      let Base(_,er) = e in 
+		      match assg_compare ar er with 
+			| -1 -> -1 
+			| 0 -> -1
+			| 1 -> 1
+			| _ -> failwith "bad compare function" )
+	    (fun e -> 
+	      match bunion a e with 
+		| [a;e] -> ()
+		| [a'] -> raise (Merge_Success (a',remove a (remove e bs')))
+		| _ -> failwith "bunion had a weird return") bs' in 
+	let rec keep_trying (a : this_t) bs : this_t * t = 
+	  try find_merge a bs; (a,bs)
+	  with Merge_Success (merge,bs') -> 
+	    keep_trying merge bs'
+	in 
+	fold 
+	  (fun a s -> let a',s' = keep_trying a s in add a' s' ) 
+	  bs bs
+
+(*
 	  
       let union (a : t) (b : t) : t = 
 	let res = union a b in 
 	compact res
+
 
 
       let add b s : t = 
@@ -576,7 +598,7 @@ let collection_to_string fold elt_to_string sep c =
 	if Decide_Util.debug_mode then 
 	  (let olds = add b s in 
 	  assert (equal olds res));
-	compact res 
+	res (* compact res *)
 *)
 
       let mult (left : t)  (right : t) : t = 
