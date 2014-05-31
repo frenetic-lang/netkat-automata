@@ -52,11 +52,11 @@ module WorkList = WorkList(struct
 	    let pre_cardinal1 = Base.Set.cardinal q1_E in 
 	    let post_cardinal1 = 
 	      Base.Set.cardinal (Base.Set.compact q1_E) in
-	    assert (post_cardinal1 >= pre_cardinal1);
+	    assert (post_cardinal1 <= pre_cardinal1);
 	    let pre_cardinal2 = Base.Set.cardinal q2_E in 
 	    let post_cardinal2 = 
 	      Base.Set.cardinal (Base.Set.compact q2_E) in
-	    assert (post_cardinal2 >= pre_cardinal2);
+	    assert (post_cardinal2 <= pre_cardinal2);
 	    (divspecial (100 * post_cardinal1) (pre_cardinal1))::
 	      (divspecial (100 * post_cardinal2) (pre_cardinal2))::
 	      !(Decide_Util.stats.compact_percent);

@@ -1,7 +1,7 @@
 exception Quit
 exception Undo
 
-let debug_mode = false
+let debug_mode = true
 let profile_mode = true
 let failed_Count = ref 0
 let success_count = ref 1

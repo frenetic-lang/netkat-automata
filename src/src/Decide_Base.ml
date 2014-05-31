@@ -580,25 +580,23 @@ let collection_to_string fold elt_to_string sep c =
 	  (fun a s -> let a',s' = merge_element a (remove a s) in add a' s' )
 	  bs bs
 
-      let rec slow_compact (bs : t) = 
-	let find_merge a bs' = 
-	  fold (fun a bs -> 
-	    match  (fold (fun b (r,bs) -> 
-	      match r with 
-		| Some r' -> r,add b bs
-		| None -> (match bunion a b with 
-		    | [a';b'] -> None,add b bs
-		    | [a'] -> Some a',remove a bs
-		    | _ -> failwith "meh" )) bs (None,empty))
-	    with 
-	      | Some r,bs -> add r bs 
-	      | None,bs -> bs) bs' bs' in 
-	let old_card = cardinal bs in 
-	let res = find_merge (choose bs) bs in 
-	let new_card = cardinal res in 
-	if (new_card < old_card) 
-	then find_merge (choose res) res
-	else res
+      let rec slow_compact e = 
+	let old_cardinal = cardinal e in 
+	let e' = fold (fun a e' -> 
+	  let a = ref a in 
+	  add !a (fold (fun b acc -> 
+	    match bunion !a b with 
+	      | [a'] -> let olda = !a in a:= a'; (remove olda acc)
+	      | [a;b] -> add b acc
+	      | _ -> failwith "bunion didn't work like i wanted.") 
+		    e' empty )) e e  in 
+	if Decide_Util.debug_mode 
+	then (assert (equal e e');
+	      assert (old_cardinal >= (cardinal e'))
+	);
+	if old_cardinal = (cardinal e')
+	then e' 
+	else compact e'
 	  
       let union (a : t) (b : t) : t = 
 	let res = union a b in 
@@ -640,10 +638,14 @@ let collection_to_string fold elt_to_string sep c =
 	  (Decide_Util.stats.compact_percent) := 
 	    let pre_cardinal1 = cardinal left in 
 	    let post_cardinal1 = cardinal left' in
-	    assert (post_cardinal1 >= pre_cardinal1);
+	    if (post_cardinal1 > pre_cardinal1)
+	    then Printf.eprintf "before compaction: %s\nafter: %s\n"
+	      (to_string left)
+	      (to_string left');
+	    assert (post_cardinal1 <= pre_cardinal1);
 	    let pre_cardinal2 = cardinal right in 
 	    let post_cardinal2 = cardinal right' in 
-	    assert (post_cardinal2 >= pre_cardinal2);
+	    assert (post_cardinal2 <= pre_cardinal2);
 	    (divspecial (100 * post_cardinal1) (pre_cardinal1))::
 	      (divspecial (100 * post_cardinal2) (pre_cardinal2))::
 	      !(Decide_Util.stats.compact_percent);
