@@ -208,7 +208,6 @@ let one = One (1,Some {e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base (
 let dup = Dup (2,Some {e_matrix = (fun _ -> Base.Set.empty); 
 			    one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
 
-
   
 (***********************************************
  * utilities
