@@ -205,8 +205,7 @@ let zero = Zero (0,Some {e_matrix = (fun _ -> Base.Set.empty);
 			 one_dup_e_matrix = (fun _ -> Base.Set.empty)})
 let one = One (1,Some {e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()));
 		       one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
-let dup_id = 2
-let dup = Dup (dup_id,Some {e_matrix = (fun _ -> Base.Set.empty); 
+let dup = Dup (2,Some {e_matrix = (fun _ -> Base.Set.empty); 
 			    one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
 
 
