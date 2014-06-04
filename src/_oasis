@@ -15,17 +15,8 @@ Library netkat_decide
   InternalModules: 
     Decide_Base,
     Decide_Deriv,
-    Decide_Spines,
-    Decide_Dot,
-    Decide_Repl
+    Decide_Dot
   Modules:
     Decide_Util,
     Decide_Ast,
     Decide_Bisimulation
-
-Executable netkat
-  Path: src
-  MainIs: Decide_Repl.ml
-  Install: false
-  BuildDepends:
-    batteries

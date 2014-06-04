@@ -204,7 +204,7 @@ open Decide_Spines
       
   let calculate_deriv all_spines (e : t) : ((U.Base.point -> t) * U.Base.Set.t) = 
     match e with 
-      | (Zero _ | Spine (Decide_Ast.Term.Zero _,_,_)) -> 
+      | Zero _ -> 
 	(fun _ -> zero ), U.Base.Set.empty
       | BetaSpine (beta, spine_set,_,_) -> 
 	let d,points = 
