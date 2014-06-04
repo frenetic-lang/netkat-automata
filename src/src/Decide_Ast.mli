@@ -8,15 +8,16 @@ type cached_info =
 module Term : sig
   type t
   val compare : t -> t -> int
-    (* pretty printing *)
+  val equal : t -> t -> bool
   val to_string : t -> string 
-  val to_string_sexpr : t -> string
+  val hash : t -> int
   end 
 
 module TermSet : sig 
   include Set.S
   val map : (elt -> elt) -> t -> t
   val bind : t -> (elt -> t) -> t
+  val to_string : t -> string
 end with type elt = Term.t
 
 module TermMap : sig 
@@ -50,10 +51,6 @@ val make_star : Term.t -> Term.t
 val get_cache : term -> cached_info
 val values_in_term : term -> UnivMap.t 
 val allLRspines : term -> TermPairSet.t  TermMap.t
-  
-(* Pretty printing *)
-val term_to_string : term -> string
-val termset_to_string : TermSet.t -> string
 
   
 (* more utils *)
