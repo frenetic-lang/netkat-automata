@@ -1,14 +1,11 @@
 
 open Decide_Base
 open Decide_Util
-open Decide_Spines
 
-
-  module Spines = Decide_Spines
-  module TermMap = Spines.TermMap
+  module TermMap = Decide_Ast.TermMap
   module TermSet = Decide_Ast.TermSet
   module U = Decide_Base
-  type spines_map = Spines.TermPairSet.t TermMap.t
+  type spines_map = Decide_Ast.TermPairSet.t TermMap.t
 
   open Decide_Ast
 
@@ -117,7 +114,7 @@ open Decide_Spines
       ret
 
     let make_term = (fun (e : Decide_Ast.term) -> 
-      make_spine (Spines.allLRspines e) e)
+      make_spine (Decide_Ast.allLRspines e) e)
 
     let to_string = function 
       | Zero _ -> "drop"
@@ -158,7 +155,7 @@ open Decide_Spines
     
       
   let calc_deriv_main all_spines (e : Term.t) : ((U.Base.point -> t) * U.Base.Set.t)  = 
-    let d,pts = Spines.TermPairSet.fold 
+    let d,pts = Decide_Ast.TermPairSet.fold 
       (fun (e1,e2) (rest_d,set_of_points) -> 
 	
 	(* calculate e of left spine*)

@@ -15,7 +15,8 @@ Library netkat_decide
   InternalModules: 
     Decide_Base,
     Decide_Deriv,
-    Decide_Dot
+    Decide_Dot,
+    Decide_Set
   Modules:
     Decide_Util,
     Decide_Ast,

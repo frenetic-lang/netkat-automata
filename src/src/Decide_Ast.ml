@@ -10,106 +10,123 @@ let utf8 = ref false
 
 let biggest_int = ref 0  
      
-  type cached_info = 
-      { e_matrix : unit -> Decide_Base.Base.Set.t;
-	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t 
-      }
+type cached_info = 
+    { e_matrix : unit -> Decide_Base.Base.Set.t;
+      one_dup_e_matrix : unit -> Decide_Base.Base.Set.t 
+    }
 
+module rec TermSet : sig
+  include Set.S
+  val map : (elt -> elt) -> t -> t
+  val of_list : elt list -> t
+  val bind : t -> (elt -> t) -> t
+end with type elt = Term.t = struct
+  include Set.Make (Term)
+  let map (f : elt -> elt) (ts : t) : t =
+    fold (fun x -> add (f x)) ts empty
+  let of_list (tl : elt list) : t =
+    List.fold_right add tl empty
+  let bind (ts : t) (f : elt -> t) : t =
+    fold (fun x t -> union (f x) t) ts empty
+end 
 
-  module Term : sig      
-    type uid = int
-
-    type t =
-      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
-      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
-      | Dup of uid * cached_info option 
-      | Plus of uid * term_set * cached_info option 
-      | Times of uid * t list * cached_info option 
-      | Not of uid * t * cached_info option 
-      | Star of uid * t * cached_info option 
-      | Zero of uid * cached_info option
-      | One of uid * cached_info option
-  and term_set = (t) BatSet.PSet.t
-
+and Term : sig      
+  type uid = int
+      
+  type t =
+    | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
+    | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
+    | Dup of uid * cached_info option 
+    | Plus of uid * TermSet.t * cached_info option 
+    | Times of uid * t list * cached_info option 
+    | Not of uid * t * cached_info option 
+    | Star of uid * t * cached_info option 
+    | Zero of uid * cached_info option
+    | One of uid * cached_info option
+	
   (* pretty printers + serializers *)
   val to_string : t -> string
   val to_string_sexpr : t -> string
   val int_of_uid : uid -> int
-
+    
   (* utilities for Map, Hashtbl, etc *)
-  val old_compare : (t -> t -> int)
   val compare : t -> t -> int
   val hash : t -> int
   val equal : t -> t -> bool
-
-
+    
+    
   (* because module troubles *)
   val extract_uid : t -> uid
   val default_uid : uid
+  val ts_map : ((t -> t ) -> TermSet.t -> TermSet.t) ref 
+  val ts_elements : (TermSet.t -> t list) ref 
+    
+end = struct 
 
-  end = struct 
-    type uid = int	
-
-    type t =
-      | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
-      | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
-      | Dup of uid * cached_info option 
-      | Plus of uid * term_set * cached_info option 
-      | Times of uid * t list * cached_info option 
-      | Not of uid * t * cached_info option 
-      | Star of uid * t * cached_info option 
-      | Zero of uid * cached_info option
-      | One of uid * cached_info option
-  and term_set = (t) BatSet.PSet.t
-
-    let default_uid = -1
-
-    let extract_uid = 
-      function 
-	| Assg (id,_,_,_)
-	| Test (id,_,_,_)
-	| Dup (id,_)
-	| Plus (id,_,_)
-	| Times (id,_,_)
-	| Not (id,_,_)
-	| Star (id,_,_)
-	| Zero (id,_)
-	| One (id,_)
-	  -> id 
+  let ts_map = ref (fun _ _ -> failwith "foo") 
+  let ts_elements = ref (fun _ -> failwith "foo")
+    
+  type uid = int	
+      
+  type t =
+    | Assg of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
+    | Test of uid * Decide_Util.Field.t * Decide_Util.Value.t * cached_info option 
+    | Dup of uid * cached_info option 
+    | Plus of uid * TermSet.t * cached_info option 
+    | Times of uid * t list * cached_info option 
+    | Not of uid * t * cached_info option 
+    | Star of uid * t * cached_info option 
+    | Zero of uid * cached_info option
+    | One of uid * cached_info option
+	
+  let default_uid = -1
+    
+  let extract_uid = 
+    function 
+      | Assg (id,_,_,_)
+      | Test (id,_,_,_)
+      | Dup (id,_)
+      | Plus (id,_,_)
+      | Times (id,_,_)
+      | Not (id,_,_)
+      | Star (id,_,_)
+      | Zero (id,_)
+      | One (id,_)
+	-> id 
   
-    let rec to_string (t : t) : string =
-      (* higher precedence binds tighter *)
-      let out_precedence (t : t) : int =
-	match t with
-	  | Plus _ -> 0
-	  | Times _ -> 1
-	  | Not _ -> 2
-	  | Star _ -> 3
-	  | _ -> 4 (* assignments and primitive tests *) in
-      (* parenthesize as dictated by surrounding precedence *)
-      let protect (x : t) : string =
-	let s = to_string x in
-	if out_precedence t <= out_precedence x then s else "(" ^ s ^ ")" in
-      let assoc_to_string (op : string) (ident : string) (s : string list) 
-	  : string =
-	match s with
-	  | [] -> ident
-	  | _ -> String.concat op s in
+  let rec to_string (t : t) : string =
+    (* higher precedence binds tighter *)
+    let out_precedence (t : t) : int =
       match t with
-	| Assg (_, var, value,_) -> Printf.sprintf "%s:=%s" 
-	  (Field.to_string var) (Value.to_string value)
-	| Test (_, var, value,_) -> Printf.sprintf "%s=%s" 
-	  (Field.to_string var) (Value.to_string value)
-	| Dup _ -> "dup"
-	| Plus (_,x,_) -> assoc_to_string " + " "0" (List.map protect 
-						     ( BatSet.PSet.elements x ))
-	| Times (_,x,_) -> assoc_to_string ";" "1" (List.map protect x)
-	| Not (_,x,_) -> (if !utf8 then "¬" else "~") ^ (protect x)
-	| Star (_,x,_) -> (protect x) ^ "*"
-	| Zero _ -> "drop"
-	| One _ -> "pass"
-
-
+	| Plus _ -> 0
+	| Times _ -> 1
+	| Not _ -> 2
+	| Star _ -> 3
+	| _ -> 4 (* assignments and primitive tests *) in
+    (* parenthesize as dictated by surrounding precedence *)
+    let protect (x : t) : string =
+      let s = to_string x in
+      if out_precedence t <= out_precedence x then s else "(" ^ s ^ ")" in
+    let assoc_to_string (op : string) (ident : string) (s : string list) 
+	: string =
+      match s with
+	| [] -> ident
+	  | _ -> String.concat op s in
+    match t with
+      | Assg (_, var, value,_) -> Printf.sprintf "%s:=%s" 
+	(Field.to_string var) (Value.to_string value)
+      | Test (_, var, value,_) -> Printf.sprintf "%s=%s" 
+	(Field.to_string var) (Value.to_string value)
+      | Dup _ -> "dup"
+      | Plus (_,x,_) -> assoc_to_string " + " "0" (List.map protect 
+						     ( !ts_elements x ))
+      | Times (_,x,_) -> assoc_to_string ";" "1" (List.map protect x)
+      | Not (_,x,_) -> (if !utf8 then "¬" else "~") ^ (protect x)
+      | Star (_,x,_) -> (protect x) ^ "*"
+      | Zero _ -> "drop"
+      | One _ -> "pass"
+	  
+	  
   let rec to_string_sexpr = function 
     | Assg ( _, var, value,_) -> Printf.sprintf "(:= %s %s)"
       (Field.to_string var) (Value.to_string value)
@@ -120,7 +137,7 @@ let biggest_int = ref 0
       Printf.sprintf "(+ %s)" 
 	(List.fold_right 
 	   (fun x -> Printf.sprintf "%s %s" (to_string_sexpr x)) 
-	   (BatSet.PSet.elements x) "")
+	   (!ts_elements x) "")
     | Times (_, x,_) -> 
       Printf.sprintf "(; %s)" 
 	(List.fold_right 
@@ -130,109 +147,73 @@ let biggest_int = ref 0
     | Star (_, x,_) -> (Printf.sprintf "(%s)" (to_string_sexpr x)) ^ "*"
     | Zero _ -> "drop"
     | One _ -> "pass"
+      
+      
+  let int_of_uid x = x
+    
+  let remove_cache = function
+    | Assg (a,b,c,_) -> Assg(a,b,c,None)
+    | Test (a,b,c,_) -> Test(a,b,c,None)
+    | Dup (a,_) -> Dup(a,None)
+    | Plus (a,b,_) -> Plus (a,b,None)
+    | Times (a,b,_) -> Times (a,b,None)
+    | Not (a,b,_) -> Not (a,b,None)
+    | Star (a,b,_) -> Star (a,b,None)
+    | Zero (a,_) -> Zero(a,None)
+    | One (a,_) -> One(a,None)
+      
+  let compare a b = 
+    match extract_uid a, extract_uid b with 
+      | (-1,_ | _,-1) -> 
+	failwith "error: comparing before setting uid"
+      | uida,uidb -> 
+	Pervasives.compare uida uidb
+  let equal a b = 
+    (compare a b) = 0
+    
+  let rec invalidate_id = function 
+    | Assg (_,l,r,o) -> Assg(-1,l,r,o)
+    | Test (_,l,r,o) -> Test(-1,l,r,o)
+    | Plus (_,es,o) -> Plus(-1,!ts_map invalidate_id es,o)
+    | Times (_,es,o) -> Times(-1,List.map invalidate_id es,o)
+    | Not (_,e,o) -> Not(-1,invalidate_id e,o)
+    | Star (_,e,o) -> Star(-1,invalidate_id e,o)
+    | other -> other
+      
+      
+  let hash a = match extract_uid a with 
+    | -1 -> Hashtbl.hash (invalidate_id a)
+    | a -> Hashtbl.hash a
+      
+end 
 
+    let _ = Term.ts_map := TermSet.map
+    let _ = Term.ts_elements := TermSet.elements
 
-    let int_of_uid x = x
+module TermMap = Map.Make(struct 
+  type t = Term.t
+  let compare = Term.compare
+end
+)
 
-    let remove_cache = function
-      | Assg (a,b,c,_) -> Assg(a,b,c,None)
-      | Test (a,b,c,_) -> Test(a,b,c,None)
-      | Dup (a,_) -> Dup(a,None)
-      | Plus (a,b,_) -> Plus (a,b,None)
-      | Times (a,b,_) -> Times (a,b,None)
-      | Not (a,b,_) -> Not (a,b,None)
-      | Star (a,b,_) -> Star (a,b,None)
-      | Zero (a,_) -> Zero(a,None)
-      | One (a,_) -> One(a,None)
-
-
-    let old_compare =   
-      (let rec oldcomp = (fun e1 e2 -> 
-	match e1,e2 with 
-	  | (Plus (_,al,_)),(Plus (_,bl,_)) -> BatSet.PSet.compare al bl
-	  | (Times (_,al,_)),(Times (_,bl,_)) -> 
-	    (match List.length al, List.length bl with 
-	      | a,b when a = b -> 
-		List.fold_right2 (fun x y acc -> 
-		  if (acc = 0) 
-		  then oldcomp x y 
-		  else acc
-		    ) al bl 0
-	      | a,b when a < b -> -1 
-	      | a,b when a > b -> 1
-	      | _ -> failwith "stupid Ocaml compiler thinks my style is bad"
-	    )
-	  | ((Not (_,t1,_),Not (_,t2,_)) | (Star (_,t1,_),Star (_,t2,_))) -> 
-	    oldcomp t1 t2
-	  | _ -> Pervasives.compare (remove_cache e1) (remove_cache e2))
-       in oldcomp )
-	
-
-    let compare a b = 
-      match extract_uid a, extract_uid b with 
-	| (-1,_ | _,-1) -> 
-	  old_compare a b
-	| uida,uidb -> 
-	  let myres = Pervasives.compare uida uidb in 
-	  if Decide_Util.debug_mode 
-	  then 
-	    match myres, old_compare a b
-	    with 
-	      | 0,0 -> 0 
-	      | 0,_ -> 
-		Printf.printf "about to fail: Terms %s and %s had uid %u\n"
-		  (to_string a) (to_string b) (extract_uid a);
-		failwith "new said equal, old said not"
-	      | _,0 -> 
-		Printf.printf "about to fail: Terms %s and %s had uid %u\n"
-		  (to_string a) (to_string b) (extract_uid a);
-		failwith "old said equal, new said not"
-	      | a,_ -> a
-	  else myres
-    let equal a b = 
-      (compare a b) = 0
-
-    let rec invalidate_id = function 
-      | Assg (_,l,r,o) -> Assg(-1,l,r,o)
-      | Test (_,l,r,o) -> Test(-1,l,r,o)
-      | Plus (_,es,o) -> Plus(-1,BatSet.PSet.map invalidate_id es,o)
-      | Times (_,es,o) -> Times(-1,List.map invalidate_id es,o)
-      | Not (_,e,o) -> Not(-1,invalidate_id e,o)
-      | Star (_,e,o) -> Star(-1,invalidate_id e,o)
-      | other -> other
-
-	
-    let hash a = match extract_uid a with 
-      | -1 -> Hashtbl.hash (invalidate_id a)
-      | a -> Hashtbl.hash a
-
-
-  end
-
-
-module TermSet = struct 
-  type t = Term.term_set
-  type elt = Term.t
-  let singleton e = BatSet.PSet.singleton ~cmp:Term.compare e
-  let empty = 
-    let ret : t = BatSet.PSet.create Term.compare in 
-    ret
-  let add = BatSet.PSet.add 
-  let map = BatSet.PSet.map
-  let fold = BatSet.PSet.fold
-  let union = BatSet.PSet.union
-  let iter = BatSet.PSet.iter
+module TermPairSet = struct 
+  include Set.Make(struct 
+    type t = Term.t * Term.t
+    let compare (al,ar) (bl,br) = 
+      match Term.compare al bl with 
+	| 0 -> Term.compare ar br
+	| o -> o 
+  end)
+  let map f ts = 
+    fold (fun (l,r) acc -> add (f (l,r)) acc) ts empty
   let bind ts f = 
-    fold (fun x t -> union (f x) t) ts (empty )
-  let compare = BatSet.PSet.compare
-  let elements = BatSet.PSet.elements
+    fold (fun (l,r) t -> union (f (l,r)) t) ts empty
 end
 
 
  
 open Term
 type term = Term.t
-type term_set = Term.term_set
 
 module UnivMap = Decide_Util.SetMapF (Field) (Value)
  
@@ -264,8 +245,8 @@ let formula_to_string (e : formula) : string =
   | Le (s,t) -> Term.to_string ( s) ^ " <= " ^ 
     Term.to_string ( t)
 
-let termset_to_string (ts : (term) BatSet.PSet.t) : string =
-  let l = BatSet.PSet.elements ts in
+let termset_to_string (ts : TermSet.t) : string =
+  let l = TermSet.elements ts in
   let m = List.map term_to_string l in
   String.concat "\n" m
 
@@ -283,7 +264,7 @@ let rec is_test (t : term) : bool =
   | Test _ -> true
   | Dup _ -> false
   | Times (_,x,_) -> List.for_all is_test x
-  | Plus (_,x,_) -> BatSet.PSet.for_all is_test x
+  | Plus (_,x,_) -> TermSet.for_all is_test x
   | Not (_,x,_) -> is_test x || failwith "May not negate an action"
   | Star (_,x,_) -> is_test x
   | (Zero _ | One _) -> true
@@ -292,7 +273,7 @@ let rec vars_in_term (t : term) : Field.t list =
   match t with
   | (Assg (_,x,_,_) | Test(_,x,_,_)) -> [x]
   | Times (_,x,_) -> List.concat (List.map vars_in_term x)
-  | Plus (_,x,_) -> List.concat (List.map vars_in_term (BatSet.PSet.elements x))
+  | Plus (_,x,_) -> List.concat (List.map vars_in_term (TermSet.elements x))
   | (Not (_,x,_) | Star (_,x,_)) -> vars_in_term x
   | (Dup _ | Zero _ | One _) -> []
 
@@ -302,7 +283,7 @@ let values_in_term (t : term) : UnivMap.t =
   let rec collect (t : term) (m : UnivMap.t) : UnivMap.t =
   match t with 
   | (Assg (_,x,v,_) | Test (_,x,v,_)) -> UnivMap.add x v m
-  | Plus (_,s,_) -> BatSet.PSet.fold collect s m
+  | Plus (_,s,_) -> TermSet.fold collect s m
   | Times (_,s,_) -> List.fold_right collect s m
   | (Not (_,x,_) | Star (_,x,_)) -> collect x m
   | (Dup _ | Zero _ | One _) -> m in
@@ -314,7 +295,7 @@ let rec contains_a_neg term =
     | Not _ -> true
     | Times (_,x,_) -> List.fold_left 
       (fun acc x -> acc || (contains_a_neg x)) false x
-    | Plus (_,x,_) -> BatSet.PSet.fold 
+    | Plus (_,x,_) -> TermSet.fold 
       (fun x acc -> acc || (contains_a_neg x)) x false 
     | Star (_,x,_) -> contains_a_neg x
 
@@ -338,12 +319,12 @@ let flatten_sum o (t : Term.t list) : Term.t =
   let f (x : Term.t) = 
     match x with 
       | Plus (_,v,_) -> 
-	(BatSet.PSet.elements v) 
+	(TermSet.elements v) 
       | (Zero _) -> [] 
       | _ -> [x] in
   let t1 = List.concat (List.map f t) in
-  let t2 = BatSet.PSet.of_list t1 in
-  match BatSet.PSet.elements t2 with 
+  let t2 = TermSet.of_list t1 in
+  match TermSet.elements t2 with 
     | [] -> zero
     | [x] -> x
     | _ ->  (Term.Plus (-1, t2, o))
@@ -374,7 +355,7 @@ let flatten_star o (t : Term.t) : Term.t =
   let t1 = match t with
   | Plus (_,x,_) -> 
     flatten_sum None (List.filter (fun s -> not (is_test s))
-		   (BatSet.PSet.elements x))
+		   (TermSet.elements x))
   | _ -> t in
   if is_test t1 then one
   else match t1 with
@@ -389,7 +370,7 @@ let contains_dups (t : term) : bool =
     | (Assg _ | Test _ | Zero _ | One _) -> false
     | Dup _ -> true
     | Plus (_,x,_) ->  
-      (BatSet.PSet.fold (fun e acc ->  (contains e) || acc)  x false)
+      (TermSet.fold (fun e acc ->  (contains e) || acc)  x false)
     | Times (_,x,_) ->  
       (List.fold_left (fun acc e -> (contains e) || acc) false x)
     | Not (_,x,_) ->  (contains x)
@@ -547,7 +528,7 @@ let extract_uid_fn1 t =
 let ids_from_list tl = 
   List.map extract_uid_fn1 tl
 let ids_from_set ts = 
-  BatSet.PSet.fold (fun t acc -> (extract_uid_fn1 t) :: acc) ts []
+  TermSet.fold (fun t acc -> (extract_uid_fn1 t) :: acc) ts []
 
 let getandinc _ = 
   let ret = !counter in 
@@ -584,7 +565,7 @@ let rec hashcons (t : Term.t) : Term.t =
     | Test(-1,f,v,None) -> 
       get_or_make testhash (f,v) (fun id -> Test(id,f,v,None))
     | Plus (-1,ts,None) -> 
-      let ts = BatSet.PSet.map hashcons ts in 
+      let ts = TermSet.map hashcons ts in 
       let ids = (ids_from_set ts) in 
       get_or_make plushash ids (fun id -> Plus(id,ts,None))
     | Times (-1,tl,None) -> 
@@ -632,7 +613,7 @@ let make_not t =
 let rec simplify (t : Term.t) : Term.t =
   let ret = match t with
     | Plus (_,x,_) -> hashcons (flatten_sum None (List.map simplify 
-						    (BatSet.PSet.elements x)))
+						    (TermSet.elements x)))
     | Times (_,x,_) -> hashcons (flatten_product None (List.map simplify x))
     | Not (_,x,_) -> hashcons (flatten_not None (simplify x))
     | Star (_,x,_) -> hashcons (flatten_star None (simplify x))
@@ -647,11 +628,11 @@ let deMorgan (t : term) : term =
     match t with 
       | (Assg _ | Test _ | Zero _ | One _ | Dup _) -> t
       | Star (_, x, o) -> Star (-1, dM x, o)
-      | Plus (_,x, o) -> Plus (-1,BatSet.PSet.map dM x, o)
+      | Plus (_,x, o) -> Plus (-1,TermSet.map dM x, o)
       | Times (_,x, o) -> Times (-1,List.map dM x, o)
       | Not (_,(Not (_,x,_)),_) -> dM x
-      | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (None) e)) (BatSet.PSet.elements s), None)
-      | Not (_,Times (_,s,_),_) -> Plus (-1, BatSet.PSet.of_list (List.map (fun e -> f (None) e) s), None)
+      | Not (_,(Plus (_,s,_)),_) -> Times (-1, List.map (fun e -> (f (None) e)) (TermSet.elements s), None)
+      | Not (_,Times (_,s,_),_) -> Plus (-1, TermSet.of_list (List.map (fun e -> f (None) e) s), None)
       | Not (_,Star (_,x,_),_) ->
 	if is_test x then zero
 	else failwith "May not negate an action"
@@ -740,7 +721,7 @@ let zero_dups (t : term) : term =
     match t with 
       | (Assg _ | Test _ | Zero _ | One _ ) -> t
       | Dup (_,o) -> zval
-      | Plus (_,x,o) -> Plus (-1, BatSet.PSet.map zero x,o)
+      | Plus (_,x,o) -> Plus (-1, TermSet.map zero x,o)
       | Times (_,x,o) -> Times (-1, List.map zero x,o)
       | Not (_,x,o) -> Not (-1, zero x,o)
       | Star (_,x,o) -> Star (-1, zero x,o) in
@@ -749,28 +730,6 @@ let zero_dups (t : term) : term =
 
 (* SPINES *)
 
-module Decide_Spines = struct
-  
-module TermMap = Map.Make(struct 
-  type t = Term.t
-  let compare = Term.compare
-end
-)
-
-module TermPairSet = struct 
-  include Set.Make(struct 
-    type t = term * term 
-    let compare (al,ar) (bl,br) = 
-      match Term.compare al bl with 
-	| 0 -> Term.compare ar br
-	| o -> o 
-  end)
-  let map f ts = 
-    fold (fun (l,r) acc -> add (f (l,r)) acc) ts empty
-  let bind ts f = 
-    fold (fun (l,r) t -> union (f (l,r)) t) ts empty
-end
-  
 open Term
 
 let rspines (e : term) : TermSet.t =
@@ -833,21 +792,3 @@ let rec lrspines (e : term) =
     let h = ref TermMap.empty in
     let f d = h := TermMap.add d (lrspines d) !h in
     TermSet.iter f allLR; !h
-      
-  (* (* remove dups of lspines *)                                            *)
-  (* let remove_dups_from_Lspines (h : (term, (term_set)) Hashtbl.t) : = *)
-  (*   let f x = match x with                                                *)
-  (*   | Times [l;r] -> Times [zero_dups l; r]                           *)
-  (*   | _ -> failwith "remove_dups_from_Lspines" in                         *)
-  (*   let g ts = TermSet.map f ts in                                        *)
-      
-(*
-  let display_lrspines (ts : (term_set)) : =
-    let f x = match x with
-      | Term.Times (_,[l;r],_) -> Printf.printf "%s ||| %s\n" 
-	(Term.to_string l) (Term.to_string r)
-      | _ -> failwith "display_lrspines" in
-    TermSet.iter f ts
-*)
-
-end
