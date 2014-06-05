@@ -111,18 +111,11 @@ the set [s2]. *)
 The elements of [s] are presented to [f] in increasing order
 with respect to the ordering over the type of the elements. *)
 
-    val iter_range_until_some: (elt -> int) -> (elt -> int) -> (elt -> 'a option) -> t -> 'a option 
-    (** [iter_range f s] applies [f] in turn to all elements of [s] 
-	which compare greater than the first argument and less than 
-	the second argument.
-	The elements of [s] are presented to [f] in increasing order
-	with respect to the ordering over the type of the elements. *)
-
     val fold: (elt -> 'a -> 'a) -> t -> 'a -> 'a
     (** [fold f s a] computes [(f xN ... (f x2 (f x1 a))...)],
 where [x1 ... xN] are the elements of [s], in increasing order. *)
 
-    val fold_range : (elt -> string) -> (elt -> bool) -> (elt -> bool) -> (elt -> bool) -> (elt -> 'a -> 'a) -> t -> 'a -> 'a
+    val fold_range : (elt -> bool) -> (elt -> bool) -> (elt -> 'a -> 'a) -> t -> 'a -> 'a
 
     val for_all: (elt -> bool) -> t -> bool
     (** [for_all p s] checks if all elements of the set

@@ -549,10 +549,6 @@ let collection_to_string fold elt_to_string sep c =
 	let a = ref a in 
 	  let to_remove = 
 	    (fold_range 	    
-	       (fun e -> Printf.sprintf 
-		 "Trying to merge: %s\nWith this:%s\nCompare is:%d\n"
-		 (bto_string !a) (bto_string e) (compare_rhs e !a))
-	       (fun e -> compare_rhs e !a <> 0)
 	    (* minimal base with equal RHS *)
 	       (fun e -> match compare_rhs e !a with 
 		 | -1 -> false

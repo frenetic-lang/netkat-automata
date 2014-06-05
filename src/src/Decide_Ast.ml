@@ -5,11 +5,11 @@ exception Empty
 let utf8 = ref false 
 
 (***********************************************
- * syntax
- ***********************************************)
+						* syntax
+***********************************************)
 
 let biggest_int = ref 0  
-     
+  
 type cached_info = 
     { e_matrix : unit -> Decide_Base.Base.Set.t;
       one_dup_e_matrix : unit -> Decide_Base.Base.Set.t 
@@ -32,9 +32,7 @@ end with type elt = Term.t = struct
     fold (fun x t -> union (f x) t) ts empty
   let ts = let r : (t->string) = (fun _ -> failwith "backpatch") in ref r
   let to_string st = !ts st
-end 
-
-and Term : sig      
+end and Term : sig      
   type uid = int
       
   type t =
@@ -206,7 +204,7 @@ let zero = Zero (0,Some {e_matrix = (fun _ -> Base.Set.empty);
 let one = One (1,Some {e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()));
 		       one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
 let dup = Dup (2,Some {e_matrix = (fun _ -> Base.Set.empty); 
-			    one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
+		       one_dup_e_matrix = (fun _ -> Base.Set.singleton (Base.univ_base ()))})
 
   
 (***********************************************
