@@ -315,6 +315,12 @@ let get_cache t :  cached_info  =
   match get_cache_option t with 
     | Some c -> c
     | None -> failwith "can't extract; caache not set"
+
+let e_matrix t = 
+  (get_cache t).e_matrix ()
+
+let one_dup_e_matrix t = 
+  (get_cache t).one_dup_e_matrix ()
     
 (* this is calculating the E matrix, effectively *)
 let rec fill_cache t0 = 
@@ -574,7 +580,7 @@ let rspines (e : term) : TermSet.t =
 	| (Assg _ | Test _ | Not _ | Zero _ | One _) -> TermSet.empty in
   TermSet.map simplify (sp e)
 
-let rec lrspines (e : term) =
+let rec lrspines (e : term) : TermPairSet.t =
   match e with
     | Dup _ -> TermPairSet.singleton (make_one, make_one)
     | Times (_,l,_) ->
@@ -598,12 +604,3 @@ let rec lrspines (e : term) =
     | Plus (_,ts,_) -> 
       TermSet.fold (fun x t -> TermPairSet.union (lrspines x) t) ts TermPairSet.empty
     | (Assg _ | Test _ | Not _ | Zero _ | One _) -> TermPairSet.empty      
-      
-  (* get all lrspines of e and all lrspines of rspines of e *)
-  let allLRspines (e :  term) : TermPairSet.t TermMap.t =
-    Printf.printf "getting all spines of: %s\n" (Term.to_string e);
-   
-    let allLR = TermSet.add e (rspines e) in
-    let h = ref TermMap.empty in
-    let f d = h := TermMap.add d (lrspines d) !h in
-    TermSet.iter f allLR; !h

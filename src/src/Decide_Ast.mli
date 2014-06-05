@@ -1,9 +1,4 @@
 exception Empty
-
-type cached_info = 
-    { e_matrix : unit -> Decide_Base.Base.Set.t;
-      one_dup_e_matrix : unit -> Decide_Base.Base.Set.t
-    }
       
 module Term : sig
   type t
@@ -37,23 +32,24 @@ type term = Term.t
     
 (* smart constructors *)
 		   
-val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  Term.t
-val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  Term.t
-val make_dup :  Term.t
-val make_plus : Term.t list -> Term.t
-val make_times : Term.t list -> Term.t
-val make_zero : Term.t
-val make_one : Term.t
-val make_not : Term.t -> Term.t
-val make_star : Term.t -> Term.t
+val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  term
+val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  term
+val make_dup :  term
+val make_plus : term list -> term
+val make_times : term list -> term
+val make_zero : term
+val make_one : term
+val make_not : term -> term
+val make_star : term -> term
   
 (* AST Utilities *)
-val get_cache : term -> cached_info
-val values_in_term : term -> UnivMap.t 
-val allLRspines : term -> TermPairSet.t  TermMap.t
+val e_matrix : term -> Decide_Base.Base.Set.t
+val one_dup_e_matrix : term -> Decide_Base.Base.Set.t
 
-  
+val values_in_term : term -> UnivMap.t 
+val lrspines : term -> TermPairSet.t
+
 (* more utils *)
-val memoize : (Term.t -> 'b) -> (Term.t -> 'b) 
-val memoize_on_arg2 : ('a -> Term.t -> 'c) -> ('a -> Term.t -> 'c)
+val memoize : (term -> 'b) -> (term -> 'b) 
+val memoize_on_arg2 : ('a -> term -> 'c) -> ('a -> term -> 'c)
 
