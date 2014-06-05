@@ -41,7 +41,7 @@ term:
   | ONE             { make_one }
   | DUP             { make_dup } 
   | LPAREN term RPAREN { $2 }
-  | term PLUS term  { make_plus (TermSet.of_list [$1; $3]) }
+  | term PLUS term  { make_plus ( [$1; $3]) }
   | term TIMES term { make_times [$1; $3] }
   | term STAR       { make_star $1 }
   | NOT term        { make_not $2 }

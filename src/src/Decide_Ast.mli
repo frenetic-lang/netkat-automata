@@ -46,7 +46,7 @@ type term = Term.t
 val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  term
 val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  term
 val make_dup :  term
-val make_plus : TermSet.t -> term
+val make_plus : term list -> term
 val make_times : term list -> term
 val make_zero : term
 val make_one : term

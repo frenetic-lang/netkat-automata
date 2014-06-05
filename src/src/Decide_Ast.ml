@@ -102,7 +102,8 @@ end = struct
       match s with
 	| [] -> ident
 	  | _ -> String.concat op s in
-    match t with
+    Printf.sprintf "#%d %s" (extract_uid t)
+    (match t with
       | Assg (_, var, value,_) -> Printf.sprintf "%s:=%s" 
 	(Field.to_string var) (Value.to_string value)
       | Test (_, var, value,_) -> Printf.sprintf "%s=%s" 
@@ -114,7 +115,7 @@ end = struct
       | Not (_,x,_) -> (if !utf8 then "¬" else "~") ^ (protect x)
       | Star (_,x,_) -> (protect x) ^ "*"
       | Zero _ -> "drop"
-      | One _ -> "pass"
+      | One _ -> "pass")
 	  
 	  
   let remove_cache = function
@@ -133,7 +134,9 @@ end = struct
       | (-1,_ | _,-1) -> 
 	failwith "error: comparing before setting uid"
       | uida,uidb -> 
-	Pervasives.compare uida uidb
+	if Pervasives.compare uida uidb = 0
+	then (Printf.printf "Equal terms: %s \n %s\n" (Term.to_string a) (Term.to_string b); 0 )
+	else Pervasives.compare uida uidb
   let equal a b = 
     (compare a b) = 0
     
@@ -385,33 +388,36 @@ let rec fill_cache t0 =
 	    let mo = thunkify (fun _ -> get_fixpoint ((get_cache x).one_dup_e_matrix())) in
 	    Star(id,x,Some {e_matrix = me; one_dup_e_matrix = mo}) end 
 
+let timeshash : (uid list, Term.t) Hashtbl.t  = Hashtbl.create 100 
+let plushash : (uid list, Term.t) Hashtbl.t  = Hashtbl.create 100 
+let nothash : (uid, Term.t) Hashtbl.t  = Hashtbl.create 100 
+let starhash : (uid, Term.t) Hashtbl.t  = Hashtbl.create 100 
+let testhash : (Field.t * Value.t, Term.t) Hashtbl.t  = Hashtbl.create 100 
+let assghash : (Field.t * Value.t, Term.t) Hashtbl.t  = Hashtbl.create 100 
+let counter = ref 3 
 
 let rec hashcons (t : Term.t) : Term.t = 
   (* unique ID utilities *)
   let cache_exists t = match get_cache_option t with None -> false | Some _ -> true in 
-  let timeshash : (uid list, Term.t) Hashtbl.t  = Hashtbl.create 100 in 
-  let plushash : (uid list, Term.t) Hashtbl.t  = Hashtbl.create 100 in 
-  let nothash : (uid, Term.t) Hashtbl.t  = Hashtbl.create 100 in 
-  let starhash : (uid, Term.t) Hashtbl.t  = Hashtbl.create 100 in 
-  let testhash : (Field.t * Value.t, Term.t) Hashtbl.t  = Hashtbl.create 100 in
-  let assghash : (Field.t * Value.t, Term.t) Hashtbl.t  = Hashtbl.create 100 in 
-  let counter = ref 3 in
+
   let ids_from_list tl = 
     List.map extract_uid tl in 
   let ids_from_set ts = 
     TermSet.fold (fun t acc -> (extract_uid t) :: acc) ts [] in 
-  let getandinc _ = 
+  let getandinc () = 
     let ret = !counter in 
     if ret > 1073741822
     then failwith "you're gonna overflow the integers, yo";
     counter := !counter + 1; 
     ret in 
   let get_or_make hash k cnstr = 
-    try Hashtbl.find hash k 
+    try let ret = Hashtbl.find hash k  in 
+	Printf.printf "successs: %s\n" (Term.to_string ret); ret
     with Not_found -> 
       let new_id = getandinc () in 
       let ret = fill_cache (cnstr new_id) in 
       Hashtbl.replace hash k ret; 
+      Printf.printf "failure: %d\n" new_id;
       ret in 
 
   (* actual algo *)
@@ -485,7 +491,7 @@ let make_test (f,v) =
 let make_dup = dup
   
 let make_plus ts = 
-  (hashcons (flatten_sum None (TermSet.elements ts)))
+  (hashcons (flatten_sum None ts))
     
 let make_times tl = 
   (hashcons  (flatten_product None tl))
@@ -505,31 +511,19 @@ let make_not t =
 let hits = ref 0 
 let misses = ref 1 
 
-let memoize (f : Term.t -> 'a) =
-  let hash_version = 
-    let hash = Hashtbl.create 100 in 
-    (fun b -> 
-      try let ret = Hashtbl.find hash b in
-	  (hits := !hits + 1;
-	   ret)
-      with Not_found -> 
-	(misses := !misses + 1;
-	 let ret = f b in 
-	 Hashtbl.replace hash b ret;
-	 ret
-	)) in 
-  if debug_mode 
-  then (fun x -> 
-    let hv = hash_version x in 
-    let fv = f x in 
-    (try 
-      assert (hv = fv);
-    with Invalid_argument _ -> 
-      Printf.printf "%s" ("warning: memoize assert could not run:" ^
-			     "Invalid argument exception!\n"));
-    hv)
-  else hash_version
-
+let memoize (f : Term.t -> 'a) = f (*
+  let hash = Hashtbl.create 100 in 
+  (fun b -> 
+    try let ret = Hashtbl.find hash b in
+	(hits := !hits + 1;
+	 ret)
+    with Not_found -> 
+      (misses := !misses + 1;
+       let ret = f b in 
+       Hashtbl.replace hash b ret;
+       ret
+      )) 
+				   *)
 
 (* SPINES *)
 

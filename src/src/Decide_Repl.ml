@@ -57,6 +57,7 @@ let parse (s : string) =
 let process (input : string) : unit =
   try
     let parsed = parse input in
+    Printf.printf "Parsed input: %s\n" (Decide_Ast.Formula.to_string parsed);
     let l,r = Decide_Ast.Formula.terms parsed in 
     Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
     Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
