@@ -81,10 +81,10 @@ open Decide_Util
 	
     let make_spine (all_spines : spines_map) tm = 
       
-      (*what I wish I could write: 
-	let rec ret = Spine(tm, default_e_matrix ret, !default_d_matrix all_spines ret) in ret
-      *)
-      
+      (* what I wish I could write: 
+	let rec ret = Spine(tm, default_e_matrix ret, !default_d_matrix all_spines ret) in ret *)
+      (* what you can write is: 
+	let rec ret = Spine(tm, (fun x -> default_e_matrix ret x), (fun x -> !default_d_matrix all_spines ret x)) in ret *)
       let e_matrix_option = ref None in 
       let d_matrix_option = ref None in 
       let e_matrix_backpatch = 
