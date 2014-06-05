@@ -18,7 +18,7 @@ open Decide_Util
 
     val to_string : t -> string 
     val compare : t -> t -> int
-    val make_term : Decide_Ast.term -> t
+    val make_term : Decide_Ast.Term.t -> t
     val zero : t
     val make_spine : Term.t -> t
     val make_betaspine : U.Base.complete_test -> TermSet.t -> t
@@ -54,7 +54,7 @@ open Decide_Util
     let default_e_matrix trm =
       match trm with
 	| Spine (tm,_,_) ->
-	  (fun _ -> Decide_Ast.e_matrix tm)
+	  (fun _ -> Decide_Ast.Term.e_matrix tm)
 	| BetaSpine (beta,ts,em,_) ->
 	  let valu = ref None in 
 	  (fun _ -> 
@@ -64,7 +64,7 @@ open Decide_Util
 		let ret = 
 		  (U.Base.Set.filter_alpha
 		     (TermSet.fold
-			(fun t -> U.Base.Set.union (Decide_Ast.e_matrix t) )
+			(fun t -> U.Base.Set.union (Decide_Ast.Term.e_matrix t) )
 			ts U.Base.Set.empty)
 		     beta) in 
 		valu := Some ret;
@@ -148,7 +148,7 @@ open Decide_Util
       (Spine(_,_,d) | Zero(_,d) | BetaSpine(_,_,_,d)) -> d ()
 
   let laure_optimization e2 = 
-    let er_E = Decide_Ast.one_dup_e_matrix e2 in 
+    let er_E = Decide_Ast.Term.one_dup_e_matrix e2 in 
     U.Base.Set.fold 
       (fun base acc -> U.Base.Set.add (U.Base.project_lhs base) acc)
       er_E U.Base.Set.empty 
@@ -159,7 +159,7 @@ open Decide_Util
       (fun (e1,e2) (rest_d,set_of_points) -> 
 	
 	(* calculate e of left spine*)
-	let lhs_E = Decide_Ast.e_matrix e1 in 
+	let lhs_E = Decide_Ast.Term.e_matrix e1 in 
 	
 	(* filter by Laure's algorithm of right spine *)
 	let filtered_e =  
@@ -186,7 +186,7 @@ open Decide_Util
 	    | BetaSpine (b,e',_,_) -> failwith "this can't be produced"),
 	more_points)
 
-      (Decide_Ast.lrspines e)
+      (Decide_Ast.Term.lrspines e)
       
       ((fun _ -> TermSet.empty), U.Base.Set.empty) in
     

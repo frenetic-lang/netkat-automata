@@ -17,19 +17,14 @@ type cached_info =
 
 module rec TermSet : sig
   include Set.S
-  val map : (elt -> elt) -> t -> t
   val of_list : elt list -> t
   val bind : t -> (elt -> t) -> t
   val to_string : t -> string 
   val ts : (t -> string) ref
 end with type elt = Term.t = struct
   include Set.Make (Term)
-  let map (f : elt -> elt) (ts : t) : t =
-    fold (fun x -> add (f x)) ts empty
   let of_list (tl : elt list) : t =
     List.fold_right add tl empty
-  let bind (ts : t) (f : elt -> t) : t =
-    fold (fun x t -> union (f x) t) ts empty
   let ts = let r : (t->string) = (fun _ -> failwith "backpatch") in ref r
   let to_string st = !ts st
 end and Term : sig      
@@ -264,39 +259,7 @@ let flatten_sum o (t : Term.t list) : Term.t =
     | [] -> zero
     | [x] -> x
     | _ ->  (Term.Plus (-1, t2, o))
-    
-let flatten_product o (t : Term.t list) : Term.t =
-  let f x = match x with 
-    | Times (_,v,_) -> v 
-    | One _  -> [] 
-    | _ -> [x] in
-  let t1 = List.concat (List.map f t) in
-  if List.exists 
-    (fun x -> match x with (Zero _)  -> true | _ -> false) t1 
-  then zero
-  else match t1 with 
-    | [] -> one
-    | [x] -> x 
-    | _ ->  (Term.Times (-1,t1,o))
-    
-let flatten_not o (t : Term.t) : Term.t =
-  match t with
-  | Not (_,y,_) -> y
-  | Zero _ -> one
-  | One _ ->  zero
-  | _ -> (Term.Not (-1,t,o))
 
-
-let flatten_star o (t : Term.t) : Term.t =
-  let t1 = match t with
-  | Plus (_,x,_) -> 
-    flatten_sum None (List.filter (fun s -> not (is_test s))
-		   (TermSet.elements x))
-  | _ -> t in
-  if is_test t1 then one
-  else match t1 with
-  | Star _ -> t1
-  | _ -> (Term.Star (-1,t1,o))
 
 
 
@@ -610,9 +573,7 @@ module rec Term : sig
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string
-  val left_spines : t -> TermSet.t
-  val right_spines : t -> TermSet.t 
-  val spines : t -> TermSet.t * TermSet.t
+  val lrspines : t -> TermPairSet.t
   val fields : t -> FieldSet.t
   val values : t -> ValueSet.t
 end = struct
@@ -630,7 +591,7 @@ end = struct
       { uid : int;        
         desc : d; 
         hash : int;
-        mutable spines : (TermSet.t * TermSet.t) option }
+        mutable spines : TermPairSet.t option }
 
   type this_t = t
 
@@ -642,53 +603,6 @@ end = struct
 
   let hash (t:t) = 
     t.hash
-
-  (* Operations *)
-  let rspines (t0 : term) : TermSet.t =
-    let rec sp (t0 : term) : TermSet.t =
-      match t0.desc with
-	| Dup -> 
-          TermSet.singleton make_one
-	| Plus (ts) -> 
-          TermSet.bind ts sp
-	| Times ([]) -> TermSet.empty
-        | Times ([t]) -> sp t
-        | Times (th::tt) -> 
-          let u = sp th in
-          let v = sp (make_times th) in
-          let s = TermSet.map (fun x -> make_times (x :: tt)) u in
-          TermSet.union s v
-	| Star (t) ->
-          let s = sp t in
-          TermSet.map (fun x -> make_times [x; e]) s
-	| (Assg _ | Test _ | Not _ | Zero | One) -> 
-          TermSet.empty in
-    sp t0
-      
-  let rec lrspines (t0 : term) : TermPairSet.t =
-    match t0.desc with
-      | Dup -> 
-        TermPairSet.singleton (make_one (), make_one ())
-      | Times ([]) -> 
-        TermPairSet.empty
-      | Times([t]) -> 
-        lrspines t
-      | Times(th::tt) -> 
-	let u = lrspines th in
-	let v = lrspines (make_times tt) in
-	let f (l,r) = (l, make_times (r :: tt)) in
-	let r = TermPairSet.map f u in
-	let g (l,r) = (make_times [th;l],r) in
-	let s = TermPairSet.map g v in
-        TermPairSet.union r s
-      | Star (t) ->
-        let s = lrspines t in
-        let f (l,r) = (make_times [t0;l], make_times [r;t0]) in 
-        TermPairSet.map f s
-      | Plus (ts) -> 
-        TermSet.fold (fun x t -> TermPairSet.union (lrspines x) t) ts TermPairSet.empty
-      | (Assg _ | Test _ | Not _ | Zero | One) -> 
-        TermPairSet.empty      
 
   let fields = assert false
   let values = assert false
@@ -727,105 +641,6 @@ end = struct
     let hash = TermSet.hash 
   end)
 
-  let assg_hash = FVHash.create 101
-  let make_assg f v = 
-    try FVHash.find assg_hash (f,v)
-    with Not_found -> 
-      let u = next_uid () in 
-      let d = Assg(f,v) in 
-      let h = Hashtbl.hash d in 
-      let t = 
-        { uid = u;
-          desc = d;
-          hash = h } in 
-      FVHash.add assg_hash (f,v) t;
-      t
-
-  let test_hash = FVHash.create 101
-  let make_test f v = 
-    try FVHash.find test_hash (f,v)
-    with Not_found -> 
-      let u = next_uid () in 
-      let d = Test(f,v) in 
-      let h = Hashtbl.hash d in 
-      let t = 
-        { uid = u;
-          desc = d;
-          hash = h } in 
-      FVHash.add test_hash (f,v) t;
-      t
-                
-  let dup_cell = ref None
-  let make_dup () = 
-    match !dup_cell with 
-      | Some t -> t
-      | None -> 
-        let u = next_uid () in 
-        let d = Dup in 
-        let h = Hashtbl.hash d in 
-        let t = 
-          { uid = u;
-            desc = d;
-            hash = h } in 
-        dup_cell := Some t;
-        t
-
-  let plus_hash = TSetHash.create 101
-  let make_plus ts = 
-    try TSetHash.find plus_hash ts 
-    with Not_found -> 
-      let u = next_uid () in 
-      let d = Plus(ts) in 
-      let h = Hashtbl.hash d in 
-      let t = 
-        { uid = u;
-          desc = d;
-          hash = h } in 
-      TSetHash.add plus_hash ts t;
-      t
-
-  let times_hash = TListHash.create 101
-  let make_times ts = 
-    try TListHash.find times_hash ts 
-    with Not_found -> 
-      let u = next_uid () in 
-      let d = Times(ts) in 
-      let h = Hashtbl.hash d in 
-      let t = 
-        { uid = u;
-          desc = d;
-          hash = h } in 
-      TListHash.add times_hash ts t;
-      t
-
-  let not_hash = THash.create 101 
-  let make_not t0 = 
-    try THash.find not_hash t0
-    with Not_found -> 
-      let u = next_uid () in 
-      let d = Not(t0) in 
-      let h = Hashtbl.hash d in 
-      let t = 
-        { uid = u;
-          desc = d;
-          hash = h } in 
-      THash.add not_hash t0 t;
-      t
-
-  let star_hash = THash.create 101 
-  let make_star t0 = 
-    try THash.find star_hash t0
-    with Not_found -> 
-      let u = next_uid () in 
-      let d = Star(t0) in 
-      let h = Hashtbl.hash d in 
-      let t = 
-        { uid = u;
-          desc = d;
-          hash = h } in 
-      THash.add star_hash t0 t;
-      t
-
   let zero_cell = ref None
   let make_zero () = 
     match !zero_cell with 
@@ -837,7 +652,8 @@ end = struct
         let t = 
           { uid = u;
             desc = d;
-            hash = h } in 
+            hash = h;
+	    spines = None} in 
         zero_cell := Some t;
         t
 
@@ -852,9 +668,201 @@ end = struct
         let t = 
           { uid = u;
             desc = d;
-            hash = h } in 
+            hash = h;
+	    spines = None} in 
         one_cell := Some t;
         t
+
+  let assg_hash = FVHash.create 101
+  let make_assg f v = 
+    try FVHash.find assg_hash (f,v)
+    with Not_found -> 
+      let u = next_uid () in 
+      let d = Assg(f,v) in 
+      let h = Hashtbl.hash d in 
+      let t = 
+        { uid = u;
+          desc = d;
+          hash = h;
+	  spines = None} in 
+      FVHash.add assg_hash (f,v) t;
+      t
+
+  let test_hash = FVHash.create 101
+  let make_test f v = 
+    try FVHash.find test_hash (f,v)
+    with Not_found -> 
+      let u = next_uid () in 
+      let d = Test(f,v) in 
+      let h = Hashtbl.hash d in 
+      let t = 
+        { uid = u;
+          desc = d;
+          hash = h;
+	  spines = None} in 
+      FVHash.add test_hash (f,v) t;
+      t
+                
+  let dup_cell = ref None
+  let make_dup () = 
+    match !dup_cell with 
+      | Some t -> t
+      | None -> 
+        let u = next_uid () in 
+        let d = Dup in 
+        let h = Hashtbl.hash d in 
+        let t = 
+          { uid = u;
+            desc = d;
+            hash = h; 
+	    spines = None} in 
+        dup_cell := Some t;
+        t
+
+
+  let plus_hash = TSetHash.create 101
+  (* flatten terms *)
+  let rec flatten_sum (t : TermSet.t ) : Term.t =
+    let f (x : Term.t) = 
+      match x.desc with 
+	| Term.Plus v -> v
+	| Term.Zero -> TermSet.empty
+	| _ -> TermSet.singleton x in
+    let (t2 : TermSet.t) = TermSet.fold (fun e -> TermSet.union (f e)) t TermSet.empty in 
+    match TermSet.elements t2 with 
+      | [] -> make_zero ()
+      | [x] -> x
+      | _ ->  make_plus ~flatten:false t2
+  and make_plus ?(flatten = true) (ts : TermSet.t) = 
+    try TSetHash.find plus_hash ts 
+    with Not_found -> 
+      if flatten 
+      then flatten_sum ts 
+      else 
+      let u = next_uid () in 
+      let d = Plus(ts) in 
+      let h = Hashtbl.hash d in 
+      let t = 
+        { uid = u;
+          desc = d;
+          hash = h;
+	  spines = None} in 
+      TSetHash.add plus_hash ts t;
+      t
+
+  let times_hash = TListHash.create 101
+    
+    
+  let rec flatten_product (t : Term.t list) : Term.t =
+    let f x = match x.desc with 
+      | Times v -> v 
+      | One  -> [] 
+      | _ -> [x] in
+    let t1 = List.concat (List.map f t) in
+    if List.exists 
+      (fun x -> match x.desc with (Zero )  -> true | _ -> false) t1 
+    then make_zero ()
+    else match t1 with 
+      | [] -> make_one ()
+      | [x] -> x 
+      | _ ->  make_times ~flatten:false t1
+  and make_times ?flatten:(flatten=true) ts = 
+    try TListHash.find times_hash ts 
+    with Not_found -> 
+      if flatten
+      then flatten_product ts
+      else 
+	let u = next_uid () in 
+	let d = Times(ts) in 
+	let h = Hashtbl.hash d in 
+	let t = 
+          { uid = u;
+            desc = d;
+            hash = h;
+	    spines = None} in 
+	TListHash.add times_hash ts t;
+	t
+	  
+  let is_test _ = assert false
+
+  let star_hash = THash.create 101 
+
+  let rec flatten_star (t : Term.t) : Term.t =
+    let t1 = match t.desc with
+      | Term.Plus x -> 
+	flatten_sum (TermSet.filter (fun s -> not (is_test s)) x)
+      | _ -> t in
+    if is_test t1 then make_one ()
+    else match t1.desc with
+      | Star _ -> t1
+      | _ -> make_star ~flatten:false t1
+  and make_star ?flatten:(flatten=true) t0 = 
+    try THash.find star_hash t0
+    with Not_found -> 
+      if flatten
+      then flatten_star t0 
+      else 
+	let u = next_uid () in 
+	let d = Star(t0) in 
+	let h = Hashtbl.hash d in 
+	let t = 
+          { uid = u;
+            desc = d;
+            hash = h;
+	    spines = None} in 
+	THash.add star_hash t0 t;
+	t
+
+  
+  let not_hash = THash.create 101 
+(* apply De Morgan laws to push negations down to the leaves *)
+  let rec deMorgan (t : Term.t) : Term.t =
+    let rec dM (t : Term.t) : Term.t =
+      let f x = dM (make_not ~flatten:false x) in
+      match t.desc with 
+	| (Assg _ | Test _ | Zero  | One  | Dup ) -> t
+	| Star (x) -> make_star (dM x)
+	| Plus (x) -> make_plus (TermSet.map dM x)
+	| Times (x) -> make_times (List.map dM x)
+	| Not {desc = Not x} -> dM x
+	| Not {desc = Plus s} -> make_times (List.map f (TermSet.elements s))
+	| Not {desc = Times s} -> make_plus (TermSet.of_list (List.map f s))
+	| Not {desc = Star x} ->
+	  if is_test x then make_zero ()
+	  else failwith "May not negate an action"
+	| Not {desc = Zero} -> make_one ()
+	| Not {desc = One} -> make_zero ()
+	| Not {desc = Dup} -> failwith "you may not negate a dup!"
+	| Not {desc = Assg _} -> failwith "you may not negate an assg!"
+	| Not {desc = Test _} -> t in
+    dM t
+  and flatten_not (t : Term.t) : Term.t =
+    match t.desc with
+      | Not y -> y
+      | Zero -> make_one ()
+      | One ->  make_zero ()
+      | _ -> make_not ~flatten:false t
+  and make_not ?flatten:(flatten=true) t0 = 
+    try THash.find not_hash t0
+    with Not_found -> 
+      if flatten 
+      then deMorgan (flatten_not t0)
+      else
+	let u = next_uid () in 
+	let d = Not(t0) in 
+	let h = Hashtbl.hash d in 
+	let t = 
+          { uid = u;
+            desc = d;
+            hash = h;
+	    spines = None} in 
+	THash.add not_hash t0 t;
+	t
+
+  let make_plus = make_plus ~flatten:true
+  let make_times = make_times ~flatten:true
+  let make_star = make_star ~flatten:true
+  let make_not = make_not ~flatten:true
 
   let rec to_string (t : t) : string =
     let out_precedence (t : t) : int =
@@ -895,8 +903,83 @@ end = struct
       | One -> 
         "id"
 
+
+  (* Operations *)
+  let rspines (t0 : Term.t) : TermSet.t =
+    let rec sp (t0 : Term.t) : TermSet.t =
+      match t0.desc with
+	| Dup -> 
+          TermSet.singleton (make_one ())
+	| Plus (ts) -> 
+          TermSet.bind ts sp
+	| Times ([]) -> TermSet.empty
+        | Times ([t]) -> sp t
+        | Times (th::tt) -> 
+          let u = sp th in
+          let v = sp (make_times tt) in
+          let s = TermSet.map (fun x -> make_times (x :: tt)) u in
+          TermSet.union s v
+	| Star (t) ->
+          let s = sp t in
+          TermSet.map (fun x -> make_times [x; t0]) s
+	| (Assg _ | Test _ | Not _ | Zero | One) -> 
+          TermSet.empty in
+    sp t0
+      
+  let rec lrspines (t0 : Term.t) : TermPairSet.t =
+    match t0.desc with
+      | Dup -> 
+        TermPairSet.singleton (make_one (), make_one ())
+      | Times ([]) -> 
+        TermPairSet.empty
+      | Times([t]) -> 
+        lrspines t
+      | Times(th::tt) -> 
+	let u = lrspines th in
+	let v = lrspines (make_times tt) in
+	let f (l,r) = (l, make_times (r :: tt)) in
+	let r = TermPairSet.map f u in
+	let g (l,r) = (make_times [th;l],r) in
+	let s = TermPairSet.map g v in
+        TermPairSet.union r s
+      | Star (t) ->
+        let s = lrspines t in
+        let f (l,r) = (make_times [t0;l], make_times [r;t0]) in 
+        TermPairSet.map f s
+      | Plus (ts) -> 
+        TermSet.fold (fun x t -> TermPairSet.union (lrspines x) t) ts TermPairSet.empty
+      | (Assg _ | Test _ | Not _ | Zero | One) -> 
+        TermPairSet.empty      
+
+end and TermMap : sig 
+  include Map.S with type key = Term.t
+end  = Map.Make(struct 
+  type t = Term.t
+  let compare = Term.compare
+end
+)
+
+and TermPairSet : sig 
+  include Set.S with type elt = Term.t * Term.t
+  val map : (elt -> elt) -> t -> t
+  val bind : t -> (elt -> t) -> t
+end = struct 
+  include Set.Make(struct 
+    type t = Term.t * Term.t
+    let compare (al,ar) (bl,br) = 
+      match Term.compare al bl with 
+	| 0 -> Term.compare ar br
+	| o -> o 
+  end)
+  let map f ts = 
+    fold (fun (l,r) acc -> add (f (l,r)) acc) ts empty
+  let bind ts f = 
+    fold (fun (l,r) t -> union (f (l,r)) t) ts empty
+
 end and TermSet : sig 
   include Set.S with type elt = Term.t
+  val map : (elt -> elt) -> t -> t
+  val bind : t -> (elt -> t) -> t
   val hash : t -> int
   val to_string : t -> string
   val of_list : Term.t list -> t
@@ -907,6 +990,12 @@ end = struct
     let compare (ts1:t) (ts2:t) : int = 
       Term.compare ts1 ts2
   end)
+
+  let map (f : elt -> elt) (ts : t) : t =
+    fold (fun x -> add (f x)) ts empty
+
+  let bind (ts : t) (f : elt -> t) : t =
+    fold (fun x t -> union (f x) t) ts empty
 
   let hash (ts:t) : int = 
     Hashtbl.hash ts
@@ -921,12 +1010,4 @@ end = struct
 
   let of_list (ts:elt list) : t = 
     List.fold_left (fun acc t -> add t acc) empty ts 
-end and TermPairSet : Set.S with type elt = Term.t * Term.t 
-= Set.Make(struct
-  type t = Term.t * Term.t
-  let compare ((t11,t12):t) ((t21,t22):t) : int = 
-    let cmp = Term.compare t11 t21 in 
-    if cmp <> 0 then cmp 
-    else Term.compare t12 t22 
-end)
-
+end 

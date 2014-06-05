@@ -22,7 +22,7 @@ module WorkList = WorkList(struct
     (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) 
       
       
-  let check_equivalent (t1: Ast.term) (t2: Ast.term) : bool = 
+  let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
     
     (*      let t1 = InnerBsm.Cached.of_term t1 in 
 	    let t2 = InnerBsm.Cached.of_term t2 in *)
