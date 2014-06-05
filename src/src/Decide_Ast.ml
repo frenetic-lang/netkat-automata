@@ -57,14 +57,7 @@ end and Term : sig
     
   (* because module troubles *)
   val extract_uid : t -> uid
-  val ts_map : ((t -> t ) -> TermSet.t -> TermSet.t) ref 
-  val ts_elements : (TermSet.t -> t list) ref 
-    
 end = struct 
-
-  let ts_map = ref (fun _ _ -> failwith "foo") 
-  let ts_elements = ref (fun _ -> failwith "foo")
-    
   type uid = int	
       
   type t =
@@ -116,7 +109,7 @@ end = struct
 	(Field.to_string var) (Value.to_string value)
       | Dup _ -> "dup"
       | Plus (_,x,_) -> assoc_to_string " + " "0" (List.map protect 
-						     ( !ts_elements x ))
+						     ( TermSet.elements x ))
       | Times (_,x,_) -> assoc_to_string ";" "1" (List.map protect x)
       | Not (_,x,_) -> (if !utf8 then "¬" else "~") ^ (protect x)
       | Star (_,x,_) -> (protect x) ^ "*"
@@ -147,7 +140,7 @@ end = struct
   let rec invalidate_id = function 
     | Assg (_,l,r,o) -> Assg(-1,l,r,o)
     | Test (_,l,r,o) -> Test(-1,l,r,o)
-    | Plus (_,es,o) -> Plus(-1,!ts_map invalidate_id es,o)
+    | Plus (_,es,o) -> Plus(-1,TermSet.map invalidate_id es,o)
     | Times (_,es,o) -> Times(-1,List.map invalidate_id es,o)
     | Not (_,e,o) -> Not(-1,invalidate_id e,o)
     | Star (_,e,o) -> Star(-1,invalidate_id e,o)
@@ -159,9 +152,6 @@ end = struct
     | a -> Hashtbl.hash a
       
 end 
-
-    let _ = Term.ts_map := TermSet.map
-    let _ = Term.ts_elements := TermSet.elements
     let _ = TermSet.ts:= (fun (ts : TermSet.t) -> 
       let l = TermSet.elements ts in
       let m = List.map Term.to_string l in
@@ -584,8 +574,6 @@ let rspines (e : term) : TermSet.t =
 	| (Assg _ | Test _ | Not _ | Zero _ | One _) -> TermSet.empty in
   TermSet.map simplify (sp e)
 
-
-  
 let rec lrspines (e : term) =
   match e with
     | Dup _ -> TermPairSet.singleton (make_one, make_one)
