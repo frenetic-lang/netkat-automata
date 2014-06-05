@@ -485,7 +485,7 @@ let make_test (f,v) =
 let make_dup = dup
   
 let make_plus ts = 
-  (hashcons  (flatten_sum None ts))
+  (hashcons (flatten_sum None (TermSet.elements ts)))
     
 let make_times tl = 
   (hashcons  (flatten_product None tl))
@@ -527,31 +527,6 @@ let memoize (f : Term.t -> 'a) =
     with Invalid_argument _ -> 
       Printf.printf "%s" ("warning: memoize assert could not run:" ^
 			     "Invalid argument exception!\n"));
-    hv)
-  else hash_version
-
-let memoize_on_arg2 f =
-  let hash_version = 
-    let hash = ref (BatMap.PMap.create Term.compare) in 
-    (fun a b -> 
-      try let ret = BatMap.PMap.find b !hash in
-	  (hits := !hits + 1;
-	   ret)
-      with Not_found -> 
-	(misses := !misses + 1;
-	 let ret = f a b in 
-	 hash := BatMap.PMap.add b ret !hash;
-	 ret
-	)) in
-  if debug_mode
-  then (fun x y -> 
-    let hv = hash_version x y in 
-    let fv = f x y in
-    (try 
-      assert (hv = fv);
-    with Invalid_argument _ -> 
-      Printf.printf "%s" ("warning: memoize assert could not run:" 
-			  ^"Invalid argument exception!\n"));
     hv)
   else hash_version
 
@@ -604,3 +579,45 @@ let rec lrspines (e : term) : TermPairSet.t =
     | Plus (_,ts,_) -> 
       TermSet.fold (fun x t -> TermPairSet.union (lrspines x) t) ts TermPairSet.empty
     | (Assg _ | Test _ | Not _ | Zero _ | One _) -> TermPairSet.empty      
+
+module Formula = struct
+  type t = 
+    | Eq of Term.t * Term.t
+    | Le of Term.t * Term.t
+        
+  let make_eq (t1:Term.t) (t2:Term.t) : t = 
+    Eq (t1,t2)
+
+  let make_le (t1:Term.t) (t2:Term.t) : t = 
+    Le (t1,t2)
+
+  let to_string (f:t) : string =
+    match f with
+      | Eq (s,t) -> 
+        Printf.sprintf "%s == %s" 
+          (Term.to_string s) (Term.to_string t)
+      | Le (s,t) -> 
+        Printf.sprintf "%s <= %s" 
+          (Term.to_string s) (Term.to_string t)
+
+  let compare (f1:t) (f2:t) : int = 
+    match f1,f2 with
+      | Eq(s1,t1), Eq(s2,t2) -> 
+        let cmp = Term.compare s1 s2 in 
+        if cmp <> 0 then cmp 
+        else Term.compare t1 t2
+      | Le(s1,t1), Le(s2,t2) -> 
+        let cmp = Term.compare s1 s2 in 
+        if cmp <> 0 then cmp 
+        else Term.compare t1 t2
+      | Eq _, _ -> -1
+      | _ -> 1  
+
+  let equal (f1:t) (f2:t) : bool = 
+    compare f1 f2 = 0
+
+  let terms (f:t) = 
+    match f with 
+      | Eq (s,t) -> (s,t)
+      | Le (s,t) -> (s,t)
+end

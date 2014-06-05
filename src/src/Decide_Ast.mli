@@ -12,6 +12,7 @@ module TermSet : sig
   include Set.S
   val map : (elt -> elt) -> t -> t
   val bind : t -> (elt -> t) -> t
+  val of_list : elt list -> t
   val to_string : t -> string
 end with type elt = Term.t
 
@@ -23,6 +24,16 @@ module TermPairSet : sig
   include Set.S
   val map : (elt -> elt) -> t -> t
 end with type elt = Term.t * Term.t
+
+module Formula : sig
+  type t 
+  val make_eq : Term.t -> Term.t -> t
+  val make_le : Term.t -> Term.t -> t
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val to_string : t -> string
+  val terms : t -> Term.t * Term.t
+end
   
 module UnivMap : sig 
   type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
@@ -35,7 +46,7 @@ type term = Term.t
 val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  term
 val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  term
 val make_dup :  term
-val make_plus : term list -> term
+val make_plus : TermSet.t -> term
 val make_times : term list -> term
 val make_zero : term
 val make_one : term
@@ -51,5 +62,5 @@ val lrspines : term -> TermPairSet.t
 
 (* more utils *)
 val memoize : (term -> 'b) -> (term -> 'b) 
-val memoize_on_arg2 : ('a -> term -> 'c) -> ('a -> term -> 'c)
+
 
