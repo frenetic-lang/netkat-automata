@@ -92,9 +92,19 @@ open Decide_Util
 	  ,U.Base.Set.empty) in 
       (fun _ -> {e_matrix = e_zero; d_matrix = d_zero; uid = 0; desc = Zero})
 
-	
-(* TODO: hashcons please *)
+    module SHash = Hashtbl.Make(Decide_Ast.Term)
+    let shash = SHash.create 100 
+    let bshash = Hashtbl.create 100
+    let id_cell = ref 1
+
+    let getandinc () = 
+      let ret = !id_cell in 
+      id_cell := ret + 1; 
+      ret
+
     let make_spine (tm:Term.t) : DerivTerm.t = 
+      try SHash.find shash tm
+      with Not_found -> 
       (* what I wish I could write: 
 	let rec ret = Spine(tm, default_e_matrix ret, !default_d_matrix ret) in ret *)
       (* what you can write is: 
@@ -106,30 +116,36 @@ open Decide_Util
       let d_matrix_backpatch = 
 	(fun _ -> match !d_matrix_option with None -> failwith "1" | Some d -> d ()) in      
 
-      let rec ret = {uid = -1;
+      let rec ret = {uid = getandinc();
 		     desc = Spine(tm); 
 		     e_matrix = e_matrix_backpatch; 
 		     d_matrix = d_matrix_backpatch} in
       e_matrix_option := Some (default_e_matrix ret);
       d_matrix_option := Some (!default_d_matrix ret);
+      SHash.replace shash tm ret;
       ret
 
     let make_betaspine beta tms = 
-      let e_matrix_option = ref None in 
-      let d_matrix_option = ref None in 
-      let e_matrix_backpatch = 
-	(fun _ -> match !e_matrix_option with None -> failwith "1" | Some e -> e ()) in 
-      let d_matrix_backpatch = 
-	(fun _ -> match !d_matrix_option with None -> failwith "1" | Some d -> d ()) in      
+      let key = beta,DerivTermSet.fold (fun e acc -> e.uid::acc) tms [] in 
+      try Hashtbl.find bshash key
+      with Not_found -> 
+	let e_matrix_option = ref None in 
+	let d_matrix_option = ref None in 
+	let e_matrix_backpatch = 
+	  (fun _ -> match !e_matrix_option 
+	    with None -> failwith "1" | Some e -> e ()) in
+	let d_matrix_backpatch = 
+	  (fun _ -> match !d_matrix_option 
+	    with None -> failwith "1" | Some d -> d ()) in
 
-      let rec ret = {uid = -1;
+      let rec ret = {uid = getandinc();
 		     desc = BetaSpine (beta, tms); 
 		     e_matrix = e_matrix_backpatch;
 		     d_matrix = d_matrix_backpatch} in
 
       e_matrix_option := Some (default_e_matrix ret);
       d_matrix_option := Some (!default_d_matrix ret);
-
+      Hashtbl.replace bshash key ret;
       ret
 
     let make_term = make_spine 
