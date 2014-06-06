@@ -5,8 +5,8 @@ module DerivTerm : sig
   val compare : t -> t -> int
   val make_term : Decide_Ast.Term.t -> t
   val to_string : t -> string
+  val run_e : t -> Base.Set.t
+  val run_d : t -> ((Base.point -> t) * Base.Set.t)
 end
-val run_e : DerivTerm.t -> Base.Set.t
-val run_d : DerivTerm.t -> 
-  ((Base.point -> DerivTerm.t) * Base.Set.t)
+
 

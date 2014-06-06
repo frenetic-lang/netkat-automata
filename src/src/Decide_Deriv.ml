@@ -8,29 +8,50 @@ open Decide_Util
 
   open Decide_Ast
 
-  module rec DerivTerm : sig
+  module rec DerivTermSet : sig
+    include Set.S with type elt = DerivTerm.t 
+    val default_d_matrix : (DerivTerm.t -> (unit -> ((U.Base.point -> DerivTerm.t) * U.Base.Set.t))) ref
+  end = struct 
+    include Set.Make(struct 
+      type t = DerivTerm.t
+      let compare = DerivTerm.compare
+    end)
+    let default_d_matrix : (DerivTerm.t -> (unit -> ((U.Base.point -> DerivTerm.t) * U.Base.Set.t))) ref = 
+      ref (fun _ _ -> failwith "dummy1")
+  end
+  and DerivTerm : sig
     type d_matrix = ((U.Base.point -> t) * U.Base.Set.t)
     and e_matrix = U.Base.Set.t
     and t = 
       | Spine of Term.t * (unit -> e_matrix) * (unit -> d_matrix)
-      | BetaSpine of U.Base.complete_test * TermSet.t * (unit-> e_matrix) * (unit -> d_matrix)
+      | BetaSpine of U.Base.complete_test * DerivTermSet.t * (unit-> e_matrix) * (unit -> d_matrix)
       | Zero of (unit -> e_matrix) * (unit -> d_matrix)
 
     val to_string : t -> string 
     val compare : t -> t -> int
     val make_term : Decide_Ast.Term.t -> t
-    val zero : t
+    val zero : unit -> t
     val make_spine : Term.t -> t
-    val make_betaspine : U.Base.complete_test -> TermSet.t -> t
-    val default_d_matrix : (t -> (unit -> d_matrix)) ref
+    val run_d : t -> d_matrix
+    val run_e : t -> e_matrix
+    val make_betaspine : U.Base.complete_test -> DerivTermSet.t -> t
+
   end = struct 
+
 
     type d_matrix = ((U.Base.point -> t) * U.Base.Set.t)
     and e_matrix = U.Base.Set.t
     and t = 
       | Spine of Term.t * (unit -> e_matrix) * (unit -> d_matrix)
-      | BetaSpine of U.Base.complete_test * TermSet.t * (unit -> e_matrix) * (unit -> d_matrix)
+      | BetaSpine of U.Base.complete_test * DerivTermSet.t * (unit -> e_matrix) * (unit -> d_matrix)
       | Zero of (unit -> e_matrix) * (unit -> d_matrix)
+
+    let run_e trm : U.Base.Set.t = match trm with 
+	(Spine(_,e,_) | Zero(e,_) | BetaSpine(_,_,e,_)) -> e ()
+	  
+    let run_d trm = match trm with 
+	(Spine(_,_,d) | Zero(_,d) | BetaSpine(_,_,_,d)) -> d ()
+
 
     let compare e1 e2 = 
       match e1,e2 with 
@@ -44,14 +65,12 @@ open Decide_Util
 	  (match U.Base.compare_complete_test b1 b2 with 
 	    | -1 -> -1
 	    | 1 -> 1
-	    | 0 -> TermSet.compare s1 s2
+	    | 0 -> DerivTermSet.compare s1 s2
 	    | _ -> failwith "value out of range for compare"
 	  )
   
-    let default_d_matrix = 
-      ref (fun _ -> failwith "dummy1")
 
-    let default_e_matrix trm =
+    let default_e_matrix trm = 
       match trm with
 	| Spine (tm,_,_) ->
 	  (fun _ -> Decide_Ast.Term.e_matrix tm)
@@ -63,21 +82,22 @@ open Decide_Util
 	      | None -> 
 		let ret = 
 		  (U.Base.Set.filter_alpha
-		     (TermSet.fold
-			(fun t -> U.Base.Set.union (Decide_Ast.Term.e_matrix t) )
+		     (DerivTermSet.fold
+			(fun t -> U.Base.Set.union (run_e t) )
 			ts U.Base.Set.empty)
 		     beta) in 
 		valu := Some ret;
 		ret)
 	| Zero(em,_) -> 
-          (fun _ -> U.Base.Set.empty)
+          (fun _ -> U.Base.Set.empty) 
+
+    let default_d_matrix = DerivTermSet.default_d_matrix
       
-    let make_zero : unit -> DerivTerm.t = 
-      let e_zero = (fun _ -> U.Base.Set.empty) in
-      let rec d_zero = (fun _ -> (fun _ -> Zero(e_zero,d_zero)),U.Base.Set.empty) in 
+    let zero : unit -> DerivTerm.t = 
+      let e_zero = (fun () -> U.Base.Set.empty) in
+      let rec d_zero = (fun () -> (fun _ -> Zero(e_zero,d_zero)),U.Base.Set.empty) in 
       (fun _ -> Zero (e_zero,d_zero))
 
-    let zero = make_zero ()
 	
     let make_spine (tm:Term.t) : DerivTerm.t = 
       
@@ -115,37 +135,24 @@ open Decide_Util
 
     let make_term = make_spine 
 
-    let to_string = function 
+    let rec to_string = function 
       | Zero _ -> 
         "drop"
       | Spine (t,_,_) -> 
         Decide_Ast.Term.to_string t
       | BetaSpine (b,t,_,_) -> 
 	Printf.sprintf "%s;(%s)" (U.Base.complete_test_to_string b) 
-	  (TermSet.fold 
+	  (DerivTermSet.fold 
 	     (fun x acc -> 
 	       if acc = "" 
-	       then (Decide_Ast.Term.to_string x)
+	       then (to_string x)
 	       else Printf.sprintf "%s + %s" 
-		 (Decide_Ast.Term.to_string x) acc) t "")
+		 (to_string x) acc) t "")
       
-  end
-  and DerivTermSet : sig
-    include Set.S
-  end with type elt = DerivTerm.t = struct
-    include Set.Make(struct 
-      type t = DerivTerm.t
-      let compare = DerivTerm.compare
-    end)
   end
 
   open DerivTerm
     
-  let run_e trm : U.Base.Set.t = match trm with 
-      (Spine(_,e,_) | Zero(e,_) | BetaSpine(_,_,e,_)) -> e ()
-	
-  let run_d trm = match trm with 
-      (Spine(_,_,d) | Zero(_,d) | BetaSpine(_,_,_,d)) -> d ()
 
   let laure_optimization e2 = 
     let er_E = Decide_Ast.Term.one_dup_e_matrix e2 in 
@@ -171,7 +178,7 @@ open Decide_Util
 	    filtered_e point then
 	    make_spine e2
 	  else 
-	    zero
+	    zero ()
 	in 
 
 	(* all points on which above function is non-Zero *)
@@ -180,15 +187,16 @@ open Decide_Util
 	
 	(* compose this spine's D matrix with the other spines' D matrices *)
 	(fun point -> 
-	  match (internal_matrix_ref point) with 
+	  let this_d = internal_matrix_ref point in 
+	  match this_d with 
 	    | Zero (_,_)-> rest_d point
-	    | Spine (e',_,_) -> TermSet.add e' (rest_d point)
+	    | Spine _ -> DerivTermSet.add this_d (rest_d point)
 	    | BetaSpine (b,e',_,_) -> failwith "this can't be produced"),
 	more_points)
 
       (Decide_Ast.Term.lrspines e)
       
-      ((fun _ -> TermSet.empty), U.Base.Set.empty) in
+      ((fun _ -> DerivTermSet.empty), U.Base.Set.empty) in
     
     (* multiply the sum of spines by Beta *)
     ((fun point -> make_betaspine (U.Base.point_rhs point) (d point)), pts)
@@ -198,23 +206,22 @@ open Decide_Util
   let calculate_deriv (e:t) : ((U.Base.point -> t) * U.Base.Set.t) = 
     match e with 
       | Zero _ -> 
-	(fun _ -> zero ), U.Base.Set.empty
+	(fun _ -> zero ()), U.Base.Set.empty
       | BetaSpine (beta, spine_set,_,_) -> 
 	let d,points = 
-	  TermSet.fold 
+	  DerivTermSet.fold 
 	    ( fun sigma (acc_d,acc_points) -> 
-	      let d,points = calc_deriv_main sigma in
-
+	      let d,points = DerivTerm.run_d sigma in
 	      (* compose this spine's D matrix with the other spines' D matrices *)
 	      (fun point -> 
 		match (d point) with 
 		  | Zero _ -> acc_d point
-		  | BetaSpine (_,st,_,_) -> TermSet.union st (acc_d point)
+		  | BetaSpine (_,st,_,_) -> DerivTermSet.union st (acc_d point)
 		  | Spine _ -> 
 		    failwith 
 		      "why did deriv produce a Spine and not a BetaSpine?"
 	      ),(U.Base.Set.union acc_points points)
-	    ) spine_set ((fun _ -> TermSet.empty ), U.Base.Set.empty) in
+	    ) spine_set ((fun _ -> DerivTermSet.empty ), U.Base.Set.empty) in
 	let points = U.Base.Set.filter_alpha points beta in
 	(fun delta_gamma -> 
 	  let delta = U.Base.point_lhs delta_gamma in
@@ -223,11 +230,11 @@ open Decide_Util
 	  then 
 	    make_betaspine gamma (d delta_gamma)
 	  else 
-	    zero ),points
+	    zero ()),points
       | Spine (e,_,_) -> calc_deriv_main e
 	  
   let _ = 
-    default_d_matrix := 
+    DerivTermSet.default_d_matrix := 
       (fun trm -> 
         let valu = ref None in 
         (fun () -> 

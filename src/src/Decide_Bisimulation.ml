@@ -42,8 +42,8 @@ module WorkList = WorkList(struct
       else
 	let q1,q2 = WorkList.hd work_list in
 	let rest_work_list = WorkList.tl work_list in
-	let q1_E = Deriv.run_e q1 in 
-	let q2_E = Deriv.run_e q2 in 
+	let q1_E = Deriv.DerivTerm.run_e q1 in 
+	let q2_E = Deriv.DerivTerm.run_e q2 in 
 	Printf.printf "q1 term:%s\nq2 term:%s\nq1 E: %s\nq2 E: %s\n" 
 	  (Decide_Deriv.DerivTerm.to_string q1)
 	  (Decide_Deriv.DerivTerm.to_string q2)
@@ -60,8 +60,8 @@ module WorkList = WorkList(struct
 	     let (dot_bundle : Decide_Dot.t) = 
 	       get_state 
 		 q1 q2 q1_E q2_E in
-	     let q1_matrix,q1_points = Deriv.run_d q1 in 
-	     let q2_matrix,q2_points = Deriv.run_d q2 in 
+	     let q1_matrix,q1_points = Deriv.DerivTerm.run_d q1 in 
+	     let q2_matrix,q2_points = Deriv.DerivTerm.run_d q2 in 
 	     let numpoints = ref 0 in
 	     let work_list = U.Base.Set.fold_points
 	       (fun pt expanded_work_list -> 
@@ -72,8 +72,8 @@ module WorkList = WorkList(struct
 		   dot_bundle 
 		   q1'
 		   q2'
-		   (Deriv.run_e q1')
-		   (Deriv.run_e q2');
+		   (Deriv.DerivTerm.run_e q1')
+		   (Deriv.DerivTerm.run_e q2');
 		 WorkList.add (q1',q2')
 		   expanded_work_list
 	       )
