@@ -1,4 +1,8 @@
 exception Empty
+
+module UnivMap : sig 
+  type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
+end
       
 module rec Term : sig
   type t
@@ -11,18 +15,20 @@ module rec Term : sig
     
   val make_assg : Decide_Util.Field.t * Decide_Util.Value.t ->  t
   val make_test : Decide_Util.Field.t * Decide_Util.Value.t ->  t
-  val make_dup :  t
-  val make_plus : t list -> t
+  val make_dup :  unit -> t
+  val make_plus : TermSet.t -> t
   val make_times : t list -> t
-  val make_zero : t
-  val make_one : t
+  val make_zero : unit -> t
+  val make_one : unit -> t
   val make_not : t -> t
   val make_star : t -> t
 
   val e_matrix : t -> Decide_Base.Base.Set.t
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
-    
   val lrspines : t -> TermPairSet.t
+
+  val fields : t -> Decide_Util.FieldSet.t
+  val values : t -> UnivMap.t
 
 end and TermSet : sig 
   include Set.S with type elt = Term.t
@@ -50,11 +56,6 @@ module Formula : sig
   val terms : t -> Term.t * Term.t
 end
   
-module UnivMap : sig 
-  type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
-end
-
-val values_in_term : Term.t -> UnivMap.t 
   
 (* more utils *)
 val memoize : (Term.t -> 'b) -> (Term.t -> 'b) 

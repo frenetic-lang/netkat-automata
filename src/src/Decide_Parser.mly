@@ -37,11 +37,11 @@ term:
   | VAR ASSG STRING { make_assg (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3) }
   | VAR EQ STRING   { make_test (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3) }
   | VAR NEQ STRING  { make_not (make_test (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3)) }
-  | ZERO            { make_zero }
-  | ONE             { make_one }
-  | DUP             { make_dup } 
+  | ZERO            { make_zero ()}
+  | ONE             { make_one ()}
+  | DUP             { make_dup ()} 
   | LPAREN term RPAREN { $2 }
-  | term PLUS term  { make_plus ( [$1; $3]) }
+  | term PLUS term  { make_plus (TermSet.of_list [$1; $3]) }
   | term TIMES term { make_times [$1; $3] }
   | term STAR       { make_star $1 }
   | NOT term        { make_not $2 }

@@ -7,9 +7,9 @@ let run_bisimulation t1 t2 =
 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
   Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t1);
-  let t1vals = Decide_Ast.values_in_term t1 in 
+  let t1vals = Decide_Ast.Term.values t1 in 
   Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t2);
-  let t2vals = Decide_Ast.values_in_term t2 in 
+  let t2vals = Decide_Ast.Term.values t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
     begin

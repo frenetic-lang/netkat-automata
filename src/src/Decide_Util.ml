@@ -41,7 +41,11 @@ module Field = struct
     let max_elem _ = !counter in
     of_string,to_string,max_elem
 end
-module FieldSet = Set.Make(Field)
+module FieldSet = struct 
+  include Set.Make(Field)
+  let of_list (ts:elt list) : t = 
+    List.fold_left (fun acc t -> add t acc) empty ts 
+end
       
   
 module Value = struct 
@@ -69,7 +73,11 @@ module Value = struct
     of_string,to_string,(fun _ -> !counter)
   let extra_val = -1
 end
-module ValueSet = Set.Make(Value) 
+module ValueSet = struct 
+  include Set.Make(Value) 
+  let of_list (ts:elt list) : t = 
+    List.fold_left (fun acc t -> add t acc) empty ts 
+end
 
 let all_fields = ref (fun _ -> failwith 
   "Please set all_fields in Decide_Util.ml before trying to run any calculations!")
