@@ -22,7 +22,7 @@ module WorkList = WorkList(struct
     (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) 
       
       
-  let check_equivalent (t1: Ast.term) (t2: Ast.term) : bool = 
+  let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
     
     (*      let t1 = InnerBsm.Cached.of_term t1 in 
 	    let t2 = InnerBsm.Cached.of_term t2 in *)
@@ -44,6 +44,11 @@ module WorkList = WorkList(struct
 	let rest_work_list = WorkList.tl work_list in
 	let q1_E = Deriv.run_e q1 in 
 	let q2_E = Deriv.run_e q2 in 
+	Printf.printf "q1 term:%s\nq2 term:%s\nq1 E: %s\nq2 E: %s\n" 
+	  (Decide_Deriv.DerivTerm.to_string q1)
+	  (Decide_Deriv.DerivTerm.to_string q2)
+	  (U.Base.Set.to_string q1_E)
+	  (U.Base.Set.to_string q2_E);
 	if not (U.Base.Set.equal q1_E q2_E)
 	then false
 	else
@@ -80,5 +85,5 @@ module WorkList = WorkList(struct
     let t1 = Deriv.DerivTerm.make_term t1 in 
     Printf.printf "Term construction complete\n%!";
     let ret = main_loop (WorkList.singleton (t1,t2)) in
-    U.Base.Set.print_debugging_info (); 
+    Decide_Util.print_debugging_info (); 
     ret

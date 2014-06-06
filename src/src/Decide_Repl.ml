@@ -6,10 +6,10 @@ let init_state = 0
 let run_bisimulation t1 t2 = 
 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t1);
-  let t1vals = Decide_Ast.values_in_term t1 in 
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string_sexpr t2);
-  let t2vals = Decide_Ast.values_in_term t2 in 
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t1);
+  let t1vals = Decide_Ast.Term.values t1 in 
+  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t2);
+  let t2vals = Decide_Ast.Term.values t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
     begin
@@ -45,7 +45,7 @@ exception ParseError of int * int * string
 let parse (s : string) = 
   let lexbuf = Lexing.from_string s in
   (try
-     Parser.formula_main Lexer.token lexbuf
+     Decide_Parser.formula_main Decide_Lexer.token lexbuf
    with
      | Parsing.Parse_error ->
     let curr = lexbuf.Lexing.lex_curr_p in
@@ -56,17 +56,18 @@ let parse (s : string) =
 
 let process (input : string) : unit =
   try
-    let parsed = Decide_Ast.convert_and_simplify parse input in
-    Printf.printf "Formula: %s\n" (Decide_Ast.formula_to_string parsed);
-    let l,r = Decide_Ast.terms_in_formula parsed in 
+    let parsed = parse input in
+    Printf.printf "Parsed input: %s\n" (Decide_Ast.Formula.to_string parsed);
+    let l,r = Decide_Ast.Formula.terms parsed in 
     Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
     Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )
-
   with
-  | Decide_Ast.Empty -> ()
-  | Lexer.LexError s -> Printf.printf "Lex Error: %s\n" s
+  | Decide_Ast.Empty -> 
+    ()
+  | Decide_Lexer.LexError s -> 
+    Printf.printf "Lex Error: %s\n" s
   | ParseError (l, ch, t) ->
     Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
   
@@ -111,7 +112,7 @@ let rec repl (state : state) : unit =
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 
-      let formula = Decide_Ast.convert_and_simplify parse input in 
+      let formula = parse input in 
       ignore file; 
       ignore formula;
       failwith "mode not currently supported"

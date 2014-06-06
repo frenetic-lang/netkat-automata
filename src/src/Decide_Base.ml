@@ -281,6 +281,8 @@ let collection_to_string fold elt_to_string sep c =
 
     let to_string (Base(a,b) : t) : string =
       Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
+
+    let bto_string = to_string 
         
     let compare (Base(a1,b1):t) (Base(a2,b2):t) : int =
       let cmp = assg_compare b1 b2 in
@@ -292,7 +294,7 @@ let collection_to_string fold elt_to_string sep c =
       compare x y = 0
 
     type this_t = t
-    module S = Set.Make(struct
+    module S = Decide_Set.Make(struct
       type t = this_t
       let compare = compare
       let equal = equal
@@ -538,28 +540,56 @@ let collection_to_string fold elt_to_string sep c =
 	&& fold_points (fun pt acc -> contains_point a pt && acc) b true
 
 
-      let compact a = a
-(*
+      (* is it faster to check all things with equal RHS first and then restart, 
+	 or should you restart as soon as you've succeeded on a merge? *)
+
+      let compare_rhs (Base(_,a)) (Base(_,b)) = assg_compare a b
+
+      let merge_element : this_t -> t -> t = (fun a e' -> 
+	let a = ref a in 
+	  let to_remove = 
+	    (fold_range 	    
+	    (* minimal base with equal RHS *)
+	       (fun e -> match compare_rhs e !a with 
+		 | -1 -> false
+		 | (0 | 1) -> true
+		 | _ -> failwith "bad compare function")
+	       (* maximal base with equal RHS *)
+	       (fun e -> match compare_rhs e !a with 
+		 | (-1 | 0) -> true 
+		 | 1 -> false
+		 | _ -> failwith "bad compare function" )
+	       (fun b acc -> 
+		 assert (compare_rhs !a b = 0);
+		 match bunion !a b with 
+		   | [a'] -> let olda = !a in a:= a'; (add olda (add b acc))
+		   | [a;b] -> acc
+		   | _ -> failwith "bunion didn't work like i wanted.") 
+	       e' empty ) in 
+	  add !a (diff e' to_remove)
+      )
+
       let rec compact e = 
 	let old_cardinal = cardinal e in 
-	let e' = fold (fun a e' -> 
-	  let a = ref a in 
-	  add !a (fold (fun b acc -> 
-	    match bunion !a b with 
-	      | [a'] -> let olda = !a in a:= a'; (remove olda acc)
-	      | [a;b] -> add b acc
-	      | _ -> failwith "bunion didn't work like i wanted.") 
-		    e' empty )) e e  in 
+	let e' = fold merge_element e e  in 
 	if Decide_Util.debug_mode 
-	then assert (equal e e');
+	then (assert (equal e e');
+	      assert (old_cardinal >= (cardinal e'))
+	);
 	if old_cardinal = (cardinal e')
 	then e' 
 	else compact e'
-
 	  
       let union (a : t) (b : t) : t = 
 	let res = union a b in 
-	compact res
+	res
+
+      let add a b = 
+	let res = 
+	  if mem a b then b
+	  else merge_element a b in 
+	res
+(*
 
 
       let add b s : t = 
@@ -576,10 +606,33 @@ let collection_to_string fold elt_to_string sep c =
 	if Decide_Util.debug_mode then 
 	  (let olds = add b s in 
 	  assert (equal olds res));
-	compact res 
+	res (* compact res *)
 *)
 
       let mult (left : t)  (right : t) : t = 
+	let open Decide_Util in 
+	let left' = compact left in 
+	let right' = compact right in 	
+	if Decide_Util.profile_mode
+	then begin 
+	  let divspecial a b = 
+	    if b = 0 then 100 else a/b in 
+	  (Decide_Util.stats.compact_percent) := 
+	    let pre_cardinal1 = cardinal left in 
+	    let post_cardinal1 = cardinal left' in
+	    if (post_cardinal1 > pre_cardinal1)
+	    then Printf.eprintf "before compaction: %s\nafter: %s\n"
+	      (to_string left)
+	      (to_string left');
+	    assert (post_cardinal1 <= pre_cardinal1);
+	    let pre_cardinal2 = cardinal right in 
+	    let post_cardinal2 = cardinal right' in 
+	    assert (post_cardinal2 <= pre_cardinal2);
+	    (divspecial (100 * post_cardinal1) (pre_cardinal1))::
+	      (divspecial (100 * post_cardinal2) (pre_cardinal2))::
+	      !(Decide_Util.stats.compact_percent);
+	end;
+
 	let module ValHash = Decide_Util.ValueArray in
 	let extract_test (f : Decide_Util.Field.t) (Base(atom,_)) = 
 	  try Map.find f atom 
@@ -591,7 +644,7 @@ let collection_to_string fold elt_to_string sep c =
             | s1, PosNeg.Neg(_,s2) -> 
               Decide_Util.ValueSet.diff s1 s2 in
 	let intersect_all lst = 
-	  List.fold_left 
+	  List.fold_left
 	    (fun acc e -> inter e acc) (List.hd lst) (List.tl lst) in 
 	let incr_add k v hash = 
 	  ValHash.set hash k (add v (ValHash.get hash k));
@@ -619,7 +672,7 @@ let collection_to_string fold elt_to_string sep c =
 		      | _ -> raise Not_found
 		  with Not_found -> 
 		    field,valset,valhash,add b others) acc)
-	  left (Decide_Util.FieldSet.fold 
+	  left' (Decide_Util.FieldSet.fold 
 		  (fun f acc -> 
 		    (f,Decide_Util.ValueSet.empty,ValHash.make empty,empty)::acc) 
 		  (!Decide_Util.all_fields ()) []) in
@@ -635,7 +688,7 @@ let collection_to_string fold elt_to_string sep c =
 		      (Decide_Util.ValueSet.fold 
 			 (fun a -> union (ValHash.get vh a)) i empty) 
 		      bs) phase1 in 
-	      (b,intersect_all to_intersect)::acc) right [] in 
+	      (b,intersect_all to_intersect)::acc) right' [] in 
 
 	(* TODO: take (lhs - phase2) and do mult with that as well.  assert that 
 	   the result is empty for each pair.  If it's not empty, print out the pair that 
@@ -653,11 +706,11 @@ let collection_to_string fold elt_to_string sep c =
 
 	if Decide_Util.debug_mode 
 	then (
-	  let old_res = (old_mult left right) in
+	  let old_res = (old_mult left' right') in
 	  if not (equal old_res phase3)
 	  then (Printf.eprintf "LHS of mult: %s\nRHS of mult: %s\nNew result: %s\nOld result: %s\n"
-		  (to_string left) 
-		  (to_string right) 
+		  (to_string left') 
+		  (to_string right') 
 		  (to_string (compact (compact (compact (compact phase3)))))
 		  (to_string (compact (compact (compact (compact old_res)))));
 		failwith "new mult and old mult don't agree!");

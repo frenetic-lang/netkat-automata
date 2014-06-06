@@ -1,9 +1,17 @@
 exception Quit
 
 val debug_mode : bool
+val profile_mode : bool
 val failed_Count : int ref
 val success_count : int ref
 
+type stats = {
+  compact_percent : int list ref
+}
+
+val stats : stats
+
+val print_debugging_info : unit -> unit
 
 module Field : sig
   type t
@@ -23,7 +31,10 @@ module FieldArray : sig
   val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   val copy : 'a t-> 'a t
 end 
-module FieldSet : Set.S with type elt = Field.t
+module FieldSet : sig 
+  include Set.S with type elt = Field.t
+  val of_list : Field.t list -> t
+end
   
 module Value : sig
   type t 
@@ -41,7 +52,10 @@ module ValueArray : sig
   val set : 'a t -> Value.t -> 'a -> unit 
   val get : 'a t -> Value.t -> 'a
 end 
-module ValueSet : Set.S with type elt = Value.t
+module ValueSet : sig 
+  include Set.S with type elt = Value.t
+  val of_list : Value.t list -> t
+end
 
 val all_fields : (unit -> FieldSet.t) ref 
 val all_values : (unit -> (Field.t -> ValueSet.t)) ref
