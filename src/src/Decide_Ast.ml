@@ -1,5 +1,4 @@
 
-(* START FOSTER *)
 open Decide_Util
 
 exception Empty
@@ -199,7 +198,7 @@ end = struct
         | h1::t1, h2::t2 -> 
           compare h1 h2 = 0 && equal t1 t2 
         | _ -> false
-    let hash = Hashtbl.hash 
+    let hash e = Hashtbl.hash (List.map (fun e' -> e'.uid) e)
   end)
   module TSetHash = Hashtbl.Make(struct 
     type t = TermSet.t
@@ -214,7 +213,7 @@ end = struct
       | None -> 
         let u = next_uid () in 
         let d = Zero in 
-        let h = Hashtbl.hash d in 
+        let h = Hashtbl.hash u in 
 	let em,odem = calculate_E d in 
         let t = 
           { uid = u;
@@ -233,7 +232,7 @@ end = struct
       | None -> 
         let u = next_uid () in 
         let d = One in 
-        let h = Hashtbl.hash d in 
+        let h = Hashtbl.hash u in 
 	let em,odem = calculate_E d in 
         let t = 
           { uid = u;
@@ -251,7 +250,7 @@ end = struct
     with Not_found -> 
       let u = next_uid () in 
       let d = Assg(f,v) in 
-      let h = Hashtbl.hash d in 
+      let h = Hashtbl.hash u in 
       let em,odem = calculate_E d in 
       let t = 
         { uid = u;
@@ -269,7 +268,7 @@ end = struct
     with Not_found -> 
       let u = next_uid () in 
       let d = Test(f,v) in 
-      let h = Hashtbl.hash d in 
+      let h = Hashtbl.hash u in 
       let em,odem = calculate_E d in 
       let t = 
         { uid = u;
@@ -288,7 +287,7 @@ end = struct
       | None -> 
         let u = next_uid () in 
         let d = Dup in 
-        let h = Hashtbl.hash d in 
+        let h = Hashtbl.hash u in 
 	let em,odem = calculate_E d in 
         let t = 
           { uid = u;
@@ -322,7 +321,7 @@ end = struct
       else 
       let u = next_uid () in 
       let d = Plus(ts) in 
-      let h = Hashtbl.hash d in 
+      let h = Hashtbl.hash u in 
       let em,odem = calculate_E d in 
       let t = 
         { uid = u;
@@ -358,7 +357,7 @@ end = struct
       else 
 	let u = next_uid () in 
 	let d = Times(ts) in 
-	let h = Hashtbl.hash d in 
+	let h = Hashtbl.hash u in 
 	let em,odem = calculate_E d in 
 	let t = 
           { uid = u;
@@ -389,7 +388,7 @@ end = struct
       else 
 	let u = next_uid () in 
 	let d = Star(t0) in 
-	let h = Hashtbl.hash d in 
+	let h = Hashtbl.hash u in 
 	let em,odem = calculate_E d in 
 	let t = 
           { uid = u;
@@ -438,7 +437,7 @@ end = struct
       else
 	let u = next_uid () in 
 	let d = Not(t0) in 
-	let h = Hashtbl.hash d in 
+	let h = Hashtbl.hash u in 
 	let em,odem = calculate_E d in 
 	let t = 
           { uid = u;
@@ -493,7 +492,6 @@ end = struct
         "drop"
       | One -> 
         "id"
-
 
   (* Operations *)
   let rspines (t0 : Term.t) : TermSet.t =
@@ -595,7 +593,8 @@ end = struct
     fold (fun x t -> union (f x) t) ts empty
 
   let hash (ts:t) : int = 
-    Hashtbl.hash ts
+    let open Term in 
+    Hashtbl.hash (fold (fun e acc -> e.uid::acc) ts [])
 
   let to_string (ts:t) : string = 
     fold 
