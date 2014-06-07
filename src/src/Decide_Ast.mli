@@ -56,6 +56,8 @@ module Formula : sig
   val terms : t -> Term.t * Term.t
 end
   
+(* unfold aE*b re-write *)
+val unfold_star_twice : Term.t -> Term.t
   
 (* more utils *)
 val memoize : (Term.t -> 'b) -> (Term.t -> 'b) 

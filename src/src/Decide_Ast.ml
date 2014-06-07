@@ -651,6 +651,45 @@ module Formula = struct
       | Le (s,t) -> (s,t)
 end
 
+let is_star (e : Term.t) = 
+  let open Term in
+      match e.desc with Star _ -> true | _ -> false
+
+let has_star tl = List.fold_left (fun acc e -> is_star e || acc) false tl
+
+exception Return of Term.t list * Term.t * Term.t list
+
+
+let extract_star_correct pre_extract (pre,e,post) = 
+  List.iter2 
+    (fun a b -> 
+      if Term.compare a b <> 0
+      then failwith "extract_star failed!") pre_extract (pre@(e::post)); 
+  true
+
+let extract_star tl = 
+  try 
+    let _ = List.fold_right 
+      (fun e (pre,suff) -> 
+	if is_star e
+	then raise (Return(pre,e,suff))
+	else e::pre,List.tl suff) tl ([],tl) in 
+    failwith "no star to extract here!"
+  with Return(pre,e,post) -> 
+    let ret = List.rev pre,e,post in 
+    assert(extract_star_correct tl ret);
+    ret
+
+
+let unfold_star_twice (t : Term.t) : Term.t = 
+  let open Term in 
+      match t.desc with 
+	| Times tl when has_star tl -> 
+	  let (pre,e,post) = extract_star tl in 
+	  (*TODO: finish after bbq *)
+	  make_times (List.flatten [pre;[e];post])
+	| _ -> failwith "doesn't have star!"
+
 let memoize (f : Term.t -> 'b) : (Term.t -> 'b) = 
   let open Term in 
   let hash = Hashtbl.create 100 in 
