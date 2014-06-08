@@ -39,6 +39,7 @@ module rec Term : sig
   val make_zero : unit -> t
   val make_one : unit -> t
 
+  val unfold_star_twice : t -> t
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val hash : t -> int
@@ -93,6 +94,14 @@ end = struct
       | Not x -> is_test x || failwith "May not negate an action"
       | Star x -> is_test x
       | (Zero  | One ) -> true
+
+  let is_times (e : t) = 
+    match e.desc with Times _ -> true | _ -> false
+
+  let is_star (e : t) = 
+    match e.desc with Star _ -> true | _ -> false
+
+  let has_star tl = List.fold_left (fun acc e -> is_star e || acc) false tl
 	
   let fields (t : t) : FieldSet.t =
     let rec fields t = match t.desc with
@@ -118,6 +127,11 @@ end = struct
 (* E matrix *)
 
   let calculate_E d0 =
+    let this_compare = compare in 
+    let is_star_of (e_star : t) (e : t) = 
+      match e_star.desc with 
+	| Star e' when (compare e e' = 0) -> true 
+	| _ -> false in 
     let open Decide_Base in 
     let open Base in
     let open Base.Set in
@@ -140,6 +154,9 @@ end = struct
 	let r_onedup = thunkify (fun _ -> TermSet.fold
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
+      (* The aE*b unfolding case *)
+      | Times[a;e;e_star;e';b] when (this_compare e e' = 0) && (is_star_of e_star e) && (is_times a) && (is_times b) -> 
+	failwith "unimplemented, but it does work!"
       | Times tl ->
 	let r = thunkify (fun _ -> List.fold_right 
 	  (fun t acc -> mult (t.e_matrix ()) acc) tl
@@ -449,6 +466,44 @@ end = struct
 	THash.add not_hash t0 t;
 	t
 
+  exception Return of t list * t * t list
+
+
+  let extract_star_correct pre_extract (pre,e,post) = 
+    List.iter2 
+      (fun a b -> 
+	if compare a b <> 0
+	then failwith "extract_star failed!") pre_extract (pre@((make_star e)::post)); 
+    true
+      
+  let extract_star tl = 
+    try 
+      let _ = List.fold_right 
+	(fun e (pre,suff) -> 
+	  match e.desc with 
+	    | Star e' -> raise (Return(pre,e',suff))
+	    | _ -> e::pre,List.tl suff) 
+	tl ([],tl) in 
+      failwith "no star to extract here!"
+    with Return(pre,e,post) -> 
+      let ret = List.rev pre,e,post in 
+      assert(extract_star_correct tl ret);
+      ret
+      
+
+  let unfold_star_twice (t : Term.t) : Term.t = 
+    match t.desc with 
+      | Times tl when has_star tl -> 
+	let (pre,e,post) = extract_star tl in 
+	make_plus ~flatten:false
+	  (TermSet.of_list 
+	     [make_times (List.flatten [pre;post]); 
+	      make_times (List.flatten [pre;[e];post]);
+	      make_times ~flatten:false 
+		[make_times pre;e;make_star e;e;make_times post]])
+      | _ -> failwith "doesn't have star!"
+	
+
   let make_plus = make_plus ~flatten:true
   let make_times = make_times ~flatten:true
   let make_star = make_star ~flatten:true
@@ -651,49 +706,6 @@ module Formula = struct
       | Le (s,t) -> (s,t)
 end
 
-let is_star (e : Term.t) = 
-  let open Term in
-      match e.desc with Star _ -> true | _ -> false
-
-let has_star tl = List.fold_left (fun acc e -> is_star e || acc) false tl
-
-exception Return of Term.t list * Term.t * Term.t list
-
-
-let extract_star_correct pre_extract (pre,e,post) = 
-  List.iter2 
-    (fun a b -> 
-      if Term.compare a b <> 0
-      then failwith "extract_star failed!") pre_extract (pre@((Term.make_star e)::post)); 
-  true
-
-let extract_star tl = 
-  let open Term in 
-  try 
-    let _ = List.fold_right 
-      (fun e (pre,suff) -> 
-	match e.desc with 
-	  | Star e' -> raise (Return(pre,e',suff))
-	  | _ -> e::pre,List.tl suff) 
-      tl ([],tl) in 
-    failwith "no star to extract here!"
-  with Return(pre,e,post) -> 
-    let ret = List.rev pre,e,post in 
-    assert(extract_star_correct tl ret);
-    ret
-
-
-let unfold_star_twice (t : Term.t) : Term.t = 
-  let open Term in 
-      match t.desc with 
-	| Times tl when has_star tl -> 
-	  let (pre,e,post) = extract_star tl in 
-	  make_plus 
-	    (TermSet.of_list 
-	       [make_times (List.flatten [pre;post]); 
-		make_times (List.flatten [pre;[e];post]);
-		make_times (List.flatten [pre;[e;make_star e;e];post])])
-	| _ -> failwith "doesn't have star!"
 
 let memoize (f : Term.t -> 'b) : (Term.t -> 'b) = 
   let open Term in 

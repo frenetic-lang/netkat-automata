@@ -23,9 +23,12 @@ module rec Term : sig
   val make_not : t -> t
   val make_star : t -> t
 
+  (* unfold aE*b re-write *)
+  val unfold_star_twice : t -> t
   val e_matrix : t -> Decide_Base.Base.Set.t
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val lrspines : t -> TermPairSet.t
+
 
   val fields : t -> Decide_Util.FieldSet.t
   val values : t -> UnivMap.t
@@ -56,8 +59,6 @@ module Formula : sig
   val terms : t -> Term.t * Term.t
 end
   
-(* unfold aE*b re-write *)
-val unfold_star_twice : Term.t -> Term.t
   
 (* more utils *)
 val memoize : (Term.t -> 'b) -> (Term.t -> 'b) 
