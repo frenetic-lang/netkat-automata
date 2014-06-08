@@ -664,16 +664,18 @@ let extract_star_correct pre_extract (pre,e,post) =
   List.iter2 
     (fun a b -> 
       if Term.compare a b <> 0
-      then failwith "extract_star failed!") pre_extract (pre@(e::post)); 
+      then failwith "extract_star failed!") pre_extract (pre@((Term.make_star e)::post)); 
   true
 
 let extract_star tl = 
+  let open Term in 
   try 
     let _ = List.fold_right 
       (fun e (pre,suff) -> 
-	if is_star e
-	then raise (Return(pre,e,suff))
-	else e::pre,List.tl suff) tl ([],tl) in 
+	match e.desc with 
+	  | Star e' -> raise (Return(pre,e',suff))
+	  | _ -> e::pre,List.tl suff) 
+      tl ([],tl) in 
     failwith "no star to extract here!"
   with Return(pre,e,post) -> 
     let ret = List.rev pre,e,post in 
@@ -686,8 +688,11 @@ let unfold_star_twice (t : Term.t) : Term.t =
       match t.desc with 
 	| Times tl when has_star tl -> 
 	  let (pre,e,post) = extract_star tl in 
-	  (*TODO: finish after bbq *)
-	  make_times (List.flatten [pre;[e];post])
+	  make_plus 
+	    (TermSet.of_list 
+	       [make_times (List.flatten [pre;post]); 
+		make_times (List.flatten [pre;[e];post]);
+		make_times (List.flatten [pre;[e;make_star e;e];post])])
 	| _ -> failwith "doesn't have star!"
 
 let memoize (f : Term.t -> 'b) : (Term.t -> 'b) = 
