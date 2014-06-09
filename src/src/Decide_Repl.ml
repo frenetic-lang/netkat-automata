@@ -61,6 +61,8 @@ let process (input : string) : unit =
     let l,r = Decide_Ast.Formula.terms parsed in 
     Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
     Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
+    let l = try Decide_Ast.Term.unfold_star_twice l with Failure _ -> l in 
+    let r = try Decide_Ast.Term.unfold_star_twice r with Failure _ -> r in 
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )
   with
