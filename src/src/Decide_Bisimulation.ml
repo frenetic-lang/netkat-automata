@@ -23,16 +23,10 @@ module WorkList = WorkList(struct
       
       
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
-    
-    (*      let t1 = InnerBsm.Cached.of_term t1 in 
-	    let t2 = InnerBsm.Cached.of_term t2 in *)
+
     let uf_eq,uf_find,uf_union = 
-      (fun _ _ -> false),
-      (fun _ -> Obj.magic ref 1),
-      (fun a _ -> a)
-	(* let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
-	   UF.init_union_find ()  
-	*) 
+      let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
+      UF.init_union_find ()  
     in
     
     let rec main_loop work_list = 
