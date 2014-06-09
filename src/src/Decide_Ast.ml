@@ -39,6 +39,7 @@ module rec Term : sig
   val make_zero : unit -> t
   val make_one : unit -> t
 
+  val unfold_star_twice : t -> t
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val hash : t -> int
@@ -93,6 +94,19 @@ end = struct
       | Not x -> is_test x || failwith "May not negate an action"
       | Star x -> is_test x
       | (Zero  | One ) -> true
+
+  let is_times (e : t) = 
+    match e.desc with Times _ -> true | _ -> false
+
+  let is_star (e : t) = 
+    match e.desc with Star _ -> true | _ -> false
+
+  let is_star_of (e_star : t) (e : t) = 
+    match e_star.desc with 
+      | Star e' when (compare e e' = 0) -> true 
+      | _ -> false
+
+  let has_star tl = List.fold_left (fun acc e -> is_star e || acc) false tl
 	
   let fields (t : t) : FieldSet.t =
     let rec fields t = match t.desc with
@@ -118,11 +132,21 @@ end = struct
 (* E matrix *)
 
   let calculate_E d0 =
+    let this_compare = compare in 
     let open Decide_Base in 
     let open Base in
     let open Base.Set in
     let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
       Base.Set.singleton(Base.of_neg_test x v) in
+    let get_fixpoint s =
+      Printf.printf "getting fixpoint...\n%!";
+      let s1 = add (univ_base ()) s in
+      (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
+      let rec f cntr s r =
+	if cntr > 1000 then Printf.printf "%u" cntr;
+	if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
+	else f (cntr + 1) (mult s s) s in
+      f 0 (mult s1 s1) s1 in
     match d0 with
       | One ->
 	(fun _ -> singleton (univ_base ())), (fun _ -> singleton (univ_base ()))
@@ -140,6 +164,41 @@ end = struct
 	let r_onedup = thunkify (fun _ -> TermSet.fold
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
+      (* The aE*b unfolding case *)
+
+      | Times[a;e;e_star;e';b] when (this_compare e e' = 0) && (is_star_of e_star e) -> 
+	let get_fixpoint_star = get_fixpoint in 
+
+	let get_fixpoint a e b = 
+	  let e_b = mult e b in 
+	  let rec f a_e sum = 
+	    let a_e' = mult a_e e in
+	    let sum' = union (mult a_e' e_b) sum in 
+	    if equal sum sum'
+	    then sum
+	    else f a_e' sum' in 
+	  f a empty in 
+	let _ = get_fixpoint (* buggy version *) in 
+
+	let get_fixpoint a e = 
+	  let rec f a_e sum = 
+	    let a_e' = mult a_e e in 
+	    let sum' = union a_e' sum in 
+	    if equal sum sum' 
+	    then sum
+	    else f a_e' sum' in 
+	  f a empty in 
+	let assemble_term a e b = 
+	  let res = (mult (mult (get_fixpoint a e) e) b) in 
+	  if Decide_Util.debug_mode
+	  then assert (equal res (mult a (mult e (mult (get_fixpoint_star e) (mult e b)))));
+	  res in 
+
+	let me = thunkify (fun _ -> 
+	  (assemble_term (a.e_matrix ()) (e.e_matrix ()) (b.e_matrix () ))) in 
+	let mo = thunkify (fun _ -> 
+	  (assemble_term (a.one_dup_e_matrix ()) (e.one_dup_e_matrix ()) (b.one_dup_e_matrix () ))) in 
+	me,mo
       | Times tl ->
 	let r = thunkify (fun _ -> List.fold_right 
 	  (fun t acc -> mult (t.e_matrix ()) acc) tl
@@ -156,15 +215,6 @@ end = struct
 	  | _ -> failwith "De Morgan law should have been applied") in
 	m,m
       | Star x ->
-	let get_fixpoint s =
-	  Printf.printf "getting fixpoint...\n%!";
-	  let s1 = add (univ_base ()) s in
-	  (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
-	  let rec f cntr s r =
-	    if cntr > 1000 then Printf.printf "%u" cntr;
-	    if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
-	    else f (cntr + 1) (mult s s) s in
-	  f 0 (mult s1 s1) s1 in
 	let me = thunkify (fun _ -> get_fixpoint (x.e_matrix())) in
 	let mo = thunkify (fun _ -> get_fixpoint (x.one_dup_e_matrix())) in
 	me,mo
@@ -449,10 +499,8 @@ end = struct
 	THash.add not_hash t0 t;
 	t
 
-  let make_plus = make_plus ~flatten:true
-  let make_times = make_times ~flatten:true
-  let make_star = make_star ~flatten:true
-  let make_not = make_not ~flatten:true
+  exception Return of t list * t * t list
+
 
   let rec to_string (t : t) : string =
     let out_precedence (t : t) : int =
@@ -492,6 +540,63 @@ end = struct
         "drop"
       | One -> 
         "id"
+
+  let extract_star_correct pre_extract (pre,e,post) = 
+    List.iter2 
+      (fun a b -> 
+	if compare a b <> 0
+	then 
+	  (Printf.eprintf "pre: %s\npost: %s\n" 
+	     (to_string (make_times pre_extract)) 
+	     (to_string (make_times (pre@((make_star e)::post)))) ;
+	   failwith "extract_star failed !")) pre_extract (pre@((make_star e)::post));
+    true
+      
+  let extract_star tl = 
+    try 
+      let _ = List.fold_right 
+	(fun e (pre,suff) -> 
+	  match e.desc with 
+	    | Star e' -> raise (Return(pre,e',suff))
+	    | _ -> e::pre,List.tl suff) 
+	tl ([],List.tl tl) in 
+      failwith "no star to extract here!"
+    with Return(pre,e,post) -> 
+      let ret = List.rev pre,e,post in 
+      if Decide_Util.debug_mode
+      then assert(extract_star_correct tl ret);
+      ret
+      
+  let unfold_star_twice (t : Term.t) : Term.t = 
+    let matches_as_expected = 
+      function 
+	| Times[a;e;e_star;e';b] 
+	    when (compare e e' = 0) && 
+	      (is_star_of e_star e) -> true 
+	| Times[a;e;e_star;e';b] 
+	    when (compare e e' = 0) -> failwith "is_star_of failed"
+	| Times[a;e;e_star;e';b] -> failwith "compare e e' failed"
+	| Times _ -> failwith "structure match failed"
+	| _ -> failwith "this isn't a times..."  in 
+    match t.desc with 
+      | Times tl when has_star tl -> 
+	let (pre,e,post) = extract_star tl in 
+	make_plus ~flatten:false
+	  (TermSet.of_list 
+	     [make_times (List.flatten [pre;post]); 
+	      make_times (List.flatten [pre;[e];post]);
+	      let ret = make_times ~flatten:false 
+		[make_times pre;e;make_star e;e;make_times post] in 
+	      if Decide_Util.debug_mode
+	      then assert (matches_as_expected ret.desc);
+	      ret])
+      | _ -> Printf.eprintf "This was the term: %s\n" (to_string t);
+	failwith "doesn't have star!"
+
+  let make_plus = make_plus ~flatten:true
+  let make_times = make_times ~flatten:true
+  let make_star = make_star ~flatten:true
+  let make_not = make_not ~flatten:true
 
   (* Operations *)
   let rspines (t0 : Term.t) : TermSet.t =
@@ -650,6 +755,7 @@ module Formula = struct
       | Eq (s,t) -> (s,t)
       | Le (s,t) -> (s,t)
 end
+
 
 let memoize (f : Term.t -> 'b) : (Term.t -> 'b) = 
   let open Term in 
