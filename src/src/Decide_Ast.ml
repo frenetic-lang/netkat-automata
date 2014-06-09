@@ -157,7 +157,22 @@ end = struct
 	r,r_onedup
       (* The aE*b unfolding case *)
       | Times[a;e;e_star;e';b] when (this_compare e e' = 0) && (is_star_of e_star e) -> 
-	failwith "unimplemented, but it does work!"
+	let get_fixpoint a e = 
+	  let rec f a_e sum = 
+	    let a_e' = mult a_e e in
+	    let sum' = union a_e' sum in 
+	    if equal sum sum'
+	    then sum 
+	    else f a_e' sum' in 
+	  f a empty in 
+	let assemble_term a e b = 
+	  List.fold_left union empty 
+	    [mult a b; mult (mult a e) b; mult (mult (get_fixpoint a e) e) b] in 
+	let me = thunkify (fun _ -> 
+	  (assemble_term (a.e_matrix ()) (e.e_matrix ()) (b.e_matrix () ))) in 
+	let mo = thunkify (fun _ -> 
+	  (assemble_term (a.one_dup_e_matrix ()) (e.one_dup_e_matrix ()) (b.one_dup_e_matrix () ))) in 
+	me,mo
       | Times tl ->
 	let r = thunkify (fun _ -> List.fold_right 
 	  (fun t acc -> mult (t.e_matrix ()) acc) tl
