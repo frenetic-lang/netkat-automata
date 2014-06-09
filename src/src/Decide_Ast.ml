@@ -138,6 +138,15 @@ end = struct
     let open Base.Set in
     let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
       Base.Set.singleton(Base.of_neg_test x v) in
+    let get_fixpoint s =
+      Printf.printf "getting fixpoint...\n%!";
+      let s1 = add (univ_base ()) s in
+      (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
+      let rec f cntr s r =
+	if cntr > 1000 then Printf.printf "%u" cntr;
+	if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
+	else f (cntr + 1) (mult s s) s in
+      f 0 (mult s1 s1) s1 in
     match d0 with
       | One ->
 	(fun _ -> singleton (univ_base ())), (fun _ -> singleton (univ_base ()))
@@ -156,18 +165,35 @@ end = struct
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
       (* The aE*b unfolding case *)
+
       | Times[a;e;e_star;e';b] when (this_compare e e' = 0) && (is_star_of e_star e) -> 
-	let get_fixpoint a e = 
+	let get_fixpoint_star = get_fixpoint in 
+
+	let get_fixpoint a e b = 
+	  let e_b = mult e b in 
 	  let rec f a_e sum = 
 	    let a_e' = mult a_e e in
-	    let sum' = union a_e' sum in 
+	    let sum' = union (mult a_e' e_b) sum in 
 	    if equal sum sum'
-	    then sum 
+	    then sum
+	    else f a_e' sum' in 
+	  f a empty in 
+	let _ = get_fixpoint (* buggy version *) in 
+
+	let get_fixpoint a e = 
+	  let rec f a_e sum = 
+	    let a_e' = mult a_e e in 
+	    let sum' = union a_e' sum in 
+	    if equal sum sum' 
+	    then sum
 	    else f a_e' sum' in 
 	  f a empty in 
 	let assemble_term a e b = 
-	  List.fold_left union empty 
-	    [mult a b; mult (mult a e) b; mult (mult (get_fixpoint a e) e) b] in 
+	  let res = (mult (mult (get_fixpoint a e) e) b) in 
+	  if Decide_Util.debug_mode
+	  then assert (equal res (mult a (mult e (mult (get_fixpoint_star e) (mult e b)))));
+	  res in 
+
 	let me = thunkify (fun _ -> 
 	  (assemble_term (a.e_matrix ()) (e.e_matrix ()) (b.e_matrix () ))) in 
 	let mo = thunkify (fun _ -> 
@@ -189,15 +215,6 @@ end = struct
 	  | _ -> failwith "De Morgan law should have been applied") in
 	m,m
       | Star x ->
-	let get_fixpoint s =
-	  Printf.printf "getting fixpoint...\n%!";
-	  let s1 = add (univ_base ()) s in
-	  (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
-	  let rec f cntr s r =
-	    if cntr > 1000 then Printf.printf "%u" cntr;
-	    if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
-	    else f (cntr + 1) (mult s s) s in
-	  f 0 (mult s1 s1) s1 in
 	let me = thunkify (fun _ -> get_fixpoint (x.e_matrix())) in
 	let mo = thunkify (fun _ -> get_fixpoint (x.one_dup_e_matrix())) in
 	me,mo
@@ -546,7 +563,8 @@ end = struct
       failwith "no star to extract here!"
     with Return(pre,e,post) -> 
       let ret = List.rev pre,e,post in 
-      assert(extract_star_correct tl ret);
+      if Decide_Util.debug_mode
+      then assert(extract_star_correct tl ret);
       ret
       
   let unfold_star_twice (t : Term.t) : Term.t = 
@@ -569,7 +587,9 @@ end = struct
 	      make_times (List.flatten [pre;[e];post]);
 	      let ret = make_times ~flatten:false 
 		[make_times pre;e;make_star e;e;make_times post] in 
-	      assert (matches_as_expected ret.desc);ret])
+	      if Decide_Util.debug_mode
+	      then assert (matches_as_expected ret.desc);
+	      ret])
       | _ -> Printf.eprintf "This was the term: %s\n" (to_string t);
 	failwith "doesn't have star!"
 
