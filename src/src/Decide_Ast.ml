@@ -101,6 +101,11 @@ end = struct
   let is_star (e : t) = 
     match e.desc with Star _ -> true | _ -> false
 
+  let is_star_of (e_star : t) (e : t) = 
+    match e_star.desc with 
+      | Star e' when (compare e e' = 0) -> true 
+      | _ -> false
+
   let has_star tl = List.fold_left (fun acc e -> is_star e || acc) false tl
 	
   let fields (t : t) : FieldSet.t =
@@ -128,10 +133,6 @@ end = struct
 
   let calculate_E d0 =
     let this_compare = compare in 
-    let is_star_of (e_star : t) (e : t) = 
-      match e_star.desc with 
-	| Star e' when (compare e e' = 0) -> true 
-	| _ -> false in 
     let open Decide_Base in 
     let open Base in
     let open Base.Set in
@@ -155,7 +156,7 @@ end = struct
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
       (* The aE*b unfolding case *)
-      | Times[a;e;e_star;e';b] when (this_compare e e' = 0) && (is_star_of e_star e) && (is_times a) && (is_times b) -> 
+      | Times[a;e;e_star;e';b] when (this_compare e e' = 0) && (is_star_of e_star e) -> 
 	failwith "unimplemented, but it does work!"
       | Times tl ->
 	let r = thunkify (fun _ -> List.fold_right 
@@ -534,6 +535,16 @@ end = struct
       ret
       
   let unfold_star_twice (t : Term.t) : Term.t = 
+    let matches_as_expected = 
+      function 
+	| Times[a;e;e_star;e';b] 
+	    when (compare e e' = 0) && 
+	      (is_star_of e_star e) -> true 
+	| Times[a;e;e_star;e';b] 
+	    when (compare e e' = 0) -> failwith "is_star_of failed"
+	| Times[a;e;e_star;e';b] -> failwith "compare e e' failed"
+	| Times _ -> failwith "structure match failed"
+	| _ -> failwith "this isn't a times..."  in 
     match t.desc with 
       | Times tl when has_star tl -> 
 	let (pre,e,post) = extract_star tl in 
@@ -541,10 +552,11 @@ end = struct
 	  (TermSet.of_list 
 	     [make_times (List.flatten [pre;post]); 
 	      make_times (List.flatten [pre;[e];post]);
-	      make_times ~flatten:false 
-		[make_times pre;e;make_star e;e;make_times post]])
+	      let ret = make_times ~flatten:false 
+		[make_times pre;e;make_star e;e;make_times post] in 
+	      assert (matches_as_expected ret.desc);ret])
       | _ -> Printf.eprintf "This was the term: %s\n" (to_string t);
-	failwith "doesn't have star!"	
+	failwith "doesn't have star!"
 
   let make_plus = make_plus ~flatten:true
   let make_times = make_times ~flatten:true
