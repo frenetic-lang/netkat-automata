@@ -469,46 +469,6 @@ end = struct
   exception Return of t list * t * t list
 
 
-  let extract_star_correct pre_extract (pre,e,post) = 
-    List.iter2 
-      (fun a b -> 
-	if compare a b <> 0
-	then failwith "extract_star failed!") pre_extract (pre@((make_star e)::post)); 
-    true
-      
-  let extract_star tl = 
-    try 
-      let _ = List.fold_right 
-	(fun e (pre,suff) -> 
-	  match e.desc with 
-	    | Star e' -> raise (Return(pre,e',suff))
-	    | _ -> e::pre,List.tl suff) 
-	tl ([],tl) in 
-      failwith "no star to extract here!"
-    with Return(pre,e,post) -> 
-      let ret = List.rev pre,e,post in 
-      assert(extract_star_correct tl ret);
-      ret
-      
-
-  let unfold_star_twice (t : Term.t) : Term.t = 
-    match t.desc with 
-      | Times tl when has_star tl -> 
-	let (pre,e,post) = extract_star tl in 
-	make_plus ~flatten:false
-	  (TermSet.of_list 
-	     [make_times (List.flatten [pre;post]); 
-	      make_times (List.flatten [pre;[e];post]);
-	      make_times ~flatten:false 
-		[make_times pre;e;make_star e;e;make_times post]])
-      | _ -> failwith "doesn't have star!"
-	
-
-  let make_plus = make_plus ~flatten:true
-  let make_times = make_times ~flatten:true
-  let make_star = make_star ~flatten:true
-  let make_not = make_not ~flatten:true
-
   let rec to_string (t : t) : string =
     let out_precedence (t : t) : int =
       match t.desc with
@@ -547,6 +507,49 @@ end = struct
         "drop"
       | One -> 
         "id"
+
+  let extract_star_correct pre_extract (pre,e,post) = 
+    List.iter2 
+      (fun a b -> 
+	if compare a b <> 0
+	then 
+	  (Printf.eprintf "pre: %s\npost: %s\n" 
+	     (to_string (make_times pre_extract)) 
+	     (to_string (make_times (pre@((make_star e)::post)))) ;
+	   failwith "extract_star failed !")) pre_extract (pre@((make_star e)::post));
+    true
+      
+  let extract_star tl = 
+    try 
+      let _ = List.fold_right 
+	(fun e (pre,suff) -> 
+	  match e.desc with 
+	    | Star e' -> raise (Return(pre,e',suff))
+	    | _ -> e::pre,List.tl suff) 
+	tl ([],List.tl tl) in 
+      failwith "no star to extract here!"
+    with Return(pre,e,post) -> 
+      let ret = List.rev pre,e,post in 
+      assert(extract_star_correct tl ret);
+      ret
+      
+  let unfold_star_twice (t : Term.t) : Term.t = 
+    match t.desc with 
+      | Times tl when has_star tl -> 
+	let (pre,e,post) = extract_star tl in 
+	make_plus ~flatten:false
+	  (TermSet.of_list 
+	     [make_times (List.flatten [pre;post]); 
+	      make_times (List.flatten [pre;[e];post]);
+	      make_times ~flatten:false 
+		[make_times pre;e;make_star e;e;make_times post]])
+      | _ -> Printf.eprintf "This was the term: %s\n" (to_string t);
+	failwith "doesn't have star!"	
+
+  let make_plus = make_plus ~flatten:true
+  let make_times = make_times ~flatten:true
+  let make_star = make_star ~flatten:true
+  let make_not = make_not ~flatten:true
 
   (* Operations *)
   let rspines (t0 : Term.t) : TermSet.t =
