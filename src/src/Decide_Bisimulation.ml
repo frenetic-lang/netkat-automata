@@ -38,11 +38,6 @@ module WorkList = WorkList(struct
 	let rest_work_list = WorkList.tl work_list in
 	let q1_E = Deriv.DerivTerm.run_e q1 in 
 	let q2_E = Deriv.DerivTerm.run_e q2 in 
-	Printf.printf "q1 term:%s\nq2 term:%s\nq1 E: %s\nq2 E: %s\n" 
-	  (Decide_Deriv.DerivTerm.to_string q1)
-	  (Decide_Deriv.DerivTerm.to_string q2)
-	  (U.Base.Set.to_string q1_E)
-	  (U.Base.Set.to_string q2_E);
 	if not (U.Base.Set.equal q1_E q2_E)
 	then false
 	else
