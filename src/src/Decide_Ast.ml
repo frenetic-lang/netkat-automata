@@ -554,12 +554,12 @@ end = struct
       
   let extract_star tl = 
     try 
-      let _ = List.fold_right 
-	(fun e (pre,suff) -> 
+      let _ = List.fold_left
+	(fun (pre,suff) e -> 
 	  match e.desc with 
 	    | Star e' -> raise (Return(pre,e',suff))
 	    | _ -> e::pre,List.tl suff) 
-	tl ([],List.tl tl) in 
+	([],List.tl tl) tl in 
       failwith "no star to extract here!"
     with Return(pre,e,post) -> 
       let ret = List.rev pre,e,post in 
@@ -567,7 +567,17 @@ end = struct
       then assert(extract_star_correct tl ret);
       ret
       
+  let rec number_the_stars t = 
+    match t.desc with 
+      | (One | Dup | Zero | Test _ | Assg _) -> 0 
+      | Times tl -> List.fold_right (+) (List.map number_the_stars tl) 0
+      | Plus ts -> TermSet.fold (fun e -> (+) (number_the_stars e)) ts 0
+      | Not t -> number_the_stars t
+      | Star t -> 1 + (number_the_stars t)
+
   let unfold_star_twice (t : Term.t) : Term.t = 
+    (* stats fun! *)
+    Printf.printf "This term has this many stars: %u\n" (number_the_stars t);
     let matches_as_expected = 
       function 
 	| Times[a;e;e_star;e';b] 
@@ -590,8 +600,7 @@ end = struct
 	      if Decide_Util.debug_mode
 	      then assert (matches_as_expected ret.desc);
 	      ret])
-      | _ -> Printf.eprintf "This was the term: %s\n" (to_string t);
-	failwith "doesn't have star!"
+      | _ -> t
 
   let make_plus = make_plus ~flatten:true
   let make_times = make_times ~flatten:true
