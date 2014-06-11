@@ -6,9 +6,7 @@ let init_state = 0
 let run_bisimulation t1 t2 = 
 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t1);
   let t1vals = Decide_Ast.Term.values t1 in 
-  Printf.printf "getting values in this term: %s\n" (Decide_Ast.Term.to_string t2);
   let t2vals = Decide_Ast.Term.values t2 in 
   if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
   then 
@@ -57,12 +55,10 @@ let parse (s : string) =
 let process (input : string) : unit =
   try
     let parsed = parse input in
-    Printf.printf "Parsed input: %s\n" (Decide_Ast.Formula.to_string parsed);
     let l,r = Decide_Ast.Formula.terms parsed in 
-    Printf.printf "Left term in formula: %s\n" (Decide_Ast.Term.to_string l);
-    Printf.printf "Right term in formula: %s\n" (Decide_Ast.Term.to_string r);
     let l = Decide_Ast.Term.unfold_star_twice l in
     let r = Decide_Ast.Term.unfold_star_twice r in
+    Printf.printf "unfolded\n%!";
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )
   with
