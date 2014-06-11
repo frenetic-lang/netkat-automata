@@ -7,6 +7,10 @@ let utf8 = ref false
 
 module UnivMap = SetMapF(Field)(Value)
 
+let failfast = (fun () -> failwith "fast!")
+let noop = (fun () -> ())
+let maybefail = ref failfast
+
 (***********************************************
  * syntax
  ***********************************************)
@@ -215,6 +219,7 @@ end = struct
 	  | _ -> failwith "De Morgan law should have been applied") in
 	m,m
       | Star x ->
+	!maybefail();
 	let me = thunkify (fun _ -> get_fixpoint (x.e_matrix())) in
 	let mo = thunkify (fun _ -> get_fixpoint (x.one_dup_e_matrix())) in
 	me,mo
@@ -577,7 +582,9 @@ end = struct
 
   let unfold_star_twice (t : Term.t) : Term.t = 
     (* stats fun! *)
-    Printf.printf "This term has this many stars: %u\n" (number_the_stars t);
+    let stars = number_the_stars t in 
+    if stars > 1 then maybefail := noop;
+    Printf.printf "This term has this many stars: %u\n" stars;
     let matches_as_expected = 
       function 
 	| Times[a;e;e_star;e';b] 
