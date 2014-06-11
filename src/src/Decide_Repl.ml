@@ -56,8 +56,6 @@ let process (input : string) : unit =
   try
     let parsed = parse input in
     let l,r = Decide_Ast.Formula.terms parsed in 
-    let l = Decide_Ast.Term.unfold_star_twice l in
-    let r = Decide_Ast.Term.unfold_star_twice r in
     Printf.printf "unfolded\n%!";
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )

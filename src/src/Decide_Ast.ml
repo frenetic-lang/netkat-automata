@@ -7,9 +7,6 @@ let utf8 = ref false
 
 module UnivMap = SetMapF(Field)(Value)
 
-let failfast = (fun () -> failwith "fast!")
-let noop = (fun () -> ())
-let maybefail = ref failfast
 
 (***********************************************
  * syntax
@@ -43,7 +40,6 @@ module rec Term : sig
   val make_zero : unit -> t
   val make_one : unit -> t
 
-  val unfold_star_twice : t -> t
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val hash : t -> int
@@ -131,6 +127,32 @@ end = struct
 	| (Not x | Star x) -> collect x m
 	| (Dup  | Zero  | One ) -> m in
     collect t UnivMap.empty
+
+
+  let hax_make_star = ref (fun _ -> failwith "hax!") 
+  let extract_star_correct pre_extract (pre,e,post) = 
+    List.iter2 
+      (fun a b -> 
+	if compare a b <> 0
+	then failwith "extract_star failed !") pre_extract (pre@((!hax_make_star e)::post));
+    true
+
+  exception Return of t list * t * t list
+
+  let extract_star tl = 
+    try 
+      let _ = List.fold_left
+	(fun (pre,suff) e -> 
+	  match e.desc with 
+	    | Star e' -> raise (Return(pre,e',suff))
+	    | _ -> e::pre,List.tl suff) 
+	([],List.tl tl) tl in 
+      failwith "no star to extract here!"
+    with Return(pre,e,post) -> 
+      let ret = List.rev pre,e,post in 
+      if Decide_Util.debug_mode
+      then assert(extract_star_correct tl ret);
+      ret
       
 
 (* E matrix *)
@@ -151,6 +173,11 @@ end = struct
 	if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
 	else f (cntr + 1) (mult s s) s in
       f 0 (mult s1 s1) s1 in
+    let mult_all tl gm = 
+      List.fold_right 
+	(fun t acc -> mult (gm t) acc) tl
+	(singleton (univ_base ())) in 
+    
     match d0 with
       | One ->
 	(fun _ -> singleton (univ_base ())), (fun _ -> singleton (univ_base ()))
@@ -168,11 +195,10 @@ end = struct
 	let r_onedup = thunkify (fun _ -> TermSet.fold
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
+
       (* The aE*b unfolding case *)
-
-      | Times[a;e;e_star;e';b] when (this_compare e e' = 0) && (is_star_of e_star e) -> 
+      | Times tl when has_star tl -> 
 	let get_fixpoint_star = get_fixpoint in 
-
 	let get_fixpoint a e b = 
 	  let e_b = mult e b in 
 	  let rec f a_e sum = 
@@ -192,24 +218,24 @@ end = struct
 	    then sum
 	    else f a_e' sum' in 
 	  f a empty in 
-	let assemble_term a e b = 
-	  let res = (mult (mult (get_fixpoint a e) e) b) in 
-	  if Decide_Util.debug_mode
-	  then assert (equal res (mult a (mult e (mult (get_fixpoint_star e) (mult e b)))));
-	  res in 
-
-	let me = thunkify (fun _ -> 
-	  (assemble_term (a.e_matrix ()) (e.e_matrix ()) (b.e_matrix () ))) in 
-	let mo = thunkify (fun _ -> 
-	  (assemble_term (a.one_dup_e_matrix ()) (e.one_dup_e_matrix ()) (b.one_dup_e_matrix () ))) in 
+	let assemble_term gm = 
+	  let (pre,e,post) = extract_star tl in 
+	  let pre_e = mult_all pre gm in 
+	  let post_e = mult_all post gm in 
+	  let e = gm e in 
+	  List.fold_left union empty
+	    [mult pre_e post_e;
+	     mult pre_e (mult e post_e);
+	     let res = (mult (mult (get_fixpoint pre_e e) e) post_e) in 
+	     if Decide_Util.debug_mode
+	     then assert (equal res (mult pre_e (mult e (mult (get_fixpoint_star e) (mult e post_e)))));
+	     res] in 
+	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
+	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
 	me,mo
       | Times tl ->
-	let r = thunkify (fun _ -> List.fold_right 
-	  (fun t acc -> mult (t.e_matrix ()) acc) tl
-	  (singleton (univ_base ())) ) in
-	let r_onedup = thunkify (fun _ -> List.fold_right
-	  (fun t acc -> mult (t.one_dup_e_matrix ()) acc) tl
-	  (singleton (univ_base ())) ) in
+	let r = thunkify (fun _ -> mult_all tl (fun x -> x.e_matrix ())) in
+	let r_onedup = thunkify (fun _ -> mult_all tl (fun x -> x.one_dup_e_matrix ())) in 
 	r,r_onedup
       | Not x ->
 	let m = thunkify (fun _ -> match x.desc with
@@ -219,7 +245,6 @@ end = struct
 	  | _ -> failwith "De Morgan law should have been applied") in
 	m,m
       | Star x ->
-	!maybefail();
 	let me = thunkify (fun _ -> get_fixpoint (x.e_matrix())) in
 	let mo = thunkify (fun _ -> get_fixpoint (x.one_dup_e_matrix())) in
 	me,mo
@@ -504,8 +529,6 @@ end = struct
 	THash.add not_hash t0 t;
 	t
 
-  exception Return of t list * t * t list
-
 
   let rec to_string (t : t) : string =
     let out_precedence (t : t) : int =
@@ -546,72 +569,10 @@ end = struct
       | One -> 
         "id"
 
-  let extract_star_correct pre_extract (pre,e,post) = 
-    List.iter2 
-      (fun a b -> 
-	if compare a b <> 0
-	then 
-	  (Printf.eprintf "pre: %s\npost: %s\n" 
-	     (to_string (make_times pre_extract)) 
-	     (to_string (make_times (pre@((make_star e)::post)))) ;
-	   failwith "extract_star failed !")) pre_extract (pre@((make_star e)::post));
-    true
-      
-  let extract_star tl = 
-    try 
-      let _ = List.fold_left
-	(fun (pre,suff) e -> 
-	  match e.desc with 
-	    | Star e' -> raise (Return(pre,e',suff))
-	    | _ -> e::pre,List.tl suff) 
-	([],List.tl tl) tl in 
-      failwith "no star to extract here!"
-    with Return(pre,e,post) -> 
-      let ret = List.rev pre,e,post in 
-      if Decide_Util.debug_mode
-      then assert(extract_star_correct tl ret);
-      ret
-      
-  let rec number_the_stars t = 
-    match t.desc with 
-      | (One | Dup | Zero | Test _ | Assg _) -> 0 
-      | Times tl -> List.fold_right (+) (List.map number_the_stars tl) 0
-      | Plus ts -> TermSet.fold (fun e -> (+) (number_the_stars e)) ts 0
-      | Not t -> number_the_stars t
-      | Star t -> 1 + (number_the_stars t)
-
-  let unfold_star_twice (t : Term.t) : Term.t = 
-    (* stats fun! *)
-    let stars = number_the_stars t in 
-    if stars > 1 then maybefail := noop;
-    Printf.printf "This term has this many stars: %u\n" stars;
-    let matches_as_expected = 
-      function 
-	| Times[a;e;e_star;e';b] 
-	    when (compare e e' = 0) && 
-	      (is_star_of e_star e) -> true 
-	| Times[a;e;e_star;e';b] 
-	    when (compare e e' = 0) -> failwith "is_star_of failed"
-	| Times[a;e;e_star;e';b] -> failwith "compare e e' failed"
-	| Times _ -> failwith "structure match failed"
-	| _ -> failwith "this isn't a times..."  in 
-    match t.desc with 
-      | Times tl when has_star tl -> 
-	let (pre,e,post) = extract_star tl in 
-	make_plus ~flatten:false
-	  (TermSet.of_list 
-	     [make_times (List.flatten [pre;post]); 
-	      make_times (List.flatten [pre;[e];post]);
-	      let ret = make_times ~flatten:false 
-		[make_times pre;e;make_star e;e;make_times post] in 
-	      if Decide_Util.debug_mode
-	      then assert (matches_as_expected ret.desc);
-	      ret])
-      | _ -> t
-
   let make_plus = make_plus ~flatten:true
   let make_times = make_times ~flatten:true
   let make_star = make_star ~flatten:true
+  let _ = hax_make_star := make_star
   let make_not = make_not ~flatten:true
 
   (* Operations *)
