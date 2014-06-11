@@ -1,6 +1,6 @@
 all: build
 
-NAME=netkat
+NAME=netkat_decide
 J=4
 
 setup.ml: _oasis
