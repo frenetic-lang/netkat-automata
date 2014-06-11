@@ -158,7 +158,6 @@ end = struct
 (* E matrix *)
 
   let calculate_E d0 =
-    let this_compare = compare in 
     let open Decide_Base in 
     let open Base in
     let open Base.Set in
@@ -195,21 +194,9 @@ end = struct
 	let r_onedup = thunkify (fun _ -> TermSet.fold
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
-
       (* The aE*b unfolding case *)
       | Times tl when has_star tl -> 
 	let get_fixpoint_star = get_fixpoint in 
-	let get_fixpoint a e b = 
-	  let e_b = mult e b in 
-	  let rec f a_e sum = 
-	    let a_e' = mult a_e e in
-	    let sum' = union (mult a_e' e_b) sum in 
-	    if equal sum sum'
-	    then sum
-	    else f a_e' sum' in 
-	  f a empty in 
-	let _ = get_fixpoint (* buggy version *) in 
-
 	let get_fixpoint a e = 
 	  let rec f a_e sum = 
 	    let a_e' = mult a_e e in 
@@ -228,11 +215,12 @@ end = struct
 	     mult pre_e (mult e post_e);
 	     let res = (mult (mult (get_fixpoint pre_e e) e) post_e) in 
 	     if Decide_Util.debug_mode
-	     then assert (equal res (mult pre_e (mult e (mult (get_fixpoint_star e) (mult e post_e)))));
+	     then assert (Printf.printf "calling from assert: "; 
+			  equal res (mult pre_e (mult e (mult (get_fixpoint_star e) (mult e post_e)))));
 	     res] in 
 	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
 	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
-	me,mo
+	me,mo 
       | Times tl ->
 	let r = thunkify (fun _ -> mult_all tl (fun x -> x.e_matrix ())) in
 	let r_onedup = thunkify (fun _ -> mult_all tl (fun x -> x.one_dup_e_matrix ())) in 
