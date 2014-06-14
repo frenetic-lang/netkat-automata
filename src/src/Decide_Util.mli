@@ -17,10 +17,10 @@ module Field : sig
   type t
   val compare : t -> t -> int
   val hash : t -> int 
+  val as_int : t -> int
   val equal : t -> t -> bool 
   val to_string : t -> string
   val of_string : string -> t
-  val max_elem : unit -> t
 end
 module FieldArray : sig
   type 'a t
@@ -30,6 +30,7 @@ module FieldArray : sig
   val get : 'a t -> Field.t -> 'a
   val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   val copy : 'a t-> 'a t
+  val size : 'a t -> int
 end 
 module FieldSet : sig 
   include Set.S with type elt = Field.t
@@ -40,23 +41,19 @@ module Value : sig
   type t 
   val compare : t -> t -> int
   val hash : t -> int 
+  val as_int : t -> int
   val equal : t -> t -> bool 
   val to_string : t -> string
   val of_string : string -> t
   val extra_val : t
-  val max_elem : unit -> t
 end
-module ValueArray : sig
-  type 'a t
-  val make : 'a -> 'a t
-  val set : 'a t -> Value.t -> 'a -> unit 
-  val get : 'a t -> Value.t -> 'a
-end 
 module ValueSet : sig 
   include Set.S with type elt = Value.t
   val of_list : Value.t list -> t
 end
 
+val get_univ_lock : (unit -> unit) 
+val release_univ_lock : (unit -> unit) 
 val all_fields : (unit -> FieldSet.t) ref 
 val all_values : (unit -> (Field.t -> ValueSet.t)) ref
 

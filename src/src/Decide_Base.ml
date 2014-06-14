@@ -109,9 +109,15 @@ module Base = struct
     type key = Decide_Util.Field.t
     type 'a t = (('a option) Decide_Util.FieldArray.t) 
     let find (a : key) (b : 'a t) : 'a = 
-      match Decide_Util.FieldArray.get b a with 
+      try (match Decide_Util.FieldArray.get b a with 
 	| Some r -> r
-	| None -> raise Not_found
+	| None -> raise Not_found)
+      with Invalid_argument "index out of bounds" -> 
+	Printf.eprintf "Requested key: %s\nAs int:%u\nSize: %u\n" 
+	  (Decide_Util.Field.to_string a)
+	  (Decide_Util.Field.as_int a)
+	  (Decide_Util.FieldArray.size b);
+	failwith "no idea"
 	  
     let option_find a b = 
       Decide_Util.FieldArray.get b a
@@ -625,7 +631,7 @@ module Base = struct
 	    !(Decide_Util.stats.compact_percent);
       end;
       
-      let module ValHash = Decide_Util.ValueArray in
+      let module ValHash = Hashtbl.Make(Decide_Util.Value) in
       let extract_test (f : Decide_Util.Field.t) (Base(atom,_)) = 
 	try Map.find f atom 
 	with Not_found -> PosNeg.any f in 
@@ -639,12 +645,12 @@ module Base = struct
 	List.fold_left
 	  (fun acc e -> inter e acc) (List.hd lst) (List.tl lst) in 
       let incr_add k v hash = 
-	ValHash.set hash k (add v (ValHash.get hash k));
+	ValHash.replace hash k (add v (ValHash.find hash k));
 	hash in
       let incr_add_all ks v hash = 
 	Decide_Util.ValueSet.iter 
 	  (fun k -> 
-	    ValHash.set hash k (add v (ValHash.get hash k))) ks;
+	    ValHash.replace hash k (add v (ValHash.find hash k))) ks;
 	hash in
 
       let phase1 = fold 
@@ -666,7 +672,7 @@ module Base = struct
 		  field,valset,valhash,add b others) acc)
 	left' (Decide_Util.FieldSet.fold 
 		 (fun f acc -> 
-		   (f,Decide_Util.ValueSet.empty,ValHash.make empty,empty)::acc) 
+		   (f,Decide_Util.ValueSet.empty,ValHash.create 1000,empty)::acc) 
 		 (!Decide_Util.all_fields ()) []) in
 
       let phase2 = 
@@ -678,7 +684,7 @@ module Base = struct
 		  let i = pn_intersect vs (extract_test f b) in 
 		  union 
 		    (Decide_Util.ValueSet.fold 
-		       (fun a -> union (ValHash.get vh a)) i empty) 
+		       (fun a -> union (ValHash.find vh a)) i empty) 
 		    bs) phase1 in 
 	    (b,intersect_all to_intersect)::acc) right' [] in 
 
@@ -724,22 +730,6 @@ module Base = struct
 
 
     let print_debugging_info _ = ()
-(*
-      Printf.printf "Biggest uid for AST: %u\n" (Decide_Ast.Term.int_of_uid (Decide_Ast.Term.largest_uid ()));
-      Printf.printf "Failed count : %u\n" !failed_Count;
-      Printf.printf "success count: %u\n" !success_count;
-      Printf.printf "percent failed : %u\n" ((100 * !failed_Count) / (!failed_Count + !success_count));
-      Printf.printf "Total iterations of fold_points: %d\n" !total_cycles;
-      Printf.printf "Total wasted cycles in fold_points: %d\n" 
-	!wasted_cycles;
-      (Printf.printf "Percent wasted cycles: %d\n" 
-	 ((!wasted_cycles * 100) / !total_cycles));
-      Printf.printf "size of biggest BaseSet: %u" (!biggest_cardinal);
-      Printf.printf "size of the universe (for reference): %u" 
-	(Decide_Util.FieldSet.fold (fun fld acc -> 
-	  Decide_Util.ValueSet.cardinal (Decide_Util.all_values fld) * acc) Decide_Util.all_fields 1) ;
-      *)      
-
 
   end (* Base.Set *)	    
 

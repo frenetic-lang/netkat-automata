@@ -22,9 +22,10 @@ let print_debugging_info _  =
 module Field = struct 
   type t = int
   let compare = Pervasives.compare
-  let hash x = x
+  let as_int x = x
+  let hash x = Hashtbl.hash x
   let equal a b = 0 = (compare a b)
-  let of_string,to_string,max_elem = 
+  let of_string,to_string,reset = 
     let stringtoint = Hashtbl.create 11 in 
     let inttostring = Hashtbl.create 11 in 
     let counter = ref 0 in 
@@ -38,8 +39,10 @@ module Field = struct
 	id in 
     let to_string (x : t) : string = 
       Hashtbl.find inttostring x in 
-    let max_elem _ = !counter in
-    of_string,to_string,max_elem
+    let reset () = counter := 0;
+      Hashtbl.clear stringtoint;
+      Hashtbl.clear inttostring in
+    of_string,to_string,reset
 end
 module FieldSet = struct 
   include Set.Make(Field)
@@ -51,9 +54,10 @@ end
 module Value = struct 
   type t = int
   let compare = Pervasives.compare
-  let hash x = x
+  let as_int x = x
+  let hash x = Hashtbl.hash x
   let equal a b = 0 = (compare a b)
-  let of_string,to_string,max_elem = 
+  let of_string,to_string,max_elem,reset = 
     let stringtoint = Hashtbl.create 11 in 
     let inttostring = Hashtbl.create 11 in 
     let snowman =  "☃" in
@@ -70,7 +74,10 @@ module Value = struct
 	id in 
     let to_string (x : t) : string = 
       Hashtbl.find inttostring x in 
-    of_string,to_string,(fun _ -> !counter)
+    let reset () = counter := 0; 
+      Hashtbl.clear stringtoint;
+      Hashtbl.clear inttostring in
+    of_string,to_string,(fun _ -> !counter),reset
   let extra_val = -1
 end
 module ValueSet = struct 
@@ -79,23 +86,36 @@ module ValueSet = struct
     List.fold_left (fun acc t -> add t acc) empty ts 
 end
 
-let all_fields = ref (fun _ -> failwith 
+let all_fields_fail = (fun _ -> failwith 
   "Please set all_fields in Decide_Util.ml before trying to run any calculations!")
-let all_values = ref (fun _ -> failwith 
+let all_fields = ref all_fields_fail
+let all_values_fail = (fun _ -> failwith 
   "Please set all_values in Decide_Util.ml before trying to run any calculations!")
+let all_values = ref all_values_fail
+
+let univ_failfast =  (fun () -> failwith "no concurrency please!")
+let univ_noop =  (fun () -> ())
+let univ_lock = ref univ_noop
+
+let get_univ_lock = (fun () -> univ_lock := univ_failfast)
+let release_univ_lock = (fun () -> 
+  all_fields := all_fields_fail; 
+  all_values := all_values_fail;
+  univ_lock := univ_noop
+)
 
 module FieldArray = struct
   type 'a t = 'a array
   let make (a : 'a) : 'a t = 
     let _ = !all_fields () in 
-    Array.make (Field.hash (Field.max_elem ())) a
+    Array.make 40 a
   let init f = 
     let _ = !all_fields () in 
-    Array.init (Field.hash (Field.max_elem ())) f
+    Array.init 40 f
   let set this k = 
-    Array.set this (Field.hash k)
+    Array.set this (Field.as_int k)
   let get this k = 
-    Array.get this (Field.hash k)
+    Array.get this (Field.as_int k)
   let fold f arr acc =
     let accr = ref acc in 
     Array.iteri (fun indx elem -> 
@@ -103,16 +123,18 @@ module FieldArray = struct
       accr := (f indx elem acc)) arr;
     !accr
   let copy = Array.copy
+  let size a = Array.length a
 end 
 module ValueArray = struct
   type 'a t = 'a array
   let make (a : 'a) : 'a t = 
     let _ = !all_fields () in 
-    Array.make (Value.hash (Value.max_elem ())) a
+    ignore (Array.make (Value.as_int (Value.max_elem ())) a); 
+    failwith "don't use this, I haven't tested it."
   let set this k = 
-    Array.set this (Value.hash k)
+    Array.set this (Value.as_int k)
   let get this k = 
-    Array.get this (Value.hash k)
+    Array.get this (Value.as_int k)
 end
 
   
