@@ -33,8 +33,7 @@ let run_bisimulation t1 t2 =
       Decide_Bisimulation.check_equivalent t1 t2
     end      
   else (
-    Printf.eprintf "comparing empty terms!\n";
-    true)
+    (Decide_Ast.Term.equal t1 t2))
 
 
 

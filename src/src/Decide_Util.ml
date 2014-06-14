@@ -25,7 +25,7 @@ module Field = struct
   let as_int x = x
   let hash x = Hashtbl.hash x
   let equal a b = 0 = (compare a b)
-  let of_string,to_string,reset = 
+  let of_string,to_string,choose,reset = 
     let stringtoint = Hashtbl.create 11 in 
     let inttostring = Hashtbl.create 11 in 
     let counter = ref 0 in 
@@ -42,7 +42,7 @@ module Field = struct
     let reset () = counter := 0;
       Hashtbl.clear stringtoint;
       Hashtbl.clear inttostring in
-    of_string,to_string,reset
+    of_string,to_string,(fun () -> !counter),reset
 end
 module FieldSet = struct 
   include Set.Make(Field)
