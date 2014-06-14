@@ -164,12 +164,11 @@ end = struct
     let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
       Base.Set.singleton(Base.of_neg_test x v) in
     let get_fixpoint s =
-      Printf.printf "getting fixpoint...\n%!";
       let s1 = add (univ_base ()) s in
       (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
       let rec f cntr s r =
 	if cntr > 1000 then Printf.printf "%u" cntr;
-	if equal s r then (Printf.printf "got fixpoint!\n%!"; s)
+	if equal s r then s
 	else f (cntr + 1) (mult s s) s in
       f 0 (mult s1 s1) s1 in
     let mult_all tl gm = 

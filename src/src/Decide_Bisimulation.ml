@@ -68,11 +68,11 @@ module WorkList = WorkList(struct
 	       )
 	       (U.Base.Set.union q1_points q2_points) rest_work_list in
 	     main_loop work_list) in
-    Printf.printf "Beginning term conversion\n%!" ;
+
     let t2 = Deriv.DerivTerm.make_term t2 in
-    Printf.printf "rhs term complete\n%!";
+
     let t1 = Deriv.DerivTerm.make_term t1 in 
-    Printf.printf "Term construction complete\n%!";
+
     let ret = main_loop (WorkList.singleton (t1,t2)) in
     Decide_Util.print_debugging_info (); 
     ret
