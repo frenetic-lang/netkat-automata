@@ -384,7 +384,15 @@ end = struct
     try TSetHash.find plus_hash ts 
     with Not_found -> 
       if flatten 
-      then flatten_sum ts 
+      then 
+	let res = flatten_sum ts in 
+	(if Decide_Util.debug_mode 
+	 then let res' = make_plus ~flatten:false ts in 
+	      assert (Decide_Base.Base.Set.equal 
+			(res'.e_matrix ()) (res.e_matrix()));
+	      assert (Decide_Base.Base.Set.equal 
+			(res'.one_dup_e_matrix ()) (res.one_dup_e_matrix ()));
+	 ); res
       else 
       let u = next_uid () in 
       let d = Plus(ts) in 
@@ -556,11 +564,11 @@ end = struct
       | One -> 
         "id"
 
-  let make_plus = make_plus ~flatten:true
-  let make_times = make_times ~flatten:true
-  let make_star = make_star ~flatten:true
+  let make_plus a = make_plus a
+  let make_times a = make_times a
+  let make_star a = make_star a
   let _ = hax_make_star := make_star
-  let make_not = make_not ~flatten:true
+  let make_not a = make_not a
 
   (* Operations *)
   let rspines (t0 : Term.t) : TermSet.t =
