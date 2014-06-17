@@ -53,8 +53,6 @@ module ValueSet : sig
   val of_list : Value.t list -> t
 end
 
-val get_univ_lock : (unit -> unit) 
-val release_univ_lock : (unit -> unit) 
 val all_fields : (unit -> FieldSet.t) ref 
 val all_values : (unit -> (Field.t -> ValueSet.t)) ref
 

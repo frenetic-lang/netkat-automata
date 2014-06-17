@@ -49,6 +49,8 @@ module rec Term : sig
   val values : t -> UnivMap.t
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val e_matrix : t -> Decide_Base.Base.Set.t
+
+
 end = struct
   type d = 
     | Assg of Field.t * Value.t
@@ -386,13 +388,7 @@ end = struct
       if flatten 
       then 
 	let res = flatten_sum ts in 
-	(if Decide_Util.debug_mode 
-	 then let res' = make_plus ~flatten:false ts in 
-	      assert (Decide_Base.Base.Set.equal 
-			(res'.e_matrix ()) (res.e_matrix()));
-	      assert (Decide_Base.Base.Set.equal 
-			(res'.one_dup_e_matrix ()) (res.one_dup_e_matrix ()));
-	 ); res
+	res
       else 
       let u = next_uid () in 
       let d = Plus(ts) in 
@@ -428,7 +424,9 @@ end = struct
     try TListHash.find times_hash ts 
     with Not_found -> 
       if flatten
-      then flatten_product ts
+      then 	
+	let res = flatten_product ts in 
+	res
       else 
 	let u = next_uid () in 
 	let d = Times(ts) in 
@@ -459,7 +457,9 @@ end = struct
     try THash.find star_hash t0
     with Not_found -> 
       if flatten
-      then flatten_star t0 
+      then 
+	let res = flatten_star t0 in 
+	res
       else 
 	let u = next_uid () in 
 	let d = Star(t0) in 
@@ -508,7 +508,8 @@ end = struct
     try THash.find not_hash t0
     with Not_found -> 
       if flatten 
-      then deMorgan (flatten_not t0)
+      then let res = deMorgan (flatten_not t0) in 
+	   res
       else
 	let u = next_uid () in 
 	let d = Not(t0) in 
@@ -569,6 +570,7 @@ end = struct
   let make_star a = make_star a
   let _ = hax_make_star := make_star
   let make_not a = make_not a
+
 
   (* Operations *)
   let rspines (t0 : Term.t) : TermSet.t =
