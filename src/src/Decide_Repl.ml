@@ -43,7 +43,7 @@ let loop_freedom trm =
 		  let dtrm_t = DerivTerm.to_term (dmat pt) in 
 		  let newterm = 
 			(Term.make_times 
-			   [beta_t; Term.make_star dtrm_t ; alpha_t]) in
+			   [beta_t; dtrm_t ; alpha_t]) in
 		  let em = Term.one_dup_e_matrix newterm in 
 		  if (Base.Set.is_empty em)
 		  then acc
