@@ -3,19 +3,13 @@ open Decide_Util
 type state = int
 let init_state = 0
 
-let run_bisimulation t1 t2 = 
-
+let set_univ tvallist = 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
-  let t1vals = Decide_Ast.Term.values t1 in 
-  let t2vals = Decide_Ast.Term.values t2 in 
-  if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
-  then 
-    begin
-      let univ = UnivMap.union t1vals t2vals in 
-      let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
-      let module UnivDescr = struct
+  let univ = List.fold_right UnivMap.union tvallist UnivMap.empty in 
+  let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
+  let module UnivDescr = struct
 	let all_fields : Decide_Util.FieldSet.t = 
-	    (* TODO: fix me when SSM is eliminated *)
+	  (* TODO: fix me when SSM is eliminated *)
 	  List.fold_right 
 	    (fun f -> 
 	      Printf.printf "adding field to universe: %s\n" (Decide_Util.Field.to_string f);
@@ -28,14 +22,39 @@ let run_bisimulation t1 t2 =
 	  with Not_found -> 
 	    Decide_Util.ValueSet.empty
       end in   
-      Decide_Util.all_fields := (fun _ -> UnivDescr.all_fields);
-      Decide_Util.all_values := (fun _ -> UnivDescr.all_values);
-      Decide_Bisimulation.check_equivalent t1 t2
-    end      
-  else (
-    (Decide_Ast.Term.equal t1 t2))
+  Decide_Util.all_fields := (fun _ -> UnivDescr.all_fields);
+  Decide_Util.all_values := (fun _ -> UnivDescr.all_values);
+  List.exists (fun e -> not (UnivMap.is_empty e)) tvallist
 
+let loop_freedom trm = 
+  let open Decide_Ast in 
+  let open Decide_Base in 
+  let open Decide_Deriv in 
+  let trm_vals = Term.values trm in 
+  if set_univ [trm_vals]
+  then 
+	begin
+	  let dtrm = DerivTerm.make_term trm in 
+	  let dmat,pset = DerivTerm.run_d dtrm in 
+	  Base.Set.fold_points 
+		(fun pt acc -> 
+		  let beta_t = Term.of_complete_test (Base.point_rhs pt) in
+		  let alpha_t = Term.of_complete_test (Base.point_lhs pt) in
+		  let dtrm_t = DerivTerm.to_term (dmat pt) in 
+		  let newterm = 
+			(Term.make_times [beta_t; Term.make_star dtrm_t ; alpha_t]) in
+		  let em = Term.one_dup_e_matrix newterm in 
+		  (Base.Set.is_empty em) && acc
+		) pset true
+	end
+  else true
 
+let run_bisimulation t1 t2 = 
+  let t1vals = Decide_Ast.Term.values t1 in 
+  let t2vals = Decide_Ast.Term.values t2 in 
+  if set_univ [t1vals; t2vals]
+  then Decide_Bisimulation.check_equivalent t1 t2
+  else Decide_Ast.Term.equal t1 t2
 
 exception ParseError of int * int * string
                               

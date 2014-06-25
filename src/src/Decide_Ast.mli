@@ -23,6 +23,8 @@ module rec Term : sig
   val make_not : t -> t
   val make_star : t -> t
 
+  val of_complete_test : Decide_Base.Base.complete_test -> t
+
   val e_matrix : t -> Decide_Base.Base.Set.t
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val lrspines : t -> TermPairSet.t
