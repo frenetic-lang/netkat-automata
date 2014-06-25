@@ -575,7 +575,7 @@ end = struct
 
 
   let of_complete_test ct = 
-	failwith "think about this in a bit"
+    make_times (List.map make_test (Decide_Base.Base.complete_test_vals ct))
 
   (* Operations *)
   let rspines (t0 : Term.t) : TermSet.t =

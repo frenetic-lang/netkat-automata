@@ -42,7 +42,8 @@ let loop_freedom trm =
 		  let alpha_t = Term.of_complete_test (Base.point_lhs pt) in
 		  let dtrm_t = DerivTerm.to_term (dmat pt) in 
 		  let newterm = 
-			(Term.make_times [beta_t; Term.make_star dtrm_t ; alpha_t]) in
+			(Term.make_times 
+			   [beta_t; Term.make_star dtrm_t ; alpha_t]) in
 		  let em = Term.one_dup_e_matrix newterm in 
 		  (Base.Set.is_empty em) && acc
 		) pset true

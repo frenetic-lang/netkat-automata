@@ -279,6 +279,16 @@ module Base = struct
         vstr)
       (!Decide_Util.all_fields ()) ""
 
+  let complete_test_vals (b : complete_test) : 
+      (Decide_Util.Field.t * Decide_Util.Value.t) list = 
+    Decide_Util.FieldSet.fold (fun f acc -> 
+      let v = 
+	try Map.find f b
+	with Not_found -> 
+	  failwith "this was supposed to be a complete test..." in
+      (f,v) :: acc
+    ) (!Decide_Util.all_fields ()) []
+
   let point_to_string (Point(x,y)) = 
     Printf.sprintf "<%s,%s>" (complete_test_to_string x) (assg_to_string y)
 
