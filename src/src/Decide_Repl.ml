@@ -45,7 +45,12 @@ let loop_freedom trm =
 			(Term.make_times 
 			   [beta_t; Term.make_star dtrm_t ; alpha_t]) in
 		  let em = Term.one_dup_e_matrix newterm in 
-		  (Base.Set.is_empty em) && acc
+		  if (Base.Set.is_empty em)
+		  then acc
+		  else (Printf.printf "Bad! Circular path found: %s\n"
+			  (Base.complete_test_to_string (Base.point_lhs pt));
+			false
+		  )
 		) pset true
 	end
   else true
@@ -87,6 +92,23 @@ let process (input : string) : unit =
     Printf.printf "Lex Error: %s\n" s
   | ParseError (l, ch, t) ->
     Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
+
+let proc_loop (input : string) : unit =
+  try
+    let parsed = parse (input ^ " == drop") in
+    let t,_ = Decide_Ast.Formula.terms parsed in 
+    Printf.printf "unfolded\n%!";
+    Printf.printf "Term:%s\n" (Decide_Ast.Term.to_string t);
+    Printf.printf "Loop-freedom result: %b\n"
+      (loop_freedom t)
+  with
+  | Decide_Ast.Empty -> 
+    ()
+  | Decide_Lexer.LexError s -> 
+    Printf.printf "Lex Error: %s\n" s
+  | ParseError (l, ch, t) ->
+    Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
+
   
 (* read from a file *)
 let load (filename : string) : string option =
@@ -113,6 +135,8 @@ let process_file (filename : string) : unit =
 let rec repl (state : state) : unit =
   print_string "? ";
   let input = read_line() in
+  let run_loop =  input = "loop" in
+  let input = if run_loop then read_line () else input in 
   if input = "quit" then raise Quit;
   let input = if input = "load" 
     then (print_string ": ";
@@ -125,7 +149,9 @@ let rec repl (state : state) : unit =
   (match (* read_line() *) "process"  with 
     | "process" ->
       Printf.printf "processing...\n%!";
-      process input;
+      if run_loop 
+      then proc_loop input 
+      else process input;
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 
