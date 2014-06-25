@@ -3,7 +3,8 @@ open Decide_Util
 type state = int
 let init_state = 0
 
-let set_univ tvallist = 
+(* returns true if universe is non-empty *)
+let set_univ (tvallist : Decide_Ast.UnivMap.t list) : bool = 
   let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
   let univ = List.fold_right UnivMap.union tvallist UnivMap.empty in 
   let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
@@ -14,7 +15,6 @@ let set_univ tvallist =
 	    (fun f -> 
 	      Printf.printf "adding field to universe: %s\n" (Decide_Util.Field.to_string f);
 	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
-	let _ = assert (FieldSet.cardinal all_fields > 0 )
 	let all_values f : Decide_Util.ValueSet.t = 
 	  try 
 	    UnivMap.Values.fold (fun v acc -> Decide_Util.ValueSet.add v acc ) (UnivMap.find_all f univ) 
