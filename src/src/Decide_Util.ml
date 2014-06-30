@@ -93,16 +93,6 @@ let all_values_fail = (fun _ -> failwith
   "Please set all_values in Decide_Util.ml before trying to run any calculations!")
 let all_values = ref all_values_fail
 
-let univ_failfast =  (fun () -> failwith "no concurrency please!")
-let univ_noop =  (fun () -> ())
-let univ_lock = ref univ_noop
-
-let get_univ_lock = (fun () -> univ_lock := univ_failfast)
-let release_univ_lock = (fun () -> 
-  all_fields := all_fields_fail; 
-  all_values := all_values_fail;
-  univ_lock := univ_noop
-)
 
 module FieldArray = struct
   type 'a t = 'a array
@@ -429,3 +419,28 @@ end
 
 
 
+
+module UnivMap = SetMapF(Field)(Value)
+
+(* returns true if universe is non-empty *)
+let set_univ (tvallist : UnivMap.t list) : bool = 
+  let module UnivMap = SetMapF (Field) (Value) in
+  let univ = List.fold_right UnivMap.union tvallist UnivMap.empty in 
+  let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
+  let module UnivDescr = struct
+	let all_fields : FieldSet.t = 
+	  (* TODO: fix me when SSM is eliminated *)
+	  List.fold_right 
+	    (fun f -> 
+	      Printf.printf "adding field to universe: %s\n" (Field.to_string f);
+	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
+	let all_values f : ValueSet.t = 
+	  try 
+	    UnivMap.Values.fold (fun v acc -> ValueSet.add v acc ) (UnivMap.find_all f univ) 
+	      ValueSet.empty
+	  with Not_found -> 
+	    ValueSet.empty
+      end in   
+  all_fields := (fun _ -> UnivDescr.all_fields);
+  all_values := (fun _ -> UnivDescr.all_values);
+  List.exists (fun e -> not (UnivMap.is_empty e)) tvallist
