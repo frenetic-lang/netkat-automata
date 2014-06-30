@@ -2,36 +2,7 @@ open Decide_Util
 
 type state = int
 let init_state = 0
-
-let loop_freedom trm = 
-  let open Decide_Ast in 
-  let open Decide_Base in 
-  let open Decide_Deriv in 
-  let trm_vals = Term.values trm in 
-  if set_univ [trm_vals]
-  then 
-	begin
-	  let dtrm = DerivTerm.make_term trm in 
-	  let dmat,pset = DerivTerm.run_d dtrm in 
-	  Base.Set.fold_points 
-		(fun pt acc -> 
-		  let beta_t = Term.of_complete_test (Base.point_rhs pt) in
-		  let alpha_t = Term.of_complete_test (Base.point_lhs pt) in
-		  let dtrm_t = DerivTerm.to_term (dmat pt) in 
-		  let newterm = 
-			(Term.make_times 
-			   [beta_t; dtrm_t ; alpha_t]) in
-		  let em = Term.one_dup_e_matrix newterm in 
-		  if (Base.Set.is_empty em)
-		  then acc
-		  else (Printf.printf "Bad! Circular path found: %s\n"
-			  (Base.complete_test_to_string (Base.point_lhs pt));
-			false
-		  )
-		) pset true
-	end
-  else true
-
+    
 let run_bisimulation t1 t2 = 
   let t1vals = Decide_Ast.Term.values t1 in 
   let t2vals = Decide_Ast.Term.values t2 in 
@@ -70,14 +41,35 @@ let process (input : string) : unit =
   | ParseError (l, ch, t) ->
     Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
 
+let string_fold f s a = 
+  let acc = ref a in 
+  String.iter (fun e -> acc := (f e !acc)) s; !acc
+
+let split_string (sr : string) (c : char) : string list = 
+  let l,acc = string_fold (fun e (l,acc) -> 
+    if e = c then 
+      "",l::acc 
+    else (l ^ (Char.escaped e)), acc) sr ("",[]) in 
+  List.rev (l::acc)
+ 
+      
+
 let proc_loop (input : string) : unit =
+  let open Decide_Ast.Formula in 
   try
-    let parsed = parse (input ^ " == drop") in
-    let t,_ = Decide_Ast.Formula.terms parsed in 
+    let (edge,_),(pol,_),(topo,_) = match split_string input '%' with 
+      | [edge;pol;topo] -> 
+	terms (parse (edge ^ " == drop")),
+	terms (parse (pol ^ " == drop")),
+	terms (parse (topo ^ " == drop"))
+      | _ -> failwith "parse error!" in 
     Printf.printf "unfolded\n%!";
-    Printf.printf "Term:%s\n" (Decide_Ast.Term.to_string t);
+    Printf.printf "edge policy %s\npol: %s\ntopo: %s\n "
+      (Decide_Ast.Term.to_string edge)
+      (Decide_Ast.Term.to_string pol)
+      (Decide_Ast.Term.to_string topo);
     Printf.printf "Loop-freedom result: %b\n"
-      (loop_freedom t)
+      (Decide_Loopfree.loop_freedom edge pol topo ())
   with
   | Decide_Ast.Empty -> 
     ()
