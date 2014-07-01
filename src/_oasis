@@ -18,11 +18,11 @@ Library netkat_decide
     Decide_Lexer,
     Decide_Parser,
     Decide_Repl,
-    Decide_Loopfree,
     Decide_Set
   Modules:
     Decide_Util,
     Decide_Ast,
+    Decide_Loopfree,
     Decide_Bisimulation
 
 Executable netkat
