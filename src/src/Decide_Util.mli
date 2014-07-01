@@ -53,9 +53,6 @@ module ValueSet : sig
   val of_list : Value.t list -> t
 end
 
-val all_fields : (unit -> FieldSet.t) ref 
-val all_values : (unit -> (Field.t -> ValueSet.t)) ref
-
 module SetMapF :
   functor (K : Map.OrderedType) ->
   functor (V : Set.OrderedType) -> sig
@@ -66,39 +63,19 @@ module SetMapF :
     type key = K.t
     val empty : t
     val add : key -> elt -> t -> t
-    val add_all : key -> eltSet -> t -> t
-    val remove : key -> elt -> t -> t
-    val remove_all : key -> t -> t
-    val find_all : key -> t -> eltSet
-    val contains_key : key -> t -> bool
-    val contains_value : key -> elt -> t -> bool
-    val size : key -> t -> int
-    val keys : t -> key list
-    val bindings : t -> (key * elt list) list
-    (* val iter : (elt -> unit) -> key -> t -> unit     *)
-    val iter : (key -> elt -> unit) -> t -> unit
-    val compare : t -> t -> int
-    val equal : t -> t -> bool
-    val fold : (key -> elt -> 'b -> 'b) -> t -> 'b -> 'b
-    val fold_key : (elt -> 'b -> 'b) -> key -> t -> 'b -> 'b
-    val filter : (key -> elt -> bool) -> t -> t
-    val union : t -> t -> t
-    val inter : t -> t -> t
-    val consis : key -> elt -> t -> bool
-    val single_mapping : key -> t -> bool
-    val for_all : (key -> elt -> bool) -> t -> bool
-    val is_empty : t -> bool
-    val val_inter : eltSet -> eltSet -> eltSet
-    val val_equal : eltSet -> eltSet -> bool
-    val val_is_empty : eltSet -> bool
-    val val_empty : eltSet
-    val val_mem : elt -> eltSet -> bool
-    val val_size : eltSet -> int
-    val val_singleton : elt -> eltSet
-    val maps_to_empty : key -> t -> bool
+
     val to_string : t -> (key -> string -> string, unit, string) format ->
       (elt list -> string list) -> string
   end
+
+module UnivMap : sig 
+  type t = SetMapF(Field)(Value).t
+end
+
+val all_fields : (unit -> FieldSet.t) ref 
+val all_values : (unit -> (Field.t -> ValueSet.t)) ref
+val set_univ : UnivMap.t list -> bool
+
 
 module WorkList : functor (K:Set.OrderedType) -> 
 sig

@@ -22,6 +22,7 @@ Library netkat_decide
   Modules:
     Decide_Util,
     Decide_Ast,
+    Decide_Loopfree,
     Decide_Bisimulation
 
 Executable netkat

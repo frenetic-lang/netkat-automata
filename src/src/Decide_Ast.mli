@@ -1,8 +1,4 @@
 exception Empty
-
-module UnivMap : sig 
-  type t = Decide_Util.SetMapF(Decide_Util.Field)(Decide_Util.Value).t
-end
       
 module rec Term : sig
   type t
@@ -23,13 +19,15 @@ module rec Term : sig
   val make_not : t -> t
   val make_star : t -> t
 
+  val of_complete_test : Decide_Base.Base.complete_test -> t
+
   val e_matrix : t -> Decide_Base.Base.Set.t
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val lrspines : t -> TermPairSet.t
 
 
   val fields : t -> Decide_Util.FieldSet.t
-  val values : t -> UnivMap.t
+  val values : t -> Decide_Util.UnivMap.t
 
 end and TermSet : sig 
   include Set.S with type elt = Term.t

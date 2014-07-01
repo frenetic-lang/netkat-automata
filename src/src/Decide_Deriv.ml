@@ -40,6 +40,8 @@ open Decide_Util
     val run_e : t -> e_matrix
     val make_betaspine : U.Base.complete_test -> DerivTermSet.t -> t
 
+	val to_term : t -> Decide_Ast.Term.t
+
   end = struct 
 
     type d_matrix = ((U.Base.point -> t) * U.Base.Set.t)
@@ -72,8 +74,8 @@ open Decide_Util
 		let ret = 
 		  (U.Base.Set.filter_alpha
 		     (DerivTermSet.fold
-			(fun t -> U.Base.Set.union (run_e t) )
-			ts U.Base.Set.empty)
+				(fun t -> U.Base.Set.union (run_e t) )
+				ts U.Base.Set.empty)
 		     beta) in 
 		valu := Some ret;
 		ret)
@@ -164,6 +166,18 @@ open Decide_Util
 		 then (to_string x)
 		 else Printf.sprintf "%s + %s" 
 		   (to_string x) acc) t "")
+
+	let rec to_term e = 
+	  let open Decide_Ast in 
+	  match e.desc with 
+	  | Zero -> Term.make_zero ()
+	  | Spine t -> t
+	  | BetaSpine (b,ts) -> 
+		Term.make_times 
+		  [Term.of_complete_test b;
+		   Term.make_plus (DerivTermSet.fold 
+							 (fun a -> TermSet.add (to_term a))
+							 ts TermSet.empty)]
       
   end
 

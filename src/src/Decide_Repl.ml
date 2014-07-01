@@ -2,40 +2,13 @@ open Decide_Util
 
 type state = int
 let init_state = 0
-
+    
 let run_bisimulation t1 t2 = 
-
-  let module UnivMap = Decide_Util.SetMapF (Decide_Util.Field) (Decide_Util.Value) in
   let t1vals = Decide_Ast.Term.values t1 in 
   let t2vals = Decide_Ast.Term.values t2 in 
-  if ((not (UnivMap.is_empty t1vals)) || (not (UnivMap.is_empty t2vals)))
-  then 
-    begin
-      let univ = UnivMap.union t1vals t2vals in 
-      let univ = List.fold_left (fun u x -> UnivMap.add x Value.extra_val u) univ (UnivMap.keys univ) in
-      let module UnivDescr = struct
-	let all_fields : Decide_Util.FieldSet.t = 
-	    (* TODO: fix me when SSM is eliminated *)
-	  List.fold_right 
-	    (fun f -> 
-	      Printf.printf "adding field to universe: %s\n" (Decide_Util.Field.to_string f);
-	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
-	let _ = assert (FieldSet.cardinal all_fields > 0 )
-	let all_values f : Decide_Util.ValueSet.t = 
-	  try 
-	    UnivMap.Values.fold (fun v acc -> Decide_Util.ValueSet.add v acc ) (UnivMap.find_all f univ) 
-	      Decide_Util.ValueSet.empty
-	  with Not_found -> 
-	    Decide_Util.ValueSet.empty
-      end in   
-      Decide_Util.all_fields := (fun _ -> UnivDescr.all_fields);
-      Decide_Util.all_values := (fun _ -> UnivDescr.all_values);
-      Decide_Bisimulation.check_equivalent t1 t2
-    end      
-  else (
-    (Decide_Ast.Term.equal t1 t2))
-
-
+  if set_univ [t1vals; t2vals]
+  then Decide_Bisimulation.check_equivalent t1 t2
+  else Decide_Ast.Term.equal t1 t2
 
 exception ParseError of int * int * string
                               
@@ -67,6 +40,44 @@ let process (input : string) : unit =
     Printf.printf "Lex Error: %s\n" s
   | ParseError (l, ch, t) ->
     Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
+
+let string_fold f s a = 
+  let acc = ref a in 
+  String.iter (fun e -> acc := (f e !acc)) s; !acc
+
+let split_string (sr : string) (c : char) : string list = 
+  let l,acc = string_fold (fun e (l,acc) -> 
+    if e = c then 
+      "",l::acc 
+    else (l ^ (Char.escaped e)), acc) sr ("",[]) in 
+  List.rev (l::acc)
+ 
+      
+
+let proc_loop (input : string) : unit =
+  let open Decide_Ast.Formula in 
+  try
+    let (edge,_),(pol,_),(topo,_) = match split_string input '%' with 
+      | [edge;pol;topo] -> 
+	terms (parse (edge ^ " == drop")),
+	terms (parse (pol ^ " == drop")),
+	terms (parse (topo ^ " == drop"))
+      | _ -> failwith "parse error!" in 
+    Printf.printf "unfolded\n%!";
+    Printf.printf "edge policy %s\npol: %s\ntopo: %s\n "
+      (Decide_Ast.Term.to_string edge)
+      (Decide_Ast.Term.to_string pol)
+      (Decide_Ast.Term.to_string topo);
+    Printf.printf "Loop-freedom result: %b\n"
+      (Decide_Loopfree.loop_freedom edge pol topo ())
+  with
+  | Decide_Ast.Empty -> 
+    ()
+  | Decide_Lexer.LexError s -> 
+    Printf.printf "Lex Error: %s\n" s
+  | ParseError (l, ch, t) ->
+    Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
+
   
 (* read from a file *)
 let load (filename : string) : string option =
@@ -93,6 +104,8 @@ let process_file (filename : string) : unit =
 let rec repl (state : state) : unit =
   print_string "? ";
   let input = read_line() in
+  let run_loop = input = "loop" in
+  let input = if run_loop then (print_string "> "; read_line ()) else input in 
   if input = "quit" then raise Quit;
   let input = if input = "load" 
     then (print_string ": ";
@@ -105,7 +118,9 @@ let rec repl (state : state) : unit =
   (match (* read_line() *) "process"  with 
     | "process" ->
       Printf.printf "processing...\n%!";
-      process input;
+      if run_loop 
+      then proc_loop input 
+      else process input;
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 

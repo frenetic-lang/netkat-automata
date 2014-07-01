@@ -40,6 +40,8 @@ module rec Term : sig
   val make_zero : unit -> t
   val make_one : unit -> t
 
+  val of_complete_test : Decide_Base.Base.complete_test -> t
+
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val hash : t -> int
@@ -571,6 +573,9 @@ end = struct
   let _ = hax_make_star := make_star
   let make_not a = make_not a
 
+
+  let of_complete_test ct = 
+    make_times (List.map make_test (Decide_Base.Base.complete_test_vals ct))
 
   (* Operations *)
   let rspines (t0 : Term.t) : TermSet.t =
