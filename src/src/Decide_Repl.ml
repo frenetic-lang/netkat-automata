@@ -104,8 +104,8 @@ let process_file (filename : string) : unit =
 let rec repl (state : state) : unit =
   print_string "? ";
   let input = read_line() in
-  let run_loop =  input = "loop" in
-  let input = if run_loop then read_line () else input in 
+  let run_loop = input = "loop" in
+  let input = if run_loop then (print_string "> "; read_line ()) else input in 
   if input = "quit" then raise Quit;
   let input = if input = "load" 
     then (print_string ": ";

@@ -18,6 +18,7 @@ Library netkat_decide
     Decide_Lexer,
     Decide_Parser,
     Decide_Repl,
+    Decide_Loopfree,
     Decide_Set
   Modules:
     Decide_Util,
