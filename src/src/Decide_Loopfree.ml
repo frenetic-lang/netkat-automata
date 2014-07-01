@@ -1,6 +1,5 @@
 
 let loop_freedom edge_pol pol topo _ (*out_edge_pol *) = 
-  (* version one: take one hop, and use deriv term for rest *)
   let open Decide_Ast in 
   let open Decide_Base in 
   let open Decide_Util in 
@@ -28,3 +27,4 @@ let loop_freedom edge_pol pol topo _ (*out_edge_pol *) =
 	) pset true
     end
   else true
+ 
