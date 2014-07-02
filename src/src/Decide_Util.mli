@@ -63,6 +63,10 @@ module SetMapF :
     type key = K.t
     val empty : t
     val add : key -> elt -> t -> t
+    val is_empty : t -> bool
+    val union : t -> t -> t
+    val keys : t -> key list
+    val find_all : key -> t -> eltSet
 
     val to_string : t -> (key -> string -> string, unit, string) format ->
       (elt list -> string list) -> string
