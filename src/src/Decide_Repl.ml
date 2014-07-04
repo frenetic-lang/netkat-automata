@@ -41,10 +41,6 @@ let process (input : string) : unit =
   | ParseError (l, ch, t) ->
     Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
 
-let string_fold f s a = 
-  let acc = ref a in 
-  String.iter (fun e -> acc := (f e !acc)) s; !acc
-
 let split_string (sr : string) (c : char) : string list = 
   let l,acc = string_fold (fun e (l,acc) -> 
     if e = c then 

@@ -27,5 +27,6 @@ Library netkat_decide
 
 Executable netkat
   Path: src
+  CompiledObject: best
   MainIs: Decide_Repl.ml
   Install: false

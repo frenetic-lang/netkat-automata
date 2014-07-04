@@ -17,6 +17,10 @@ let print_debugging_info _  =
     (List.fold_right 
        (Printf.sprintf "BaseSet natural compaction rate: %u\n%s")
        !(stats.compact_percent) "")
+
+let string_fold f s a = 
+  let acc = ref a in 
+  String.iter (fun e -> acc := (f e !acc)) s; !acc
     
 
 module Field = struct 
@@ -432,7 +436,6 @@ let set_univ (tvallist : UnivMap.t list) : bool =
 	  (* TODO: fix me when SSM is eliminated *)
 	  List.fold_right 
 	    (fun f -> 
-	      Printf.printf "adding field to universe: %s\n" (Field.to_string f);
 	      FieldSet.add f) (UnivMap.keys univ) FieldSet.empty
 	let all_values f : ValueSet.t = 
 	  try 

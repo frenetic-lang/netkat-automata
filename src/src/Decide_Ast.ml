@@ -5,6 +5,10 @@ exception Empty
 
 let utf8 = ref false 
 
+let do_dexter = ref true 
+
+let disable_dexter_opt () = do_dexter := false
+
 module UnivMap = SetMapF(Field)(Value)
 
 
@@ -198,7 +202,7 @@ end = struct
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
       (* The aE*b unfolding case *)
-      | Times tl when has_star tl -> 
+      | Times tl when (!do_dexter) && (has_star tl) -> 
 	let get_fixpoint_star = get_fixpoint in 
 	let get_fixpoint a e = 
 	  let rec f a_e sum = 

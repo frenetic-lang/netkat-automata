@@ -106,3 +106,4 @@ val remove_duplicates : 'a list -> 'a list
 
 val thunkify : (unit -> 'a) -> (unit -> 'a)
 
+val string_fold : (char -> 'a -> 'a) -> string -> 'a -> 'a
