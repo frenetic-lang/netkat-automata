@@ -4,7 +4,6 @@ let loop_freedom edge_pol pol topo _ (*out_edge_pol *) =
   let open Decide_Base in 
   let open Decide_Util in 
   let open Decide_Deriv in 
-  disable_dexter_opt ();
   if set_univ [Term.values edge_pol; Term.values pol; Term.values topo]
   then 
     begin

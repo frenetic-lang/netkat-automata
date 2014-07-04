@@ -5,10 +5,6 @@ exception Empty
 
 let utf8 = ref false 
 
-let do_dexter = ref true 
-
-let disable_dexter_opt () = do_dexter := false
-
 module UnivMap = SetMapF(Field)(Value)
 
 
@@ -136,6 +132,46 @@ end = struct
 	| (Dup  | Zero  | One ) -> m in
     collect t UnivMap.empty
 
+  let rec to_string (t : t) : string =
+    let out_precedence (t : t) : int =
+      match t.desc with
+        | Plus _ -> 0
+        | Times _ -> 1
+        | Not _ -> 2
+        | Star _ -> 3
+        | _ -> 4 in
+    let protect (u:t) : string =
+      let s = to_string u in
+      if out_precedence t <= out_precedence u then s
+      else Printf.sprintf "(%s)" s in 
+    let assoc_to_string (op : string) (init : string) (s : string list) : string = 
+      match s with
+        | [] -> init
+        | _ -> String.concat op s in
+    match t.desc with
+      | Assg (f,v) -> 
+        Printf.sprintf "%s:=%s" 
+          (Field.to_string f) (Value.to_string v)
+      | Test (f,v) -> 
+        Printf.sprintf "%s=%s" 
+          (Field.to_string f) (Value.to_string v)
+      | Dup -> 
+        "dup"
+      | Plus (ts) -> 
+        assoc_to_string " + " "0" 
+          (List.map protect (TermSet.elements ts))
+      | Times (ts) -> 
+        assoc_to_string ";" "1" (List.map protect ts)
+      | Not (t) -> 
+        (if !utf8 then "¬" else "~") ^ (protect t)
+      | Star (t) -> 
+        (protect t) ^ "*"
+      | Zero -> 
+        "drop"
+      | One -> 
+        "id"
+
+
 
   exception Return of t list * (t * t) * t list
 
@@ -146,7 +182,8 @@ end = struct
 	  match e.desc with 
 	    | Star e' -> (match e'.desc with 
 		| Times [p;t] -> raise (Return(pre,(p,t),suff)) 
-		| _ -> failwith "bad assumption")
+		| _ -> Printf.eprintf "Term :%s\n" (to_string e');
+		  failwith "bad assumption")
 	    | _ -> e::pre,List.tl suff) 
 	([],List.tl tl) tl in 
       failwith "no star to extract here!"
@@ -164,16 +201,16 @@ end = struct
     let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
       Base.Set.singleton(Base.of_neg_test x v) in
     let get_fixpoint s =
-      let s1 = add (univ_base ()) s in
+      let s1 = compact (add (univ_base ()) s) in
       (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
       let rec f cntr s r =
 	if cntr > 1000 then Printf.printf "%u" cntr;
 	if equal s r then s
-	else f (cntr + 1) (mult s s) s in
-      f 0 (mult s1 s1) s1 in
+	else f (cntr + 1) (compact (mult s s)) s in
+      f 0 (compact (mult s1 s1)) s1 in
     let mult_all tl gm = 
       List.fold_right 
-	(fun t acc -> mult (gm t) acc) tl
+	(fun t acc -> compact (mult (compact (gm t)) acc)) tl
 	(singleton (univ_base ())) in 
     
     match d0 with
@@ -194,26 +231,27 @@ end = struct
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
       (* The aE*b unfolding case *)
-      | Times tl when (!do_dexter) && (has_star tl) -> 
+      | Times tl when (has_star tl) -> 
 	let get_fixpoint_star = get_fixpoint in 
 	let get_fixpoint a (p,t) = 
 	  let rec f a_e sum = 
-	    let a_e' = (mult (mult a_e p) t) in 
+	    let a_e' = (compact (mult (compact (mult a_e p)) t)) in 
 	    let sum' = union a_e' sum in 
 	    if equal sum sum' 
 	    then sum
 	    else f a_e' sum' in 
-	  f a empty in 
+	  compact (f a empty) in 
 	let assemble_term gm = 
 	  let (pre,(p,t),post) = extract_star tl in 
 	  let pre_e = mult_all pre gm in 
 	  let post_e = mult_all post gm in 
-	  let p = gm p in 
-	  let t = gm t in 
+	  let p = compact (gm p) in 
+	  let t = compact (gm t) in 
+	  let t_poste = compact (mult t post_e) in 
 	  List.fold_left union empty
 	    [mult pre_e post_e;
-	     (mult (mult pre_e p ) (mult t post_e));
-	     let res = (mult (mult (get_fixpoint pre_e (p,t)) p) (mult t post_e)) in 
+	     (mult (compact (mult pre_e p )) t_poste);
+	     let res = (mult (compact (mult (get_fixpoint pre_e (p,t)) p)) t_poste) in 
 	     if Decide_Util.debug_mode
 	     then assert (Printf.printf "calling from assert: "; 
 			  equal res (mult pre_e (mult (mult p t) (mult (get_fixpoint_star (mult p t)) (mult (mult p t) post_e)))));
@@ -524,45 +562,6 @@ end = struct
 	THash.add not_hash t0 t;
 	t
 
-
-  let rec to_string (t : t) : string =
-    let out_precedence (t : t) : int =
-      match t.desc with
-        | Plus _ -> 0
-        | Times _ -> 1
-        | Not _ -> 2
-        | Star _ -> 3
-        | _ -> 4 in
-    let protect (u:t) : string =
-      let s = to_string u in
-      if out_precedence t <= out_precedence u then s
-      else Printf.sprintf "(%s)" s in 
-    let assoc_to_string (op : string) (init : string) (s : string list) : string = 
-      match s with
-        | [] -> init
-        | _ -> String.concat op s in
-    match t.desc with
-      | Assg (f,v) -> 
-        Printf.sprintf "%s:=%s" 
-          (Field.to_string f) (Value.to_string v)
-      | Test (f,v) -> 
-        Printf.sprintf "%s=%s" 
-          (Field.to_string f) (Value.to_string v)
-      | Dup -> 
-        "dup"
-      | Plus (ts) -> 
-        assoc_to_string " + " "0" 
-          (List.map protect (TermSet.elements ts))
-      | Times (ts) -> 
-        assoc_to_string ";" "1" (List.map protect ts)
-      | Not (t) -> 
-        (if !utf8 then "¬" else "~") ^ (protect t)
-      | Star (t) -> 
-        (protect t) ^ "*"
-      | Zero -> 
-        "drop"
-      | One -> 
-        "id"
 
   let make_plus a = make_plus a
   let make_times a = make_times a

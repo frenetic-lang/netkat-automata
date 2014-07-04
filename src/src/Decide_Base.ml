@@ -622,28 +622,6 @@ module Base = struct
 
     let mult (left : t)  (right : t) : t = 
       let open Decide_Util in 
-      let left' = compact left in 
-      let right' = compact right in 	
-      if Decide_Util.profile_mode
-      then begin 
-	let divspecial a b = 
-	  if b = 0 then 100 else a/b in 
-	(Decide_Util.stats.compact_percent) := 
-	  let pre_cardinal1 = cardinal left in 
-	  let post_cardinal1 = cardinal left' in
-	  if (post_cardinal1 > pre_cardinal1)
-	  then Printf.eprintf "before compaction: %s\nafter: %s\n"
-	    (to_string left)
-	    (to_string left');
-	  assert (post_cardinal1 <= pre_cardinal1);
-	  let pre_cardinal2 = cardinal right in 
-	  let post_cardinal2 = cardinal right' in 
-	  assert (post_cardinal2 <= pre_cardinal2);
-	  (divspecial (100 * post_cardinal1) (pre_cardinal1))::
-	    (divspecial (100 * post_cardinal2) (pre_cardinal2))::
-	    !(Decide_Util.stats.compact_percent);
-      end;
-      
       let module ValHash = Hashtbl.Make(Decide_Util.Value) in
       let extract_test (f : Decide_Util.Field.t) (Base(atom,_)) = 
 	try Map.find f atom 
@@ -683,7 +661,7 @@ module Base = struct
 		    | _ -> raise Not_found
 		with Not_found -> 
 		  field,valset,valhash,add b others) acc)
-	left' (Decide_Util.FieldSet.fold 
+	left (Decide_Util.FieldSet.fold 
 		 (fun f acc -> 
 		   (f,Decide_Util.ValueSet.empty,ValHash.create 1000,empty)::acc) 
 		 (!Decide_Util.all_fields ()) []) in
@@ -699,7 +677,7 @@ module Base = struct
 		    (Decide_Util.ValueSet.fold 
 		       (fun a -> union (ValHash.find vh a)) i empty) 
 		    bs) phase1 in 
-	    (b,intersect_all to_intersect)::acc) right' [] in 
+	    (b,intersect_all to_intersect)::acc) right [] in 
 
 	(* TODO: take (lhs - phase2) and do mult with that as well.  assert that 
 	   the result is empty for each pair.  If it's not empty, print out the pair that 
@@ -711,17 +689,17 @@ module Base = struct
 	  (fun (rhs,cnds) acc -> 
 	    fold (fun lhs acc -> 
 	      match (mult lhs rhs) with 
-		| Some r -> success_count := !success_count + 1; assert (!success_count > 0); add r acc
-		| None -> failed_Count := !failed_Count + 1; assert (!failed_Count > 0); acc
+		| Some r -> add r acc
+		| None -> acc
 	    ) cnds acc) phase2 empty in 
       
       if Decide_Util.debug_mode 
       then (
-	let old_res = (old_mult left' right') in
+	let old_res = (old_mult left right) in
 	if not (equal old_res phase3)
 	then (Printf.eprintf "LHS of mult: %s\nRHS of mult: %s\nNew result: %s\nOld result: %s\n"
-		(to_string left') 
-		(to_string right') 
+		(to_string left) 
+		(to_string right) 
 		(to_string (compact (compact (compact (compact phase3)))))
 		(to_string (compact (compact (compact (compact old_res)))));
 	      failwith "new mult and old mult don't agree!");

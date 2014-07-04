@@ -58,5 +58,5 @@ end
   
 (* more utils *)
 val memoize : (Term.t -> 'b) -> (Term.t -> 'b) 
-val disable_dexter_opt : unit -> unit
+
 
