@@ -27,8 +27,8 @@ module rec Term : sig
         desc : d;
         hash : int;
         mutable spines : TermPairSet.t option; 
-	mutable e_matrix : Decide_Base.Base.Set.t option;
-	mutable one_dup_e_matrix : Decide_Base.Base.Set.t option}
+	e_matrix : unit -> Decide_Base.Base.Set.t;
+	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t }
 
   val make_assg : Field.t * Value.t -> t
   val make_test : Field.t * Value.t -> t
@@ -69,8 +69,8 @@ end = struct
         desc : d; 
         hash : int;
         mutable spines : TermPairSet.t option; 
-	mutable e_matrix : Decide_Base.Base.Set.t option;
-	mutable one_dup_e_matrix : Decide_Base.Base.Set.t option
+	e_matrix : unit -> Decide_Base.Base.Set.t;
+	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t
       }
 
   type this_t = t
@@ -161,25 +161,7 @@ end = struct
 
 (* E matrix *)
 
-  let not_calculated a = true
-    
-
-  let rec e_matrix t = 
-    match t.e_matrix with 
-      | None -> let ret_t,oret_t = (calculate_E t.desc) in 
-		let ret = ret_t () in 
-		let oret = oret_t () in
-		t.e_matrix <- Some ret;
-		t.one_dup_e_matrix <- Some oret;
-		ret
-      | Some em -> em
-	
-  and one_dup_e_matrix t = 
-    match t.one_dup_e_matrix with 
-      | None -> ignore (e_matrix t); one_dup_e_matrix t
-      | Some em -> em
-
-  and calculate_E d0 =
+  let calculate_E d0 =
     let open Decide_Base in 
     let open Base in
     let open Base.Set in
@@ -211,16 +193,14 @@ end = struct
       | Dup  -> (fun _ -> empty),(fun _ -> singleton (univ_base ()))
       | Plus ts ->
 	let r = thunkify (fun _ -> TermSet.fold
-	  (fun t acc -> union (e_matrix t) acc) ts empty ) in
+	  (fun t acc -> union (t.e_matrix ()) acc) ts empty ) in
 	let r_onedup = thunkify (fun _ -> TermSet.fold
-	  (fun t acc -> union (one_dup_e_matrix t) acc) ts empty) in
+	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
       (* The aE*b unfolding case *)
-      | Times tl when has_star tl && 
-	  (not_calculated (extract_star tl)) -> 
+      | Times tl when has_star tl -> 
 	let get_fixpoint_star = get_fixpoint in 
 	let get_fixpoint a e = 
-	  Printf.printf "Getting fixpoint of star!  Again!\n%!";
 	  let rec f a_e sum = 
 	    let a_e' = mult a_e e in 
 	    let sum' = union a_e' sum in 
@@ -241,12 +221,12 @@ end = struct
 	     then assert (Printf.printf "calling from assert: "; 
 			  equal res (mult pre_e (mult e (mult (get_fixpoint_star e) (mult e post_e)))));
 	     res] in 
-	let me = thunkify (fun _ -> assemble_term (fun x -> e_matrix x)) in 
-	let mo = thunkify (fun _ -> assemble_term (fun x -> one_dup_e_matrix x)) in 
+	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
+	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
 	me,mo 
       | Times tl ->
-	let r = thunkify (fun _ -> mult_all tl (fun x -> e_matrix x)) in
-	let r_onedup = thunkify (fun _ -> mult_all tl (fun x -> one_dup_e_matrix x)) in 
+	let r = thunkify (fun _ -> mult_all tl (fun x -> x.e_matrix ())) in
+	let r_onedup = thunkify (fun _ -> mult_all tl (fun x -> x.one_dup_e_matrix ())) in 
 	r,r_onedup
       | Not x ->
 	let m = thunkify (fun _ -> match x.desc with
@@ -256,9 +236,13 @@ end = struct
 	  | _ -> failwith "De Morgan law should have been applied") in
 	m,m
       | Star x ->
-	let me = thunkify (fun _ -> get_fixpoint (e_matrix x)) in
-	let mo = thunkify (fun _ -> get_fixpoint (one_dup_e_matrix x)) in
+	let me = thunkify (fun _ -> get_fixpoint (x.e_matrix())) in
+	let mo = thunkify (fun _ -> get_fixpoint (x.one_dup_e_matrix())) in
 	me,mo
+
+  let e_matrix t = t.e_matrix () 
+
+  let one_dup_e_matrix t = t.one_dup_e_matrix ()
   
 
   (* Constructors *)
@@ -301,13 +285,14 @@ end = struct
         let u = next_uid () in 
         let d = Zero in 
         let h = Hashtbl.hash u in 
+	let em,odem = calculate_E d in 
         let t = 
           { uid = u;
             desc = d;
             hash = h;
 	    spines = None;
-	    e_matrix = None;
-	    one_dup_e_matrix = None} in 
+	    e_matrix = em;
+	    one_dup_e_matrix = odem} in 
         zero_cell := Some t;
         t
 
@@ -319,13 +304,14 @@ end = struct
         let u = next_uid () in 
         let d = One in 
         let h = Hashtbl.hash u in 
+	let em,odem = calculate_E d in 
         let t = 
           { uid = u;
             desc = d;
             hash = h;
 	    spines = None;
-	    e_matrix = None;
-	    one_dup_e_matrix = None} in 
+	    e_matrix = em;
+	    one_dup_e_matrix = odem} in 
         one_cell := Some t;
         t
 
@@ -336,13 +322,14 @@ end = struct
       let u = next_uid () in 
       let d = Assg(f,v) in 
       let h = Hashtbl.hash u in 
+      let em,odem = calculate_E d in 
       let t = 
         { uid = u;
           desc = d;
           hash = h;
 	  spines = None;
-	  e_matrix = None;
-	  one_dup_e_matrix = None} in 
+	  e_matrix = em;
+	  one_dup_e_matrix = odem} in 
       FVHash.add assg_hash (f,v) t;
       t
 
@@ -353,13 +340,14 @@ end = struct
       let u = next_uid () in 
       let d = Test(f,v) in 
       let h = Hashtbl.hash u in 
+      let em,odem = calculate_E d in 
       let t = 
         { uid = u;
           desc = d;
           hash = h;
 	  spines = None;
-	  e_matrix = None;
-	  one_dup_e_matrix = None} in 
+	  e_matrix = em;
+	  one_dup_e_matrix = odem} in 
       FVHash.add test_hash (f,v) t;
       t
                 
@@ -371,13 +359,14 @@ end = struct
         let u = next_uid () in 
         let d = Dup in 
         let h = Hashtbl.hash u in 
+	let em,odem = calculate_E d in 
         let t = 
           { uid = u;
             desc = d;
             hash = h; 
 	    spines = None;
-	    e_matrix = None;
-	    one_dup_e_matrix = None} in 
+	    e_matrix = em;
+	    one_dup_e_matrix = odem} in 
         dup_cell := Some t;
         t
 
@@ -406,13 +395,14 @@ end = struct
       let u = next_uid () in 
       let d = Plus(ts) in 
       let h = Hashtbl.hash u in 
+      let em,odem = calculate_E d in 
       let t = 
         { uid = u;
           desc = d;
           hash = h;
 	  spines = None;
-	  e_matrix = None;
-	  one_dup_e_matrix = None} in 
+	  e_matrix = em;
+	  one_dup_e_matrix = odem} in 
       TSetHash.add plus_hash ts t;
       t
 
@@ -443,13 +433,14 @@ end = struct
 	let u = next_uid () in 
 	let d = Times(ts) in 
 	let h = Hashtbl.hash u in 
+	let em,odem = calculate_E d in 
 	let t = 
           { uid = u;
             desc = d;
             hash = h;
 	    spines = None;
-	    e_matrix = None;
-	    one_dup_e_matrix = None} in 
+	    e_matrix = em;
+	    one_dup_e_matrix = odem} in 
 	TListHash.add times_hash ts t;
 	t
 
@@ -475,13 +466,14 @@ end = struct
 	let u = next_uid () in 
 	let d = Star(t0) in 
 	let h = Hashtbl.hash u in 
+	let em,odem = calculate_E d in 
 	let t = 
           { uid = u;
             desc = d;
             hash = h;
 	    spines = None;
-	    e_matrix = None;
-	    one_dup_e_matrix = None} in 
+	    e_matrix = em;
+	    one_dup_e_matrix = odem} in 
 	THash.add star_hash t0 t;
 	t
 
@@ -524,13 +516,14 @@ end = struct
 	let u = next_uid () in 
 	let d = Not(t0) in 
 	let h = Hashtbl.hash u in 
+	let em,odem = calculate_E d in 
 	let t = 
           { uid = u;
             desc = d;
             hash = h;
 	    spines = None;
-	    e_matrix = None;
-	    one_dup_e_matrix = None} in 
+	    e_matrix = em;
+	    one_dup_e_matrix = odem} in 
 	THash.add not_hash t0 t;
 	t
 
