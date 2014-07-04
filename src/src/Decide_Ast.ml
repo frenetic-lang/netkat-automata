@@ -172,7 +172,6 @@ end = struct
     let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
       Base.Set.singleton(Base.of_neg_test x v) in
     let get_fixpoint s =
-      Printf.printf "Getting Fixpoint\n%!";
       let s1 = add (univ_base ()) s in
       (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
       let rec f cntr s r =
@@ -206,7 +205,6 @@ end = struct
       | Times tl when (!do_dexter) && (has_star tl) -> 
 	let get_fixpoint_star = get_fixpoint in 
 	let get_fixpoint a e = 
-	  Printf.printf "getting fixpoint via dexter!\n%!";
 	  let rec f a_e sum = 
 	    let a_e' = mult a_e e in 
 	    let sum' = union a_e' sum in 
