@@ -365,8 +365,8 @@ module Base = struct
 	  let a = PosNeg.elements (try Map.find field a 
 	    with Not_found -> 
 	      (PosNeg.any field)) in
-	  List.fold_right 
-	    (fun (Point(x,y)) (acc : point list) -> 
+	  List.fold_left
+	    (fun (acc : point list) (Point(x,y)) -> 
 	      try 
 		let b = Map.find field b in
 		Decide_Util.ValueSet.fold (fun v acc -> 
@@ -376,11 +376,12 @@ module Base = struct
 		Decide_Util.ValueSet.fold (fun v acc -> 
 		  (Point(Map.add field v x, Map.add field v y)) :: acc
 		) a acc
-	    ) partial_list []
+	    ) [] partial_list
 	) (!Decide_Util.all_fields ()) [Point((assg_empty ()), (assg_empty ()))]
     in
+    let g a p = f p a in 
     let pts = (extract_points b) in
-    List.fold_right f pts acc
+    List.fold_left g acc pts
       
       
   let union ( a :t ) (b : t) : t list = 
