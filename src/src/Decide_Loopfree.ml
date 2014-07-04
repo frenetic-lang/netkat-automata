@@ -13,10 +13,6 @@ let loop_freedom edge_pol pol topo _ (*out_edge_pol *) =
       let pset = Term.one_dup_e_matrix trm in 
       let inner_term = Term.make_times [p_t; Term.make_star p_t] in
       let inner_e = Term.one_dup_e_matrix inner_term in 
-      Printf.printf "Beginning fold\n%!";
-      Printf.printf "The matrix is this big: %u\n%!" 
-	(Decide_Base.Base.Set.cardinal pset);
-      let cntr = ref 0 in 
       Base.Set.fold_points 
 	(fun pt acc -> 
 	  let beta = Base.point_rhs pt in
