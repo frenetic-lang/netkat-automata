@@ -5,6 +5,10 @@ exception Empty
 
 let utf8 = ref false 
 
+let enable_unfolding = ref true
+
+let disable_unfolding_opt () = enable_unfolding:=false
+
 module UnivMap = SetMapF(Field)(Value)
 
 
@@ -231,7 +235,7 @@ end = struct
 	  (fun t acc -> union (t.one_dup_e_matrix ()) acc) ts empty) in
 	r,r_onedup
       (* The aE*b unfolding case *)
-      | Times tl when (has_star tl) -> 
+      | Times tl when (!enable_unfolding) && (has_star tl) -> 
 	let get_fixpoint_star = get_fixpoint in 
 	let get_fixpoint a (p,t) = 
 	  let rec f a_e sum = 
