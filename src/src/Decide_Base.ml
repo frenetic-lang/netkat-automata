@@ -295,6 +295,8 @@ module Base = struct
   let point_rhs (Point(_,r)) = r
   let point_lhs (Point(l,_)) = l
 
+  let complete_test_to_point l r = Point(l,r)
+
   let to_string (Base(a,b) : t) : string =
     Printf.sprintf "<%s;%s>" (atom_to_string a) (assg_to_string b)
 

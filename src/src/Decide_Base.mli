@@ -15,6 +15,7 @@
     val compare_complete_test : complete_test -> complete_test -> int
     val complete_test_to_string : complete_test -> string
     val complete_test_vals : complete_test -> (Decide_Util.Field.t * Decide_Util.Value.t) list
+    val complete_test_to_point : complete_test -> complete_test -> point
 
     val project_lhs : t -> t
     module Set : sig 
