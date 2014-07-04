@@ -137,29 +137,21 @@ end = struct
     collect t UnivMap.empty
 
 
-  let hax_make_star = ref (fun _ -> failwith "hax!") 
-  let extract_star_correct pre_extract (pre,e,post) = 
-    List.iter2 
-      (fun a b -> 
-	if compare a b <> 0
-	then failwith "extract_star failed !") pre_extract (pre@((!hax_make_star e)::post));
-    true
-
-  exception Return of t list * t * t list
+  exception Return of t list * (t * t) * t list
 
   let extract_star tl = 
     try 
       let _ = List.fold_left
 	(fun (pre,suff) e -> 
 	  match e.desc with 
-	    | Star e' -> raise (Return(pre,e',suff))
+	    | Star e' -> (match e'.desc with 
+		| Times [p;t] -> raise (Return(pre,(p,t),suff)) 
+		| _ -> failwith "bad assumption")
 	    | _ -> e::pre,List.tl suff) 
 	([],List.tl tl) tl in 
       failwith "no star to extract here!"
     with Return(pre,e,post) -> 
       let ret = List.rev pre,e,post in 
-      if Decide_Util.debug_mode
-      then assert(extract_star_correct tl ret);
       ret
       
 
@@ -204,26 +196,27 @@ end = struct
       (* The aE*b unfolding case *)
       | Times tl when (!do_dexter) && (has_star tl) -> 
 	let get_fixpoint_star = get_fixpoint in 
-	let get_fixpoint a e = 
+	let get_fixpoint a (p,t) = 
 	  let rec f a_e sum = 
-	    let a_e' = mult a_e e in 
+	    let a_e' = (mult (mult a_e p) t) in 
 	    let sum' = union a_e' sum in 
 	    if equal sum sum' 
 	    then sum
 	    else f a_e' sum' in 
 	  f a empty in 
 	let assemble_term gm = 
-	  let (pre,e,post) = extract_star tl in 
+	  let (pre,(p,t),post) = extract_star tl in 
 	  let pre_e = mult_all pre gm in 
 	  let post_e = mult_all post gm in 
-	  let e = gm e in 
+	  let p = gm p in 
+	  let t = gm t in 
 	  List.fold_left union empty
 	    [mult pre_e post_e;
-	     mult pre_e (mult e post_e);
-	     let res = (mult (mult (get_fixpoint pre_e e) e) post_e) in 
+	     (mult (mult pre_e p ) (mult t post_e));
+	     let res = (mult (mult (get_fixpoint pre_e (p,t)) p) (mult t post_e)) in 
 	     if Decide_Util.debug_mode
 	     then assert (Printf.printf "calling from assert: "; 
-			  equal res (mult pre_e (mult e (mult (get_fixpoint_star e) (mult e post_e)))));
+			  equal res (mult pre_e (mult (mult p t) (mult (get_fixpoint_star (mult p t)) (mult (mult p t) post_e)))));
 	     res] in 
 	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
 	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
@@ -574,7 +567,6 @@ end = struct
   let make_plus a = make_plus a
   let make_times a = make_times a
   let make_star a = make_star a
-  let _ = hax_make_star := make_star
   let make_not a = make_not a
 
 
