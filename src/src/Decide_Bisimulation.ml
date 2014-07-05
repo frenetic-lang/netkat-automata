@@ -40,7 +40,7 @@ module WorkList = WorkList(struct
 	let rest_work_list = WorkList.tl work_list in
 	let q1_E = Deriv.DerivTerm.run_e q1 in 
 	let q2_E = Deriv.DerivTerm.run_e q2 in 
-	Printf.printf "Calculated some E_Matrices: is is now %f" (Sys.time());
+	Printf.printf "Calculated some E_Matrices: is is now %f\n" (Sys.time());
 	if not (U.Base.Set.equal q1_E q2_E)
 	then false
 	else
