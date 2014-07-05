@@ -520,6 +520,7 @@ end = struct
   let not_hash = THash.create 101 
 (* apply De Morgan laws to push negations down to the leaves *)
   let rec deMorgan (t : Term.t) : Term.t =
+    (match t.desc with | Not _ -> () | _ -> failwith "wasn't a not!");
     let rec dM (t : Term.t) : Term.t =
       let f x = dM (make_not ~flatten:false x) in
       match t.desc with 
