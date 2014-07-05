@@ -102,10 +102,10 @@ module FieldArray = struct
   type 'a t = 'a array
   let make (a : 'a) : 'a t = 
     let _ = !all_fields () in 
-    Array.make 40 a
+    Array.make 16 a
   let init f = 
     let _ = !all_fields () in 
-    Array.init 40 f
+    Array.init 16 f
   let set this k = 
     Array.set this (Field.as_int k)
   let get this k = 

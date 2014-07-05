@@ -518,21 +518,16 @@ module Base = struct
        which guaranteed no duplicates.
     *)
 
-    let wasted_cycles = ref 0
-    let total_cycles = ref 1
-	
     let fold_points (f : (point -> 'a -> 'a)) (st : t) (acc : 'a) : 'a =
-      let seen_points = ref S.empty in
-      fold (fun base acc -> 
-	fold_points (fun elt acc -> 
-	  total_cycles := !total_cycles + 1;
-	  let belt = base_of_point elt in 
-	  if S.mem belt (!seen_points)
-	  then (wasted_cycles := !wasted_cycles + 1; acc)
-	  else (seen_points := S.add belt (!seen_points); 
-		(f elt acc))) 
-	  base acc
-      ) st acc
+      snd (fold 
+	     (fun base pacc -> 
+	       fold_points (fun elt (seen_points,acc) -> 
+		 let belt = base_of_point elt in 
+		 if S.mem belt seen_points
+		 then seen_points,acc
+		 else (S.add belt seen_points, f elt acc))
+		 base pacc)
+	     st (S.empty,acc))
 
 	
     let shallow_equal a b = 
@@ -685,13 +680,13 @@ module Base = struct
 	*)
 
       let phase3 = 
-	List.fold_right
-	  (fun (rhs,cnds) acc -> 
+	List.fold_left
+	  (fun acc (rhs,cnds) -> 
 	    fold (fun lhs acc -> 
 	      match (mult lhs rhs) with 
 		| Some r -> add r acc
 		| None -> acc
-	    ) cnds acc) phase2 empty in 
+	    ) cnds acc) empty phase2 in 
       
       if Decide_Util.debug_mode 
       then (
