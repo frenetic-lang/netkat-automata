@@ -100,12 +100,15 @@ let all_values = ref all_values_fail
 
 module FieldArray = struct
   type 'a t = 'a array
+
+  let size = 4
+
   let make (a : 'a) : 'a t = 
     let _ = !all_fields () in 
-    Array.make 16 a
+    Array.make size a
   let init f = 
     let _ = !all_fields () in 
-    Array.init 16 f
+    Array.init size f
   let set this k = 
     Array.set this (Field.as_int k)
   let get this k = 
