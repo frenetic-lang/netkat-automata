@@ -515,12 +515,10 @@ end = struct
 	    one_dup_e_matrix = odem} in 
 	THash.add star_hash t0 t;
 	t
-
   
   let not_hash = THash.create 101 
 (* apply De Morgan laws to push negations down to the leaves *)
   let rec deMorgan (t : Term.t) : Term.t =
-    (match t.desc with | Not _ -> () | _ -> failwith "wasn't a not!");
     let rec dM (t : Term.t) : Term.t =
       let f x = dM (make_not ~flatten:false x) in
       match t.desc with 
@@ -550,7 +548,7 @@ end = struct
     try THash.find not_hash t0
     with Not_found -> 
       if flatten 
-      then let res = deMorgan (flatten_not t0) in 
+      then let res = flatten_not t0 in 
 	   res
       else
 	let u = next_uid () in 
@@ -564,9 +562,9 @@ end = struct
 	    spines = None;
 	    e_matrix = em;
 	    one_dup_e_matrix = odem} in 
-	THash.add not_hash t0 t;
-	t
-
+        let t' = deMorgan t in 
+	THash.add not_hash t0 t';
+	t'
 
   let make_plus a = make_plus a
   let make_times a = make_times a
