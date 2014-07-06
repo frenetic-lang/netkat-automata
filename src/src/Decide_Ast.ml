@@ -367,8 +367,8 @@ end = struct
       | Times tl when (!enable_unfolding) && (has_star tl) -> 
 	let get_fixpoint a_e (p_e,t_e) = 
 	  let rec f q_e sum = 
-	    let q_e' = mult (mult q_e p_e) t_e in
-	    let sum' = compact (union q_e' sum) in 
+	    let q_e' = compact (mult (compact (mult q_e p_e)) t_e) in
+	    let sum' = union q_e' sum in 
 	    if equal sum sum' then sum 
 	    else f q_e' sum' in 
 	  compact (f a_e empty) in 
@@ -381,10 +381,9 @@ end = struct
           let p_e = compact (gm p) in 
 	  let t_e = compact (gm t) in 
 	  let post_e = mult_all post gm in 
-          compact
-            (List.fold_left union empty
-	       [ compact (mult pre_e post_e);
-                 compact (mult (compact (get_fixpoint pre_e (p_e,t_e))) post_e) ]) in
+          List.fold_left union empty
+	    [ mult pre_e post_e;
+              mult (compact (get_fixpoint pre_e (p_e,t_e))) post_e ] in
 	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
 	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
 	me,mo 
@@ -597,7 +596,7 @@ end = struct
             match racc, TermSet.elements tacc with
               | [],[] -> make_one ()
               | [x],[] | [],[x] -> x
-              | rs,ts -> make_times ~flatten:false (List.rev (ts @ rs))
+              | rs,ts -> make_times ~flatten:false ((List.rev rs) @ ts)
           end
         | h::t -> 
           if h.desc = Zero then 
@@ -605,7 +604,7 @@ end = struct
           else if is_test h then 
             loop (racc, TermSet.add h tacc) t
           else
-            loop (h :: TermSet.elements tacc @ racc, TermSet.empty) t in 
+            loop (h :: (List.rev (TermSet.elements tacc)) @ racc, TermSet.empty) t in 
     loop ([],TermSet.empty) t1
   and make_times ?flatten:(flatten=true) ts = 
     try TListHash.find times_hash ts 
