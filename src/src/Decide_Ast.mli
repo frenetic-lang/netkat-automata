@@ -25,9 +25,9 @@ module rec Term : sig
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val lrspines : t -> TermPairSet.t
 
-
   val fields : t -> Decide_Util.FieldSet.t
   val values : t -> Decide_Util.UnivMap.t
+  val size : t -> int
 
 end and TermSet : sig 
   include Set.S with type elt = Term.t
@@ -44,7 +44,6 @@ module TermMap : sig
   include Map.S 
 end with type key = Term.t
   
-
 module Formula : sig
   type t 
   val make_eq : Term.t -> Term.t -> t

@@ -11,7 +11,6 @@ let disable_unfolding_opt () = enable_unfolding:=false
 
 module UnivMap = SetMapF(Field)(Value)
 
-
 (***********************************************
  * syntax
  ***********************************************)
@@ -53,6 +52,7 @@ module rec Term : sig
   val lrspines : t -> TermPairSet.t
   val fields : t -> FieldSet.t
   val values : t -> UnivMap.t
+  val size : t -> int 
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val e_matrix : t -> Decide_Base.Base.Set.t
 
@@ -136,6 +136,29 @@ end = struct
 	| (Dup  | Zero  | One ) -> m in
     collect t UnivMap.empty
 
+  let rec size t0 = 
+    match t0.desc with 
+      | Assg(f,v) -> 
+        1
+      | Test(f,v) -> 
+        1
+      | Dup -> 
+        1
+      | Plus ts -> 
+        TermSet.fold 
+          (fun ti n -> (size ti) + n)
+          ts
+          1
+      | Times ts -> 
+        List.fold_left 
+          (fun n ti -> n + (size ti))
+          1
+          ts
+      | Not t -> 1 + size t
+      | Star t -> 1 + size t
+      | Zero -> 1
+      | One -> 1
+
   let rec to_string (t : t) : string =
     let out_precedence (t : t) : int =
       match t.desc with
@@ -176,7 +199,16 @@ end = struct
         "id"
 
   module Analyze = struct
-        
+    let mk_assg = ref (fun _ -> assert false)
+    let mk_test = ref (fun _ -> assert false)
+    let mk_dup = ref (fun _ -> assert false)
+    let mk_plus = ref (fun _ -> assert false)
+    let mk_times = ref (fun _ -> assert false)
+    let mk_not = ref (fun _ -> assert false)
+    let mk_star = ref (fun _ -> assert false)
+    let mk_zero = ref (fun _ -> assert false)
+    let mk_one = ref (fun _ -> assert false)
+      
     let extract_star ts = 
       let rec loop (pre,post) l = 
         match l with 
@@ -257,21 +289,48 @@ end = struct
       List.fold_left
         (fun m ti -> FieldMap.merge merge_union m (tests ti)) 
         FieldMap.empty ts1 in 
+
     let ts2_mods = 
       List.fold_left
         (fun m ti -> FieldSet.union m (mods ti)) 
         FieldSet.empty ts2 in 
-    FieldMap.filter (fun f v -> not (FieldSet.mem f ts2_mods)) ts1_tests   
-  end
 
-(* E matrix *)
+    FieldMap.filter (fun f v -> not (FieldSet.mem f ts2_mods)) ts1_tests   
+
+    let rec specialize t0 m = 
+      match t0.desc with 
+        | Assg(f,v) -> t0
+        | Test(f,v) -> 
+          begin
+            try 
+              let v' = FieldMap.find f m in 
+              if Value.compare v v' = 0 then 
+                !mk_one () 
+              else !mk_zero () 
+            with Not_found -> t0
+          end
+        | Dup -> t0
+        | Plus ts -> 
+          !mk_plus (TermSet.fold (fun ti acc -> TermSet.add (specialize ti m) acc) ts TermSet.empty)
+        | Times ts -> 
+          !mk_times (List.fold_right (fun ti acc -> (specialize ti m)::acc) ts [])
+        | Not t -> 
+          !mk_not (specialize t m)
+        | Star t -> 
+          !mk_star (specialize t m)
+        | Zero -> t0
+        | One -> t0  
+  end
+  (* E matrix *)
 
   let calculate_E d0 =
     let open Decide_Base in 
     let open Base in
     let open Base.Set in
+
     let negate (x : Decide_Util.Field.t) (v : Decide_Util.Value.t) : Base.Set.t =
       Base.Set.singleton(Base.of_neg_test x v) in
+
     let get_fixpoint s =
       let s1 = compact (add (univ_base ()) s) in
       (* repeated squaring completes after n steps, where n is the log(cardinality of universe) *)
@@ -280,10 +339,12 @@ end = struct
 	if equal s r then s
 	else f (cntr + 1) (compact (mult s s)) s in
       f 0 (compact (mult s1 s1)) s1 in
+
     let mult_all tl gm = 
-      List.fold_right 
-	(fun t acc -> compact (mult (compact (gm t)) acc)) tl
-	(singleton (univ_base ())) in 
+      List.fold_left 
+	(fun acc t -> compact (mult acc (compact (gm t)))) 
+	(singleton (univ_base ())) 
+        tl in 
     
     match d0 with
       | One ->
@@ -304,44 +365,30 @@ end = struct
 	r,r_onedup
       (* The aE*b unfolding case *)
       | Times tl when (!enable_unfolding) && (has_star tl) -> 
-	let get_fixpoint_star = get_fixpoint in 
-	let get_fixpoint a (p,t) = 
-	  let rec f a_e sum = 
-	    let a_e' = (compact (mult (compact (mult a_e p)) t)) in 
-	    let sum' = union a_e' sum in 
-	    if equal sum sum' 
-	    then sum
-	    else f a_e' sum' in 
-	  compact (f a empty) in 
+	let get_fixpoint a_e (p_e,t_e) = 
+	  let rec f q_e sum = 
+	    let q_e' = mult (mult q_e p_e) t_e in
+	    let sum' = compact (union q_e' sum) in 
+	    if equal sum sum' then sum 
+	    else f q_e' sum' in 
+	  compact (f a_e empty) in 
 	let assemble_term gm = 
 	  let (pre,(p,t),post) = Analyze.extract_star tl in 
+          let statics = Analyze.static_fields pre ([p;t] @ post) in 
+          let p = Analyze.specialize p statics in 
+          let post = List.map (fun posti -> Analyze.specialize posti statics) post in 
 	  let pre_e = mult_all pre gm in 
+          let p_e = compact (gm p) in 
+	  let t_e = compact (gm t) in 
 	  let post_e = mult_all post gm in 
-          let statics = Analyze.static_fields pre [p;t] in 
-          (* Printf.printf "Statics\n"; *)
-          (* Analyze.FieldMap.iter *)
-          (*   (fun f v ->  *)
-          (*     Printf.printf "%s %s"  *)
-          (*       (Field.to_string f) *)
-          (*       (Value.to_string v)) *)
-          (*   statics; *)
-          let p = 
-            Analyze.FieldMap.fold
-              (fun f v acc -> compact (mult (singleton (of_test f v)) acc))
-              statics (compact (gm p)) in 
-	  let t = compact (gm t) in 
-	  let t_poste = compact (mult t post_e) in 
-	  List.fold_left union empty
-	    [mult pre_e post_e;
-	     (mult (compact (mult pre_e p )) t_poste);
-	     let res = (mult (compact (mult (get_fixpoint pre_e (p,t)) p)) t_poste) in 
-	     if Decide_Util.debug_mode
-	     then assert (Printf.printf "calling from assert: "; 
-			  equal res (mult pre_e (mult (mult p t) (mult (get_fixpoint_star (mult p t)) (mult (mult p t) post_e)))));
-	     res] in 
+          compact
+            (List.fold_left union empty
+	       [ compact (mult pre_e post_e);
+                 compact (mult (compact (get_fixpoint pre_e (p_e,t_e))) post_e) ]) in
 	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
 	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
 	me,mo 
+ 
       | Times tl ->
 	let r = thunkify (fun _ -> mult_all tl (fun x -> x.e_matrix ())) in
 	let r_onedup = thunkify (fun _ -> mult_all tl (fun x -> x.one_dup_e_matrix ())) in 
@@ -413,6 +460,7 @@ end = struct
 	    one_dup_e_matrix = odem} in 
         zero_cell := Some t;
         t
+  let () = Analyze.mk_zero := make_zero 
 
   let one_cell = ref None
   let make_one () = 
@@ -432,6 +480,7 @@ end = struct
 	    one_dup_e_matrix = odem} in 
         one_cell := Some t;
         t
+  let () = Analyze.mk_one := make_one 
 
   let assg_hash = FVHash.create 101
   let make_assg (f, v) = 
@@ -450,6 +499,7 @@ end = struct
 	  one_dup_e_matrix = odem} in 
       FVHash.add assg_hash (f,v) t;
       t
+  let () = Analyze.mk_assg := make_assg 
 
   let test_hash = FVHash.create 101
   let make_test (f, v) = 
@@ -468,6 +518,7 @@ end = struct
 	  one_dup_e_matrix = odem} in 
       FVHash.add test_hash (f,v) t;
       t
+  let () = Analyze.mk_test := make_test 
                 
   let dup_cell = ref None
   let make_dup () = 
@@ -487,7 +538,7 @@ end = struct
 	    one_dup_e_matrix = odem} in 
         dup_cell := Some t;
         t
-
+  let () = Analyze.mk_dup := make_dup 
 
   let plus_hash = TSetHash.create 101
   (* flatten terms *)
@@ -499,9 +550,15 @@ end = struct
 	| _ -> TermSet.singleton x in
     let (t2 : TermSet.t) = TermSet.fold (fun e -> TermSet.union (f e)) t TermSet.empty in 
     match TermSet.elements t2 with 
-      | [] -> make_zero ()
-      | [x] -> x
-      | _ ->  make_plus ~flatten:false t2
+      | [] -> 
+        make_zero ()
+      | [x] -> 
+        x
+      | _ ->  
+        if TermSet.for_all is_test t2 && TermSet.exists (fun x -> x.desc = One) t2 then
+          make_one ()
+        else
+          make_plus ~flatten:false t2
   and make_plus ?(flatten = true) (ts : TermSet.t) = 
     try TSetHash.find plus_hash ts 
     with Not_found -> 
@@ -523,9 +580,9 @@ end = struct
 	  one_dup_e_matrix = odem} in 
       TSetHash.add plus_hash ts t;
       t
+  let () = Analyze.mk_plus := make_plus 
 
   let times_hash = TListHash.create 101
-    
     
   let rec flatten_product (t : Term.t list) : Term.t =
     let f x = match x.desc with 
@@ -533,13 +590,23 @@ end = struct
       | One  -> [] 
       | _ -> [x] in
     let t1 = List.concat (List.map f t) in
-    if List.exists 
-      (fun x -> match x.desc with (Zero )  -> true | _ -> false) t1 
-    then make_zero ()
-    else match t1 with 
-      | [] -> make_one ()
-      | [x] -> x 
-      | _ ->  make_times ~flatten:false t1
+    let rec loop (racc,tacc) l = 
+      match l with 
+        | [] -> 
+          begin
+            match racc, TermSet.elements tacc with
+              | [],[] -> make_one ()
+              | [x],[] | [],[x] -> x
+              | rs,ts -> make_times ~flatten:false (List.rev (ts @ rs))
+          end
+        | h::t -> 
+          if h.desc = Zero then 
+            make_zero ()
+          else if is_test h then 
+            loop (racc, TermSet.add h tacc) t
+          else
+            loop (h :: TermSet.elements tacc @ racc, TermSet.empty) t in 
+    loop ([],TermSet.empty) t1
   and make_times ?flatten:(flatten=true) ts = 
     try TListHash.find times_hash ts 
     with Not_found -> 
@@ -561,6 +628,7 @@ end = struct
 	    one_dup_e_matrix = odem} in 
 	TListHash.add times_hash ts t;
 	t
+  let () = Analyze.mk_times := make_times 
 
   let star_hash = THash.create 101 
 
@@ -594,6 +662,8 @@ end = struct
 	    one_dup_e_matrix = odem} in 
 	THash.add star_hash t0 t;
 	t
+  let () = Analyze.mk_star := make_star 
+
   
   let not_hash = THash.create 101 
 (* apply De Morgan laws to push negations down to the leaves *)
@@ -644,12 +714,12 @@ end = struct
         let t' = deMorgan t in 
 	THash.add not_hash t0 t';
 	t'
+  let () = Analyze.mk_not := make_not 
 
   let make_plus a = make_plus a
   let make_times a = make_times a
   let make_star a = make_star a
   let make_not a = make_not a
-
 
   let of_complete_test ct = 
     make_times (List.map make_test (Decide_Base.Base.complete_test_vals ct))
