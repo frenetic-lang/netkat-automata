@@ -29,6 +29,8 @@ module rec Term : sig
   val values : t -> Decide_Util.UnivMap.t
   val size : t -> int
 
+  val timing : unit -> (float * float) 
+
 end and TermSet : sig 
   include Set.S with type elt = Term.t
   val map : (elt -> elt) -> t -> t

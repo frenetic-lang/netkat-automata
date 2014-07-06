@@ -55,7 +55,7 @@ module rec Term : sig
   val size : t -> int 
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val e_matrix : t -> Decide_Base.Base.Set.t
-
+  val timing : unit -> (float * float) 
 
 end = struct
   type d = 
@@ -323,6 +323,13 @@ end = struct
   end
   (* E matrix *)
 
+  let all = ref 0.
+  let asm_all = ref 0.
+
+
+  let timing () = 
+    (!all, !asm_all)
+
   let calculate_E d0 =
     let open Decide_Base in 
     let open Base in
@@ -365,6 +372,7 @@ end = struct
 	r,r_onedup
       (* The aE*b unfolding case *)
       | Times tl when (!enable_unfolding) && (has_star tl) -> 
+        let t1 = Sys.time () in 
 	let get_fixpoint a_e (p_e,t_e) = 
 	  let rec f q_e sum = 
 	    let q_e' = compact (mult (compact (mult q_e p_e)) t_e) in
@@ -373,6 +381,7 @@ end = struct
 	    else f q_e' sum' in 
 	  compact (f a_e empty) in 
 	let assemble_term gm = 
+          let t1 = Sys.time () in 
 	  let (pre,(p,t),post) = Analyze.extract_star tl in 
           let statics = Analyze.static_fields pre ([p;t] @ post) in 
           let p = Analyze.specialize p statics in 
@@ -381,11 +390,16 @@ end = struct
           let p_e = compact (gm p) in 
 	  let t_e = compact (gm t) in 
 	  let post_e = mult_all post gm in 
-          List.fold_left union empty
+          let res = List.fold_left union empty
 	    [ mult pre_e post_e;
-              mult (compact (get_fixpoint pre_e (p_e,t_e))) post_e ] in
+              mult (compact (get_fixpoint pre_e (p_e,t_e))) post_e ] in 
+        let t2 = Sys.time () in 
+        asm_all := !asm_all +. t2 -. t1;
+        res in 
 	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
 	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
+        let t2 = Sys.time () in 
+        all := !all +. t2 -. t1;
 	me,mo 
  
       | Times tl ->
