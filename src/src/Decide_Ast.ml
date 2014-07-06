@@ -175,26 +175,94 @@ end = struct
       | One -> 
         "id"
 
+  module Analyze = struct
+        
+    let extract_star ts = 
+      let rec loop (pre,post) l = 
+        match l with 
+          | [] -> 
+            failwith "no star to extract here!"
+          | e::rest -> 
+            match e.desc with
+              | Star e' -> 
+                (match e'.desc with
+                  | Times [p;t] -> (List.rev pre,(p,t),post)
+                  | _ -> failwith "bad assumption")
+              | _ -> loop (e::pre, List.tl post) rest in 
+      loop ([],List.tl ts) ts
 
+    module FieldMap = Map.Make(Field)
+    module FieldSet = Decide_Util.FieldSet
 
-  exception Return of t list * (t * t) * t list
+    let static_fields ts1 ts2 = 
+      let merge_union _ o1 o2 =
+        match o1, o2 with
+          | Some x, Some y -> if x = y then Some x else None
+          | Some x, None -> Some x
+          | None, Some y -> Some y
+          | _ -> None in 
+            
+    let merge_inter _ o1 o2 =
+      match o1, o2 with
+        | Some x, Some y -> if x = y then Some x else None
+        | _ -> None in 
+          
+    let rec tests t0 = 
+      match t0.desc with 
+        | Assg(f,v) -> 
+          FieldMap.singleton f v  
+        | Test(f,v) -> 
+          FieldMap.singleton f v
+        | Dup -> 
+          FieldMap.empty
+        | Plus ts -> 
+          TermSet.fold 
+            (fun ti m -> FieldMap.merge merge_inter (tests ti) m)
+            ts
+            FieldMap.empty
+        | Times ts -> 
+          List.fold_left 
+            (fun m ti -> FieldMap.merge merge_union m (tests ti))
+            FieldMap.empty
+            ts
+        | Not _ -> FieldMap.empty
+        | Star t -> tests t
+        | Zero -> FieldMap.empty
+        | One -> FieldMap.empty in 
 
-  let extract_star tl = 
-    try 
-      let _ = List.fold_left
-	(fun (pre,suff) e -> 
-	  match e.desc with 
-	    | Star e' -> (match e'.desc with 
-		| Times [p;t] -> raise (Return(pre,(p,t),suff)) 
-		| _ -> Printf.eprintf "Term :%s\n" (to_string e');
-		  failwith "bad assumption")
-	    | _ -> e::pre,List.tl suff) 
-	([],List.tl tl) tl in 
-      failwith "no star to extract here!"
-    with Return(pre,e,post) -> 
-      let ret = List.rev pre,e,post in 
-      ret
-      
+    let rec mods t0 = 
+      match t0.desc with 
+        | Assg(f,v) -> 
+          FieldSet.singleton f    
+        | Test(f,v) -> 
+          FieldSet.empty
+        | Dup -> 
+          FieldSet.empty
+        | Plus ts -> 
+          TermSet.fold 
+            (fun ti s -> FieldSet.union (mods ti) s)
+            ts
+            FieldSet.empty
+        | Times ts -> 
+          List.fold_left 
+            (fun s ti -> FieldSet.union s (mods ti))
+            FieldSet.empty
+            ts
+        | Not _ -> FieldSet.empty
+        | Star t -> mods t
+        | Zero -> FieldSet.empty
+        | One -> FieldSet.empty in 
+
+    let ts1_tests = 
+      List.fold_left
+        (fun m ti -> FieldMap.merge merge_union m (tests ti)) 
+        FieldMap.empty ts1 in 
+    let ts2_mods = 
+      List.fold_left
+        (fun m ti -> FieldSet.union m (mods ti)) 
+        FieldSet.empty ts2 in 
+    FieldMap.filter (fun f v -> not (FieldSet.mem f ts2_mods)) ts1_tests   
+  end
 
 (* E matrix *)
 
@@ -246,10 +314,21 @@ end = struct
 	    else f a_e' sum' in 
 	  compact (f a empty) in 
 	let assemble_term gm = 
-	  let (pre,(p,t),post) = extract_star tl in 
+	  let (pre,(p,t),post) = Analyze.extract_star tl in 
 	  let pre_e = mult_all pre gm in 
 	  let post_e = mult_all post gm in 
-	  let p = compact (gm p) in 
+          let statics = Analyze.static_fields pre [p;t] in 
+          (* Printf.printf "Statics\n"; *)
+          (* Analyze.FieldMap.iter *)
+          (*   (fun f v ->  *)
+          (*     Printf.printf "%s %s"  *)
+          (*       (Field.to_string f) *)
+          (*       (Value.to_string v)) *)
+          (*   statics; *)
+          let p = 
+            Analyze.FieldMap.fold
+              (fun f v acc -> compact (mult (singleton (of_test f v)) acc))
+              statics (compact (gm p)) in 
 	  let t = compact (gm t) in 
 	  let t_poste = compact (mult t post_e) in 
 	  List.fold_left union empty
