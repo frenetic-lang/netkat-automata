@@ -55,7 +55,6 @@ module rec Term : sig
   val size : t -> int 
   val one_dup_e_matrix : t -> Decide_Base.Base.Set.t
   val e_matrix : t -> Decide_Base.Base.Set.t
-  val timing : unit -> (float * float) 
 
 end = struct
   type d = 
@@ -224,34 +223,39 @@ end = struct
       loop ([],List.tl ts) ts
 
     module FieldMap = Map.Make(Field)
+    module ValueSet = Set.Make(Value)
     module FieldSet = Decide_Util.FieldSet
 
     let static_fields ts1 ts2 = 
       let merge_union _ o1 o2 =
         match o1, o2 with
-          | Some x, Some y -> if x = y then Some x else None
+          | Some x, Some y -> Some (ValueSet.union x y)
           | Some x, None -> Some x
           | None, Some y -> Some y
           | _ -> None in 
             
     let merge_inter _ o1 o2 =
       match o1, o2 with
-        | Some x, Some y -> if x = y then Some x else None
+        | Some x, Some y -> Some (ValueSet.union x y)
         | _ -> None in 
           
     let rec tests t0 = 
       match t0.desc with 
         | Assg(f,v) -> 
-          FieldMap.singleton f v  
+          FieldMap.singleton f (ValueSet.singleton v)  
         | Test(f,v) -> 
-          FieldMap.singleton f v
+          FieldMap.singleton f (ValueSet.singleton v)
         | Dup -> 
           FieldMap.empty
         | Plus ts -> 
-          TermSet.fold 
-            (fun ti m -> FieldMap.merge merge_inter (tests ti) m)
-            ts
-            FieldMap.empty
+          snd 
+            (TermSet.fold 
+               (fun ti (b,m) -> 
+                 (false, 
+                  if b then tests ti 
+                  else FieldMap.merge merge_inter (tests ti) m))
+               ts
+               (true, FieldMap.empty))
         | Times ts -> 
           List.fold_left 
             (fun m ti -> FieldMap.merge merge_union m (tests ti))
@@ -303,13 +307,17 @@ end = struct
         | Test(f,v) -> 
           begin
             try 
-              let v' = FieldMap.find f m in 
-              if Value.compare v v' = 0 then 
-                !mk_one () 
+              let vs = FieldMap.find f m in 
+              if ValueSet.mem v vs then 
+                if ValueSet.cardinal vs = 1 then 
+                  !mk_one () 
+                else
+                  t0 
               else !mk_zero () 
             with Not_found -> t0
           end
-        | Dup -> t0
+        | Dup -> 
+          t0
         | Plus ts -> 
           !mk_plus (TermSet.fold (fun ti acc -> TermSet.add (specialize ti m) acc) ts TermSet.empty)
         | Times ts -> 
@@ -318,17 +326,12 @@ end = struct
           !mk_not (specialize t m)
         | Star t -> 
           !mk_star (specialize t m)
-        | Zero -> t0
-        | One -> t0  
+        | Zero -> 
+          t0
+        | One -> 
+          t0  
   end
   (* E matrix *)
-
-  let all = ref 0.
-  let asm_all = ref 0.
-
-
-  let timing () = 
-    (!all, !asm_all)
 
   let calculate_E d0 =
     let open Decide_Base in 
@@ -372,7 +375,6 @@ end = struct
 	r,r_onedup
       (* The aE*b unfolding case *)
       | Times tl when (!enable_unfolding) && (has_star tl) -> 
-        let t1 = Sys.time () in 
 	let get_fixpoint a_e (p_e,t_e) = 
 	  let rec f q_e sum = 
 	    let q_e' = compact (mult (compact (mult q_e p_e)) t_e) in
@@ -381,10 +383,17 @@ end = struct
 	    else f q_e' sum' in 
 	  compact (f a_e empty) in 
 	let assemble_term gm = 
-          let t1 = Sys.time () in 
 	  let (pre,(p,t),post) = Analyze.extract_star tl in 
           let statics = Analyze.static_fields pre ([p;t] @ post) in 
+          (* Analyze.FieldMap.iter *)
+          (*   (fun f vs ->  *)
+          (*     Printf.printf "{%s => " (Field.to_string f); *)
+          (*     Analyze.ValueSet.iter (fun v -> Printf.printf "%s, " (Value.to_string v)) vs) *)
+          (*   statics; *)
+          (* Printf.printf "}\n%!"; *)
+          (* Printf.printf "Before: %d\n" (Term.size p); *)
           let p = Analyze.specialize p statics in 
+          (* Printf.printf "After: %d\n" (Term.size p); *)
           let post = List.map (fun posti -> Analyze.specialize posti statics) post in 
 	  let pre_e = mult_all pre gm in 
           let p_e = compact (gm p) in 
@@ -393,13 +402,9 @@ end = struct
           let res = List.fold_left union empty
 	    [ mult pre_e post_e;
               mult (compact (get_fixpoint pre_e (p_e,t_e))) post_e ] in 
-        let t2 = Sys.time () in 
-        asm_all := !asm_all +. t2 -. t1;
         res in 
 	let me = thunkify (fun _ -> assemble_term (fun x -> x.e_matrix())) in 
 	let mo = thunkify (fun _ -> assemble_term (fun x -> x.one_dup_e_matrix ())) in 
-        let t2 = Sys.time () in 
-        all := !all +. t2 -. t1;
 	me,mo 
  
       | Times tl ->
