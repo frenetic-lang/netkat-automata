@@ -1,3 +1,4 @@
+
 open Decide_Util
 
 exception Empty
@@ -372,19 +373,13 @@ end = struct
       (* The aE*b unfolding case *)
       | Times tl when (!enable_unfolding) && (has_star tl) -> 
         let t1 = Sys.time () in 
-	let get_fixpoint a_e (p_e,t_e) a p t gm = 
-	  let rec f q q_e sum = 
-            let p' = Analyze.specialize p (Analyze.static_fields [q] [p]) in 
-            let n = size p in 
-            let n' = size p' in 
-            Printf.printf "%d => %d : %.3f\n%!" n n' (float_of_int n /. float_of_int n');
-            let p_e = compact (gm p') in 
+	let get_fixpoint a_e (p_e,t_e) = 
+	  let rec f q_e sum = 
 	    let q_e' = compact (mult (compact (mult q_e p_e)) t_e) in
-            let q' = Analyze.(!mk_times [q; p; t]) in 
 	    let sum' = union q_e' sum in 
 	    if equal sum sum' then sum 
-	    else f q' q_e' sum' in 
-	  compact (f Analyze.(!mk_times a) a_e empty) in 
+	    else f q_e' sum' in 
+	  compact (f a_e empty) in 
 	let assemble_term gm = 
           let t1 = Sys.time () in 
 	  let (pre,(p,t),post) = Analyze.extract_star tl in 
@@ -397,7 +392,7 @@ end = struct
 	  let post_e = mult_all post gm in 
           let res = List.fold_left union empty
 	    [ mult pre_e post_e;
-              mult (compact (get_fixpoint pre_e (p_e,t_e) pre p t gm)) post_e ] in 
+              mult (compact (get_fixpoint pre_e (p_e,t_e))) post_e ] in 
         let t2 = Sys.time () in 
         asm_all := !asm_all +. t2 -. t1;
         res in 
