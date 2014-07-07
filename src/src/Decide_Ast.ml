@@ -384,7 +384,7 @@ end = struct
 	  compact (f a_e empty) in 
 	let assemble_term gm = 
 	  let (pre,(p,t),post) = Analyze.extract_star tl in 
-          let statics = Analyze.static_fields pre [p;t] in 
+          let statics = Analyze.static_fields pre ([p;t] @ post) in 
           (* Analyze.FieldMap.iter *)
           (*   (fun f vs ->  *)
           (*     Printf.printf "{%s => " (Field.to_string f); *)
