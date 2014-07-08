@@ -32,7 +32,7 @@ let init term_to_string base_set_non_empty =
   
   let print_states _ =
   (* no primes *)
-    Printf.fprintf f1 "digraph fsm {\n";
+    Printf.fprintf f1 "digraph fsm {\noverlap=false;\n";
     Printf.fprintf f1 "rankdir=LR;\n";
     Printf.fprintf f1 "node [shape=circle]; ";
     List.iter (fun (_,(x,_)) -> Printf.fprintf f1 " q%d" x) 
@@ -61,7 +61,7 @@ let init term_to_string base_set_non_empty =
     close_out f2;
     ignore 
       (Sys.command 
-	 "dot -Tpdf -o /home/research/research/fsm1.pdf /tmp/fsm1.dot");
+	 "neato -Tpdf -o /home/research/research/fsm1.pdf /tmp/fsm1.dot");
     ignore 
       (Sys.command 
 	 "dot -Tpdf -o /home/research/research/fsm2.pdf /tmp/fsm2.dot"); in
