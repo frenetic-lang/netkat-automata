@@ -18,16 +18,16 @@ module WorkList = WorkList(struct
   let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (Deriv.DerivTerm.to_string a) (Deriv.DerivTerm.to_string b)
     
   let get_state,update_state,print_states = 
-    (* Decide_Dot.init Deriv.DerivTerm.to_string (fun a -> not (U.Base.Set.is_empty a)) *)
-    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ()) 
+     Decide_Dot.init Deriv.DerivTerm.to_string (fun a -> not (U.Base.Set.is_empty a)) 
+    (* (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())  *)
       
       
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
-
+    
     let uf_eq,uf_find,uf_union = 
-(*      (fun _ _ -> false),(fun x -> x),(fun _ _ -> ()) *)
-	 let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
-      UF.init_union_find () 
+      (fun _ _ -> false),(fun x -> x),(fun _ _ -> ()) 
+(*     let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
+      UF.init_union_find () *)
     in
     
     let rec main_loop work_list = 
@@ -39,7 +39,6 @@ module WorkList = WorkList(struct
 	let rest_work_list = WorkList.tl work_list in
 	let q1_E = Deriv.DerivTerm.run_e q1 in 
 	let q2_E = Deriv.DerivTerm.run_e q2 in 
-	Printf.printf "Calculated some E_Matrices: is is now %f\n" (Sys.time());
 	if not (U.Base.Set.equal q1_E q2_E)
 	then false
 	else
