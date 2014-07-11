@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: e68f48e380675b9ff75000d8fe913942)
+version = "0.0.1"
+description = "The NetKAT Coalgebraic Decision Procedure"
+archive(byte) = "netkat_decide.cma"
+archive(byte, plugin) = "netkat_decide.cma"
+archive(native) = "netkat_decide.cmxa"
+archive(native, plugin) = "netkat_decide.cmxs"
+exists_if = "netkat_decide.cma"
+# OASIS_STOP
+
