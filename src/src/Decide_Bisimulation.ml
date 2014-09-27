@@ -25,9 +25,8 @@ module WorkList = WorkList(struct
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
     
     let uf_eq,uf_find,uf_union = 
-      (fun _ _ -> false),(fun x -> x),(fun _ _ -> ()) 
-(*     let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
-      UF.init_union_find () *)
+    let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
+      UF.init_union_find ()
     in
     
     let rec main_loop work_list = 
