@@ -32,10 +32,12 @@ open Sexplib.Conv
 	     e_matrix : unit -> e_matrix; 
 	     uid : int}
     val to_string : t -> string
+    val sexp_of_t : t -> Sexplib.Sexp.t
     val sexp_of_e_matrix : e_matrix -> Sexplib.Sexp.t
     val sexp_of_d : d -> Sexplib.Sexp.t
     val d_of_sexp : Sexplib.Sexp.t -> d
     val e_matrix_of_sexp : Sexplib.Sexp.t -> e_matrix
+    val sexp_of_d_matrix : d_matrix -> Sexplib.Sexp.t
     val compare : t -> t -> int
     val make_term : Decide_Ast.Term.t -> t
     val zero : unit -> t
@@ -202,6 +204,13 @@ open Sexplib.Conv
        let tuples = U.Base.Set.fold_points (fun p lst -> (p, (terms p).desc) :: lst) mat [] in
        Sexplib.Conv.sexp_of_list (Sexplib.Conv.sexp_of_pair U.Base.sexp_of_point sexp_of_d) tuples
 
+     let sexp_of_t t : Sexplib.Sexp.t =
+       let open Sexplib.Sexp in
+       List [ sexp_of_d t.desc;
+              sexp_of_d_matrix (run_d t);
+              sexp_of_e_matrix (run_e t)
+            ]
+       
   end
 
   open DerivTerm

@@ -18,7 +18,7 @@ Library netkat_decide
   InternalModules: 
     Decide_Base,
     Decide_Deriv,
-    Decide_Dot,
+    Decide_PCC,
     Decide_Lexer,
     Decide_Parser,
     Decide_Repl,
