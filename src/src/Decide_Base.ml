@@ -1,3 +1,4 @@
+open Sexplib.Std
 
 let collection_to_string fold elt_to_string sep c =
   fold (fun x acc ->
@@ -18,7 +19,7 @@ let fields_to_string (vs:Decide_Util.FieldSet.t) : string =
 module PosNeg = struct
   type t = 
       Pos of Decide_Util.Field.t * Decide_Util.ValueSet.t
-    | Neg of Decide_Util.Field.t * Decide_Util.ValueSet.t
+    | Neg of Decide_Util.Field.t * Decide_Util.ValueSet.t with sexp
   let to_string = function
     | Pos (_,s) -> 
       values_to_string s
@@ -107,7 +108,7 @@ module Base = struct
     
   module Map = struct 
     type key = Decide_Util.Field.t
-    type 'a t = (('a option) Decide_Util.FieldArray.t) 
+    type 'a t = (('a option) Decide_Util.FieldArray.t) with sexp
     let find (a : key) (b : 'a t) : 'a = 
       try (match Decide_Util.FieldArray.get b a with 
 	| Some r -> r
@@ -197,8 +198,8 @@ module Base = struct
 
   end
 
-  type atom = PosNeg.t Map.t
-  type assg = Decide_Util.ValueSet.elt Map.t
+  type atom = PosNeg.t Map.t with sexp
+  type assg = Decide_Util.ValueSet.elt Map.t with sexp
   let (atom_empty : unit -> atom) = Map.empty
   let (assg_empty : unit -> assg) = Map.empty
     
@@ -255,16 +256,16 @@ module Base = struct
 	    | (None,_ | _, None) -> None ) acc) a b (Map.empty ())
 
 
-  type t = Base of atom * assg 
+  type t = Base of atom * assg with sexp
   (* must be a Pos * completely-filled-in thing*)
-  type point = Point of assg * assg
+  type point = Point of assg * assg with sexp
 
   let compare_point (Point(al,ar)) (Point (bl,br)) = 
     match (assg_compare al bl) with 
       | 0 -> (assg_compare ar br)
       | k -> k
 	
-  type complete_test = assg
+  type complete_test = assg with sexp
 
   let compare_complete_test = assg_compare 
   let complete_test_to_string b =       
@@ -491,6 +492,10 @@ module Base = struct
   module Set = struct
     include S
 
+    (* sexp_of_t in the body refers to Base.sexp_of_t *)
+    let sexp_of_t t = Sexplib.Conv.sexp_of_list sexp_of_t (elements t)
+    let t_of_sexp s = of_list (Sexplib.Conv.list_of_sexp t_of_sexp s)
+        
     let to_string (bs:t) : string = 
       Printf.sprintf "{%s}" 
         (S.fold 

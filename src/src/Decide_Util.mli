@@ -14,7 +14,7 @@ val stats : stats
 val print_debugging_info : unit -> unit
 
 module Field : sig
-  type t
+  type t with sexp
   val compare : t -> t -> int
   val hash : t -> int 
   val as_int : t -> int
@@ -24,7 +24,7 @@ module Field : sig
   val choose : unit -> t
 end
 module FieldArray : sig
-  type 'a t
+  type 'a t with sexp
   val make : 'a -> 'a t
   val init : (Field.t -> 'a) -> 'a t
   val set : 'a t -> Field.t -> 'a -> unit 
@@ -39,7 +39,7 @@ module FieldSet : sig
 end
   
 module Value : sig
-  type t 
+  type t with sexp
   val compare : t -> t -> int
   val hash : t -> int 
   val as_int : t -> int
@@ -50,6 +50,10 @@ module Value : sig
 end
 module ValueSet : sig 
   include Set.S with type elt = Value.t
+  val elt_of_sexp : Sexplib.Sexp.t -> elt
+  val sexp_of_elt : elt -> Sexplib.Sexp.t
+  val t_of_sexp : Sexplib.Sexp.t -> t
+  val sexp_of_t : t -> Sexplib.Sexp.t
   val of_list : Value.t list -> t
 end
 

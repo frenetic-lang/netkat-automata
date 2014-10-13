@@ -1,7 +1,7 @@
 exception Empty
       
 module rec Term : sig
-  type t
+  type t with sexp
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string 

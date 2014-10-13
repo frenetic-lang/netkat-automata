@@ -51,10 +51,8 @@ module WorkList = WorkList(struct
 		 q1 q2 q1_E q2_E in
 	     let q1_matrix,q1_points = Deriv.DerivTerm.run_d q1 in 
 	     let q2_matrix,q2_points = Deriv.DerivTerm.run_d q2 in 
-	     let numpoints = ref 0 in
 	     let work_list = U.Base.Set.fold_points
 	       (fun pt expanded_work_list -> 
-		 numpoints := !numpoints + 1;
 		 let q1' = q1_matrix pt in
 		 let q2' = q2_matrix pt in
 		 update_state 

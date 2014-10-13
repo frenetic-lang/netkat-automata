@@ -1,6 +1,7 @@
 
 open Decide_Base
 open Decide_Util
+open Sexplib.Conv  
 
   module TermMap = Decide_Ast.TermMap
   module TermSet = Decide_Ast.TermSet
@@ -9,7 +10,7 @@ open Decide_Util
   open Decide_Ast
 
   module rec DerivTermSet : sig
-    include Set.S with type elt = DerivTerm.t 
+    include Set.S with type elt = DerivTerm.t
     val default_d_matrix : (DerivTerm.t -> (unit -> ((U.Base.point -> DerivTerm.t) * U.Base.Set.t))) ref
   end = struct 
     include Set.Make(struct 
@@ -30,8 +31,11 @@ open Decide_Util
 	     d_matrix : unit -> d_matrix;
 	     e_matrix : unit -> e_matrix; 
 	     uid : int}
-	     
-    val to_string : t -> string 
+    val to_string : t -> string
+    val sexp_of_e_matrix : e_matrix -> Sexplib.Sexp.t
+    val sexp_of_d : d -> Sexplib.Sexp.t
+    val d_of_sexp : Sexplib.Sexp.t -> d
+    val e_matrix_of_sexp : Sexplib.Sexp.t -> e_matrix
     val compare : t -> t -> int
     val make_term : Decide_Ast.Term.t -> t
     val zero : unit -> t
@@ -39,8 +43,7 @@ open Decide_Util
     val run_d : t -> d_matrix
     val run_e : t -> e_matrix
     val make_betaspine : U.Base.complete_test -> DerivTermSet.t -> t
-
-	val to_term : t -> Decide_Ast.Term.t
+    val to_term : d -> Decide_Ast.Term.t
 
   end = struct 
 
@@ -60,6 +63,15 @@ open Decide_Util
     let run_d trm = trm.d_matrix ()
 
     let compare e1 e2 = Pervasives.compare e1.uid e2.uid  
+                  
+    let sexp_of_e_matrix (e : e_matrix) : Sexplib.Sexp.t =
+      let cons x y = x :: y in
+      Sexplib.Conv.sexp_of_list U.Base.sexp_of_t (U.Base.Set.fold cons e [])
+
+    let e_matrix_of_sexp (s : Sexplib.Sexp.t) : e_matrix =
+      let of_list ts = 
+        List.fold_left (fun acc t -> U.Base.Set.add t acc) U.Base.Set.empty ts in
+      of_list (Sexplib.Conv.list_of_sexp U.Base.t_of_sexp s)     
 
     let default_e_matrix trm = 
       match trm.desc with
@@ -169,16 +181,27 @@ open Decide_Util
 
 	let rec to_term e = 
 	  let open Decide_Ast in 
-	  match e.desc with 
+	  match e with 
 	  | Zero -> Term.make_zero ()
 	  | Spine t -> t
 	  | BetaSpine (b,ts) -> 
 		Term.make_times 
 		  [Term.of_complete_test b;
 		   Term.make_plus (DerivTermSet.fold 
-							 (fun a -> TermSet.add (to_term a))
-							 ts TermSet.empty)]
-      
+							 (fun a -> TermSet.add (to_term a.desc))
+	ts TermSet.empty)]
+
+     let d_of_sexp s = (make_term (Term.t_of_sexp s)).desc
+ 
+     let sexp_of_d (d : d) : Sexplib.Sexp.t = Term.sexp_of_t (to_term d)
+
+     (* MJR: Naively represent matrix as a tuple of (point, spine). This will probably blow up...
+       I assume that bases in the matrix are disjoint, i.e. fold_points never runs twice on the same point *)
+     let sexp_of_d_matrix (d : d_matrix) : Sexplib.Sexp.t =
+       let terms,mat = d in
+       let tuples = U.Base.Set.fold_points (fun p lst -> (p, (terms p).desc) :: lst) mat [] in
+       Sexplib.Conv.sexp_of_list (Sexplib.Conv.sexp_of_pair U.Base.sexp_of_point sexp_of_d) tuples
+
   end
 
   open DerivTerm

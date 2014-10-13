@@ -7,10 +7,14 @@ Authors:     https://github.com/cornell-pl/netkat/contributors
 License:     PROP
 Plugins:     META (0.3)
 BuildTools:
-  ocamlbuild
+  ocamlbuild,
+  camlp4
 
 Library netkat_decide
   Path: src
+  BuildDepends:
+    sexplib,
+    sexplib.syntax
   InternalModules: 
     Decide_Base,
     Decide_Deriv,
@@ -30,3 +34,5 @@ Executable netkat
   CompiledObject: best
   MainIs: Decide_Repl.ml
   Install: false
+  BuildDepends:
+    sexplib

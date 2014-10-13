@@ -9,6 +9,8 @@ let enable_unfolding = ref true
 
 let disable_unfolding_opt () = enable_unfolding:=false
 
+open Sexplib.Conv
+       
 module UnivMap = SetMapF(Field)(Value)
 
 (***********************************************
@@ -31,7 +33,7 @@ module rec Term : sig
         hash : int;
         mutable spines : TermPairSet.t option; 
 	e_matrix : unit -> Decide_Base.Base.Set.t;
-	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t }
+	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t } with sexp
 
   val make_assg : Field.t * Value.t -> t
   val make_test : Field.t * Value.t -> t
@@ -74,7 +76,7 @@ end = struct
         mutable spines : TermPairSet.t option; 
 	e_matrix : unit -> Decide_Base.Base.Set.t;
 	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t
-      }
+      } with sexp
 
   type this_t = t
 
@@ -805,8 +807,11 @@ end
 
 and TermPairSet : sig 
   include Set.S with type elt = Term.t * Term.t
+  val t_of_sexp : Sexplib.Sexp.t -> t
+  val sexp_of_t : t -> Sexplib.Sexp.t
   val map : (elt -> elt) -> t -> t
   val bind : t -> (elt -> t) -> t
+  val of_list : (Term.t*Term.t) list -> t
 end = struct 
   include Set.Make(struct 
     type t = Term.t * Term.t
@@ -819,9 +824,17 @@ end = struct
     fold (fun (l,r) acc -> add (f (l,r)) acc) ts empty
   let bind ts f = 
     fold (fun (l,r) t -> union (f (l,r)) t) ts empty
+  let of_list (ts:elt list) : t = 
+    List.fold_left (fun acc t -> add t acc) empty ts 
+  let t_of_sexp s =
+    of_list (Sexplib.Conv.list_of_sexp (Sexplib.Conv.pair_of_sexp Term.t_of_sexp Term.t_of_sexp) s)
+  let sexp_of_t t =
+    Sexplib.Conv.sexp_of_list (Sexplib.Conv.sexp_of_pair Term.sexp_of_t Term.sexp_of_t) (elements t)
 
 end and TermSet : sig 
   include Set.S with type elt = Term.t
+  val t_of_sexp : Sexplib.Sexp.t -> t
+  val sexp_of_t : t -> Sexplib.Sexp.t
   val map : (elt -> elt) -> t -> t
   val bind : t -> (elt -> t) -> t
   val hash : t -> int
@@ -854,7 +867,14 @@ end = struct
       ts "" 
 
   let of_list (ts:elt list) : t = 
-    List.fold_left (fun acc t -> add t acc) empty ts 
+    List.fold_left (fun acc t -> add t acc) empty ts
+
+  let t_of_sexp s =
+    of_list (Sexplib.Conv.list_of_sexp Term.t_of_sexp s)
+      
+  let sexp_of_t t =
+    Sexplib.Conv.sexp_of_list Term.sexp_of_t (elements t)
+  
 end 
 
 

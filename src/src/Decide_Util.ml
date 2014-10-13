@@ -1,5 +1,6 @@
 exception Quit
 exception Undo
+open Sexplib.Std
 
 let debug_mode = false
 let profile_mode = false
@@ -24,7 +25,7 @@ let string_fold f s a =
     
 
 module Field = struct 
-  type t = int
+  type t = int with sexp
   let compare = Pervasives.compare
   let as_int x = x
   let hash x = Hashtbl.hash x
@@ -56,7 +57,7 @@ end
       
   
 module Value = struct 
-  type t = int
+  type t = int with sexp
   let compare = Pervasives.compare
   let as_int x = x
   let hash x = Hashtbl.hash x
@@ -87,7 +88,11 @@ end
 module ValueSet = struct 
   include Set.Make(Value) 
   let of_list (ts:elt list) : t = 
-    List.fold_left (fun acc t -> add t acc) empty ts 
+    List.fold_left (fun acc t -> add t acc) empty ts
+  let elt_of_sexp = Value.t_of_sexp
+  let sexp_of_elt = Value.sexp_of_t
+  let t_of_sexp (s : Sexplib.Sexp.t) : t = of_list (list_of_sexp elt_of_sexp s)
+  let sexp_of_t (s : t) : Sexplib.Sexp.t = sexp_of_list sexp_of_elt (elements s)
 end
 
 let all_fields_fail = (fun _ -> failwith 
@@ -99,7 +104,7 @@ let all_values = ref all_values_fail
 
 
 module FieldArray = struct
-  type 'a t = 'a array
+  type 'a t = 'a array with sexp
 
   let size = 4
 

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5bf810f699010b28aee0c90112ce2c55)
+# DO NOT EDIT (digest: ccf05f5f4e817b971f3ca393e74f83a1)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -15,5 +15,9 @@
 "_darcs": not_hygienic
 # Library netkat_decide
 "src/netkat_decide.cmxs": use_netkat_decide
+<src/*.ml{,i}>: package(sexplib.syntax)
 # Executable netkat
+<src/Decide_Repl.{native,byte}>: package(sexplib)
+<src/*.ml{,i}>: package(sexplib)
 # OASIS_STOP
+<src/*.ml{,i}>: syntax_camlp4o
