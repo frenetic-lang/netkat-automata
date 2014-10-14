@@ -198,6 +198,7 @@ end = struct
         "id"
 
   module Analyze = struct
+    (* ugly hack to break module cycle with TermSet *)
     let mk_assg = ref (fun _ -> assert false)
     let mk_test = ref (fun _ -> assert false)
     let mk_dup = ref (fun _ -> assert false)
@@ -222,6 +223,7 @@ end = struct
               | _ -> loop (e::pre, List.tl post) rest in 
       loop ([],List.tl ts) ts
 
+    (* JNF: query, are these in Decide_Util? *)
     module FieldMap = Map.Make(Field)
     module ValueSet = Set.Make(Value)
     module FieldSet = Decide_Util.FieldSet
@@ -234,11 +236,26 @@ end = struct
           | None, Some y -> Some y
           | _ -> None in 
             
-    let merge_inter _ o1 o2 =
+    let merge_plus _ o1 o2 =
       match o1, o2 with
         | Some x, Some y -> Some (ValueSet.union x y)
         | _ -> None in 
-          
+
+    let merge_times _ o1 o2 =
+      match o1, o2 with
+        | _, Some y -> Some y
+        | Some x, None -> Some x
+        | None, None -> None in           
+
+    (* specification: 
+       let m = tests t0 in 
+       match m(f) with 
+        | Some {v1,...,vn} -> 
+         t0 == t0; (f = v1 + ... + f = vn) 
+        | None -> 
+          t does not contain any sub-expressions 
+          of the form f = n or f := n
+    *)
     let rec tests t0 = 
       match t0.desc with 
         | Assg(f,v) -> 
@@ -253,12 +270,12 @@ end = struct
                (fun ti (b,m) -> 
                  (false, 
                   if b then tests ti 
-                  else FieldMap.merge merge_inter (tests ti) m))
+                  else FieldMap.merge merge_plus (tests ti) m))
                ts
                (true, FieldMap.empty))
         | Times ts -> 
           List.fold_left 
-            (fun m ti -> FieldMap.merge merge_union m (tests ti))
+            (fun m ti -> FieldMap.merge merge_times m (tests ti))
             FieldMap.empty
             ts
         | Not _ -> FieldMap.empty
