@@ -14,7 +14,9 @@ Library netkat_decide
   Path: src
   BuildDepends:
     sexplib,
-    sexplib.syntax
+    sexplib.syntax,
+    core,
+    threads
   InternalModules: 
     Decide_Base,
     Decide_Deriv,
@@ -35,4 +37,6 @@ Executable netkat
   MainIs: Decide_Repl.ml
   Install: false
   BuildDepends:
+    threads,
+    core,
     sexplib

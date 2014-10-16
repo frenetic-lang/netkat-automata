@@ -40,6 +40,7 @@ open Sexplib.Conv
     val sexp_of_d_matrix : d_matrix -> Sexplib.Sexp.t
     val compare : t -> t -> int
     val make_term : Decide_Ast.Term.t -> t
+    val get_term : t -> Decide_Ast.Term.t
     val zero : unit -> t
     val make_spine : Term.t -> t
     val run_d : t -> d_matrix
@@ -164,7 +165,7 @@ open Sexplib.Conv
       Hashtbl.replace bshash key ret;
       ret
 
-    let make_term = make_spine 
+    let make_term = make_spine
 
     let rec to_string e = 
       match e.desc with 
@@ -193,6 +194,8 @@ open Sexplib.Conv
 							 (fun a -> TermSet.add (to_term a.desc))
 	ts TermSet.empty)]
 
+     let get_term t = to_term t.desc
+     
      let d_of_sexp s = (make_term (Term.t_of_sexp s)).desc
  
      let sexp_of_d (d : d) : Sexplib.Sexp.t = Term.sexp_of_t (to_term d)
@@ -206,9 +209,12 @@ open Sexplib.Conv
 
      let sexp_of_t t : Sexplib.Sexp.t =
        let open Sexplib.Sexp in
-       List [ sexp_of_d t.desc;
-              sexp_of_d_matrix (run_d t);
-              sexp_of_e_matrix (run_e t)
+       List [ List [ Atom "desc";
+                     sexp_of_d t.desc];
+              List [ Atom "d_matrix";
+                     sexp_of_d_matrix (run_d t)];
+              List [ Atom "e_matrix";
+                     sexp_of_e_matrix (run_e t)]
             ]
        
   end

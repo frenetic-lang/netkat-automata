@@ -4,6 +4,7 @@ module DerivTerm : sig
   type t 
   val compare : t -> t -> int
   val make_term : Decide_Ast.Term.t -> t
+  val get_term : t -> Decide_Ast.Term.t
   (* val to_term : t -> Decide_Ast.Term.t *)
   val to_string : t -> string
   val run_e : t -> Base.Set.t

@@ -33,8 +33,10 @@ module rec Term : sig
         hash : int;
         mutable spines : TermPairSet.t option; 
 	e_matrix : unit -> Decide_Base.Base.Set.t;
-	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t } with sexp
+	one_dup_e_matrix : unit -> Decide_Base.Base.Set.t }
 
+  val sexp_of_t : t -> Sexplib.Sexp.t
+  val t_of_sexp : Sexplib.Sexp.t -> t
   val make_assg : Field.t * Value.t -> t
   val make_test : Field.t * Value.t -> t
   val make_dup : unit -> t
@@ -80,6 +82,28 @@ end = struct
 
   type this_t = t
 
+  let rec sexp_of_t t =
+    let module C = Sexplib.Conv in
+    let module S = Sexplib.Sexp in
+    match t.desc with
+    | Assg (f,v) -> S.List [S.Atom "Assg";
+                            Field.sexp_of_t f;
+                            Value.sexp_of_t v]
+    | Test (f,v) -> S.List [S.Atom "Test";
+                            Field.sexp_of_t f;
+                            Value.sexp_of_t v]
+    | Dup -> S.Atom "Dup"
+    | Plus ts -> S.List [S.Atom "Plus";
+                       TermSet.sexp_of_t ts]
+    | Times ts -> S.List [S.Atom "Times";
+                        sexp_of_list sexp_of_t ts]
+    | Not t -> S.List [S.Atom "Not";
+                     sexp_of_t t]
+    | Star t -> S.List [S.Atom "Star";
+                     sexp_of_t t]
+    | Zero -> S.Atom "Zero"
+    | One -> S.Atom "One"
+                      
   let compare (t1:t) (t2:t) : int = 
     compare t1.uid t2.uid
 
