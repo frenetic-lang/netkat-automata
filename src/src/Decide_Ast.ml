@@ -219,7 +219,7 @@ end = struct
               | Star e' -> 
                 (match e'.desc with
                   | Times [p;t] -> (List.rev pre,(p,t),post)
-                  | _ -> failwith "bad assumption")
+		  | _ -> (List.rev pre,((!mk_one) (), e'),post))
               | _ -> loop (e::pre, List.tl post) rest in 
       loop ([],List.tl ts) ts
 
