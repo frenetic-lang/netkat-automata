@@ -1,4 +1,4 @@
-
+G¯¯
 let collection_to_string fold elt_to_string sep c =
   fold (fun x acc ->
     if acc = "" 
@@ -318,7 +318,7 @@ module Base = struct
     let equal = equal
   end)
 
-  let univ_base _ = (Base((atom_empty ()), (assg_empty ())))
+  let univ_base _ = Base(atom_empty (), assg_empty ())
       
   exception Empty_mult
 
