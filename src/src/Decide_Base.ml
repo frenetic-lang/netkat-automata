@@ -1,4 +1,3 @@
-G¯¯
 let collection_to_string fold elt_to_string sep c =
   fold (fun x acc ->
     if acc = "" 
