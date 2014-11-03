@@ -15,6 +15,8 @@ Library netkat_decide
   BuildDepends:
     sexplib,
     sexplib.syntax,
+    comparelib,
+    comparelib.syntax,
     core,
     threads
   InternalModules: 
@@ -24,7 +26,8 @@ Library netkat_decide
     Decide_Lexer,
     Decide_Parser,
     Decide_Repl,
-    Decide_Set
+    Decide_Set,
+    Decide_Kostas
   Modules:
     Decide_Util,
     Decide_Ast,
@@ -39,4 +42,5 @@ Executable netkat
   BuildDepends:
     threads,
     core,
-    sexplib
+    sexplib,
+    comparelib
