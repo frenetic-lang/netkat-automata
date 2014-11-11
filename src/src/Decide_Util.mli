@@ -98,12 +98,11 @@ end
 
 module UnionFind : functor(Ord : Map.OrderedType) -> 
 sig
-  type union_find_ds
-  val init_union_find : unit -> 
-    ((union_find_ds ref -> union_find_ds ref -> bool)* 
-	(Ord.t -> union_find_ds ref) * 
-	(union_find_ds ref -> union_find_ds ref -> 
-	 union_find_ds ref))
+  type t
+  val create : unit -> t
+  val eq : t -> Ord.t -> Ord.t -> bool
+  val find : t -> Ord.t -> Ord.t
+  val union : t -> Ord.t -> Ord.t -> unit
 end
 
 val remove_duplicates : 'a list -> 'a list

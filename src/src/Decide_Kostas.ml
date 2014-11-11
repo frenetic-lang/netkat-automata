@@ -28,6 +28,7 @@ module rec Term : sig
     | One with compare, sexp
   val compare_ab : t -> point -> bool
   val eval : t -> packet -> PacketSet.t
+  val to_string : t -> string
 end = struct 
   type t = 
     | Assg of Field.t * Value.t
@@ -68,6 +69,45 @@ end = struct
     let input,output = point in
     PacketSet.exists (eval t input) ~f:(FieldMap.equal Value.equal output)
       
+  let rec to_string (t : t) : string =
+    let out_precedence (t : t) : int =
+      match t with
+        | Plus _ -> 0
+        | Times _ -> 1
+        | Not _ -> 2
+        | Star _ -> 3
+        | _ -> 4 in
+    let protect (u:t) : string =
+      let s = to_string u in
+      if out_precedence t <= out_precedence u then s
+      else Printf.sprintf "(%s)" s in 
+    let assoc_to_string (op : string) (init : string) (s : string list) : string = 
+      match s with
+        | [] -> init
+        | _ -> String.concat ~sep:op s in
+    match t with
+      | Assg (f,v) -> 
+        Printf.sprintf "%s:=%s" 
+          (Field.to_string f) (Value.to_string v)
+      | Test (f,v) -> 
+        Printf.sprintf "%s=%s" 
+          (Field.to_string f) (Value.to_string v)
+      | Dup -> 
+        "dup"
+      | Plus (ts) -> 
+        assoc_to_string " + " "0" 
+          (List.map ~f:protect (TermSet.elements ts))
+      | Times (ts) -> 
+        assoc_to_string ";" "1" (List.map ~f:protect ts)
+      | Not (t) -> 
+        "~" ^ (protect t)
+      | Star (t) -> 
+        (protect t) ^ "*"
+      | Zero -> 
+        "drop"
+      | One -> 
+        "id"
+      
 end and TermSet : sig
   include Set.S with type Elt.t = Term.t
 end = Set.Make (struct
@@ -78,16 +118,14 @@ module rec DerivTerm : sig
   type t with sexp
   type e with sexp
   type d with sexp
-  (* val make_term : Term.t -> t *)
-  (* val get_term : t -> Term.t *)
+  val make_term : Term.t -> t
+  val get_term : t -> Term.t
   (* val to_term : t -> Decide_Ast.Term.t *)
   val get_e : t -> e
   val get_d : t -> d
   val sexp_of_t : t -> Sexplib.Sexp.t
   val run_e : e -> point -> bool
-  val e_matrix_of_term : Term.t -> e
   val run_d : d -> point -> TermSet.t
-  val d_matrix_of_term : Term.t -> d
 end = struct
   type e = Term.t with sexp  
   let run_e = Term.compare_ab
@@ -115,14 +153,17 @@ end = struct
              e_matrix : e;
              d_matrix : d
            } with sexp
+    
   let get_e t = t.e_matrix
   let get_d t = t.d_matrix
+  let get_term t = t.desc
 
   let run_d t point =
     CompactDerivSet.fold t ~init:TermSet.empty
       ~f:(fun acc deriv -> if Term.compare_ab deriv.left_hand point
            then TermSet.union (TermSet.singleton deriv.right_hand) acc
            else acc)
+      
   let term_append t e = Term.Times [t; e]
 
   let right_app d e = { d with right_hand = term_append d.right_hand e }
@@ -142,5 +183,10 @@ end = struct
     | Star t -> d_left_app (Star t) (d_right_app (d_matrix_of_term t) (Star t))
     | _ -> CompactDerivSet.empty
 
+  let make_term term =
+    { desc = term;
+      e_matrix = e_matrix_of_term term;
+      d_matrix = d_matrix_of_term term
+    }
 end
 

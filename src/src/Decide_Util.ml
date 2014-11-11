@@ -373,59 +373,54 @@ struct
     
 end
 
+open Core
+
 module UnionFind = functor(Ord : Map.OrderedType) -> struct
   module FindMap = Map.Make(Ord)
   type union_find_ds = 
-    | Intermediate_node of int * (union_find_ds ref) * int (* depth*)
-    | Root_node of int * int ref (*label + maxdepth*)
-    | Leaf_node of Ord.t * (union_find_ds ref);;
+    | Root_node of Ord.t * int ref (* maxdepth *)
+    | Leaf_node of Ord.t * union_find_ds ref;;
+
+  type t = union_find_ds FindMap.t ref
+
+  let create () =
+    ref FindMap.empty
+
+  let rec get_parent = function 
+    | Leaf_node (_,p) -> 
+      (match !p with 
+       | Root_node _ -> p
+       | Leaf_node _ -> get_parent !p)
+    | _ -> failwith "you have already gotten the parent."
+
+  let find_ref t e =
+    try get_parent(FindMap.find e !t)
+    with Not_found -> 
+      t := FindMap.add e (Root_node (e, ref 0)) !t;
+      get_parent (FindMap.find e !t)
+
+  let find t e = match !(find_ref t e) with
+    | Root_node (v, _) -> v
+    | _ -> failwith "get_parent didn't return a Root node!"
   
-  let init_union_find _ : 
-      ((union_find_ds ref -> union_find_ds ref -> bool)* 
-	  (Ord.t -> union_find_ds ref) * 
-	  (union_find_ds ref -> union_find_ds ref -> 
-	   union_find_ds ref)) = 
-    let hash = ref FindMap.empty in 
-    let fresh_int = ref 0 in
-    let rec get_parent = function 
-      | Intermediate_node (l,p,d) -> 
-	(
-	  match !p with 
-	    | Root_node _ -> p
-	    | _ -> get_parent !p)
-      | Leaf_node (_,p) -> 
-	(match !p with 
-	  | Root_node _ -> p
-	  | Leaf_node _ -> failwith "leaf can't point to leaf!!! bad!!!"
-	  | _ -> get_parent !p)
-      | _ -> failwith "you have already gotten the parent."
-    in
-    let eq a b = 
-      match (!a,!b) with 
-	| (Root_node (l1,_),Root_node (l2,_)) -> l1 = l2
-	| _ -> failwith "equality only defined on roots" in
-    let find e = 
-      try get_parent(FindMap.find e !hash)
-      with Not_found -> 
-	hash := (FindMap.add e 
-		   (let cntr = !fresh_int in 
-		    fresh_int := !fresh_int + 1;
-		    Leaf_node(e, ref (Root_node (cntr, ref 1)))
-		   ) !hash); 
-	get_parent(FindMap.find e !hash) in
-    let union c1 c2 = 
-      match (!c1,!c2) with 
-	| (Root_node (l1,d1), Root_node (l2,d2)) -> 
-	  if l1 = l2 then c1
-	  else if !d2 < !d1 then (*c1 is new root*)
-	    (c2:= Intermediate_node (l2,c1,!d2); c1)
-	  else if !d1 > !d2 then 
-	    (c1:= Intermediate_node (l1,c2,!d1); c2)
-	  else 
-	    (d1:= !d1 + 1; c2:= Intermediate_node(l2,c1,!d2); c1)
-	| _ -> failwith "call union on the root nodes please." in
-    eq,find,union
-      
+  let eq t a b =
+    let l1,l2 = (find t a, find t b) in
+    l1 = l2
+
+  let union t c1 c2 =
+    let c1_root = find_ref t c1 in
+    let c2_root = find_ref t c2 in
+    match (!c1_root,!c2_root) with 
+    | (Root_node (l1,d1), Root_node (l2,d2)) -> 
+      if l1 = l2 then ()
+      else if !d2 < !d1 then (*c1 is new root*)
+	c2_root := Leaf_node (l2,c1_root)
+      else if !d1 > !d2 then 
+	c1_root := Leaf_node (l1,c2_root)
+      else 
+	d1 := !d1 + 1; c2_root := Leaf_node(l2,c1_root)
+    | _ -> failwith "call union on the root nodes please."
+  
 end
       
 
