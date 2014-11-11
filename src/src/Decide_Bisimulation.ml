@@ -20,7 +20,7 @@ module WorkList = WorkList(struct
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
     
     let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in
-    let uf = UF.create ()
+    let bisim = UF.create ()
     in
     
     let rec main_loop work_list = 
@@ -35,11 +35,11 @@ module WorkList = WorkList(struct
 	if not (U.Base.Set.equal q1_E q2_E)
 	then false
 	else
-	  let u,f = UF.find uf q1, UF.find uf q2 in
-	  if  UF.eq uf u f
+	  let u,f = UF.find bisim q1, UF.find bisim q2 in
+	  if  UF.eq bisim u f
 	  then main_loop rest_work_list
 	  else 
-	    (let _ = UF.union uf u f in
+	    (let _ = UF.union bisim u f in
 	     let q1_matrix,q1_points = Deriv.DerivTerm.run_d q1 in 
 	     let q2_matrix,q2_points = Deriv.DerivTerm.run_d q2 in 
 	     let work_list = U.Base.Set.fold_points

@@ -373,19 +373,24 @@ struct
     
 end
 
-open Core
-
 module UnionFind = functor(Ord : Map.OrderedType) -> struct
   module FindMap = Map.Make(Ord)
   type union_find_ds = 
     | Root_node of Ord.t * int ref (* maxdepth *)
-    | Leaf_node of Ord.t * union_find_ds ref;;
+    | Leaf_node of Ord.t * union_find_ds ref
 
   type t = union_find_ds FindMap.t ref
 
+  (* Invariants:
+     1) Every node with a reference to a root node uses the same reference
+     2) There is only one node with a given Ord.t value
+     3) FindMap.find e points to the unique node with value e
+     4) if n = Root_node(e, d), then d = depth of the tree under n
+   *)
   let create () =
     ref FindMap.empty
 
+  (* Returns a reference to the root node of the equivalence class *)
   let rec get_parent = function 
     | Leaf_node (_,p) -> 
       (match !p with 
@@ -414,12 +419,19 @@ module UnionFind = functor(Ord : Map.OrderedType) -> struct
     | (Root_node (l1,d1), Root_node (l2,d2)) -> 
       if l1 = l2 then ()
       else if !d2 < !d1 then (*c1 is new root*)
-	c2_root := Leaf_node (l2,c1_root)
-      else if !d1 > !d2 then 
-	c1_root := Leaf_node (l1,c2_root)
-      else 
-	d1 := !d1 + 1; c2_root := Leaf_node(l2,c1_root)
-    | _ -> failwith "call union on the root nodes please."
+        let leaf = Leaf_node (l2,c1_root) in
+	c2_root := leaf;
+        t := FindMap.add l2 leaf !t
+      else if !d1 > !d2 then
+        let leaf = Leaf_node (l1,c2_root) in
+	c1_root := leaf;
+        t := FindMap.add l1 leaf !t
+      else
+        let leaf = Leaf_node(l2,c1_root) in
+	d1 := !d1 + 1;
+        c2_root := leaf;
+        t := FindMap.add l2 leaf !t
+    | _ -> failwith "get_parent didn't return a Root node!"
   
 end
       
