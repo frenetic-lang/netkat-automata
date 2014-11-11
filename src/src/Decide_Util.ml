@@ -373,23 +373,18 @@ struct
     
 end
 
-module UnionFind = functor(Ord : Map.OrderedType) -> struct
+module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
+  open Core.Std  
   module FindMap = Map.Make(Ord)
   type union_find_ds = 
     | Root_node of Ord.t * int ref (* maxdepth *)
-    | Leaf_node of Ord.t * union_find_ds ref
+    | Leaf_node of Ord.t * union_find_ds ref with sexp
 
   type t = union_find_ds FindMap.t ref
 
-  (* Invariants:
-     1) Every node with a reference to a root node uses the same reference
-     2) There is only one node with a given Ord.t value
-     3) FindMap.find e points to the unique node with value e
-     4) if n = Root_node(e, d), then d = depth of the tree under n
-   *)
   let create () =
     ref FindMap.empty
-
+   
   (* Returns a reference to the root node of the equivalence class *)
   let rec get_parent = function 
     | Leaf_node (_,p) -> 
@@ -399,10 +394,12 @@ module UnionFind = functor(Ord : Map.OrderedType) -> struct
     | _ -> failwith "you have already gotten the parent."
 
   let find_ref t e =
-    try get_parent(FindMap.find e !t)
-    with Not_found -> 
-      t := FindMap.add e (Root_node (e, ref 0)) !t;
-      get_parent (FindMap.find e !t)
+    match FindMap.find !t e with
+    | None ->
+      let root = (Root_node (e, ref 0)) in
+      t := FindMap.add !t ~key:e ~data:root;
+      ref root
+    | Some v -> get_parent v
 
   let find t e = match !(find_ref t e) with
     | Root_node (v, _) -> v
@@ -421,23 +418,82 @@ module UnionFind = functor(Ord : Map.OrderedType) -> struct
       else if !d2 < !d1 then (*c1 is new root*)
         let leaf = Leaf_node (l2,c1_root) in
 	c2_root := leaf;
-        t := FindMap.add l2 leaf !t
+        t := FindMap.add !t ~key:l2 ~data:leaf
       else if !d1 > !d2 then
         let leaf = Leaf_node (l1,c2_root) in
 	c1_root := leaf;
-        t := FindMap.add l1 leaf !t
+        t := FindMap.add !t ~key:l1 ~data:leaf
       else
         let leaf = Leaf_node(l2,c1_root) in
 	d1 := !d1 + 1;
         c2_root := leaf;
-        t := FindMap.add l2 leaf !t
+        t := FindMap.add !t ~key:l2 ~data:leaf
     | _ -> failwith "get_parent didn't return a Root node!"
-  
-end
+
+  let sexp_of_t t =
+    let canonical_map = 
+      FindMap.fold !t ~init:FindMap.empty ~f:(fun ~key:x ~data:node acc ->
+          let root = find t x in
+          if root = x
+          then
+            acc
+          else
+            FindMap.add_multi acc ~key:root ~data:x) in
+    <:sexp_of<(Ord.t * (Ord.t list)) list>> (FindMap.to_alist canonical_map)
       
+  let t_of_sexp sexp =
+    let alist = <:of_sexp<(Ord.t * (Ord.t list)) list>> sexp in
+    ref (List.fold alist ~init:FindMap.empty ~f:(fun acc x ->
+        let root, nodes = x in
+        let root_node = Root_node (root, ref (if List.length nodes > 0 then 1 else 0)) in
+        let root_ref = ref root_node in
+        List.fold nodes ~init:(FindMap.add acc ~key:root ~data:root_node) ~f:(fun acc v ->
+            FindMap.add acc ~key:v ~data:(Leaf_node (v, root_ref)))))
 
+  exception Invalid_root_reference
+  exception Duplicate_node
 
+  (* 1) Every node with a reference to a root node uses the same reference *)
+  let check_root_refs t =
+    let module NodeMap = Map.Make(struct 
+        type t = union_find_ds with sexp
+        let compare n1 n2 =
+          match n1,n2 with
+          | Root_node(l1, d1), Root_node(l2, d2) -> Pervasives.compare (l1,d1) (l2,d2)
+          (* Not sure this will work (not symmetric) *)
+          | _ -> failwith "Should only be called on Root_node"
+      end) in
+    let _ = FindMap.fold t ~init:NodeMap.empty
+        ~f:(fun ~key:key ~data:data node_map -> match data with
+            | Leaf_node(l1,d1) -> let root_ref = get_parent data in
+              begin match NodeMap.mem node_map !root_ref with
+                | true -> if not (phys_equal (NodeMap.find_exn node_map !root_ref) root_ref)
+                  then raise Invalid_root_reference
+                  else node_map
+                | false -> NodeMap.add node_map ~key:!root_ref ~data:root_ref
+              end
+            | _ -> node_map) in
+    ()
 
+  (* 2) There is only one node with a given Ord.t value *)
+  (* 3) FindMap.find e points to the unique node with value e *)
+  let check_node_uniqueness t =
+    let rec crawl_up_tree f node = match node with
+      | Leaf_node (l, r) -> f node; crawl_up_tree f !r
+      | Root_node (l, d) -> f node in
+    FindMap.iter t ~f:(fun ~key:key ~data:data ->
+        crawl_up_tree (fun node -> match node with
+            | Root_node(v,_)
+            | Leaf_node(v,_) -> if FindMap.find_exn t v = node then () else raise Duplicate_node) data)
+   (* Invariants:
+     1) Every node with a reference to a root node uses the same reference
+     2) There is only one node with a given Ord.t value
+     3) FindMap.find e points to the unique node with value e
+     4) if n = Root_node(e, d), then d = depth of the tree under n
+   *)
+  let validate t = check_root_refs !t; check_node_uniqueness !t
+
+end
 
 module UnivMap = SetMapF(Field)(Value)
 

@@ -36,7 +36,9 @@ module WorkList = WorkList(struct
 	then false
 	else
 	  let u,f = UF.find bisim q1, UF.find bisim q2 in
-	  if  UF.eq bisim u f
+         (* find e returns the canonical element for e, so equality of classes
+            is just equality of canonical elements *)
+          if  u = f
 	  then main_loop rest_work_list
 	  else 
 	    (let _ = UF.union bisim u f in

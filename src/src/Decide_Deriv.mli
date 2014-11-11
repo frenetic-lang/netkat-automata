@@ -10,6 +10,7 @@ module DerivTerm : sig
   val run_e : t -> Base.Set.t
   val run_d : t -> ((Base.point -> t) * Base.Set.t)
   val sexp_of_t : t -> Sexplib.Sexp.t
+  val t_of_sexp : Sexplib.Sexp.t -> t
 end
 
 

@@ -96,13 +96,16 @@ sig
   val all_seen_items : t -> K.t list
 end
 
-module UnionFind : functor(Ord : Map.OrderedType) -> 
+open Core.Std
+
+module UnionFind : functor(Ord : Map.Key) -> 
 sig
-  type t
+  type t with sexp
   val create : unit -> t
   val eq : t -> Ord.t -> Ord.t -> bool
   val find : t -> Ord.t -> Ord.t
   val union : t -> Ord.t -> Ord.t -> unit
+  val validate : t -> unit
 end
 
 val remove_duplicates : 'a list -> 'a list

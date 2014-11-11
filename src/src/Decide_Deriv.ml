@@ -33,6 +33,7 @@ open Sexplib.Conv
 	     uid : int}
     val to_string : t -> string
     val sexp_of_t : t -> Sexplib.Sexp.t
+    val t_of_sexp : Sexplib.Sexp.t -> t
     val sexp_of_e_matrix : e_matrix -> Sexplib.Sexp.t
     val sexp_of_d : d -> Sexplib.Sexp.t
     val d_of_sexp : Sexplib.Sexp.t -> d
@@ -216,6 +217,8 @@ open Sexplib.Conv
               List [ Atom "e_matrix";
                      sexp_of_e_matrix (run_e t)]
             ]
+
+     let t_of_sexp t = failwith "NYI: Decide_Deriv.DerivTerm.t_of_sexp"
        
   end
 

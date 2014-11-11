@@ -6,16 +6,19 @@ module Term = Decide_Kostas.Term
 open Core.Std
 open Sexplib.Conv
 
+module UF = Decide_Util.UnionFind(Decide_Deriv.DerivTerm)
+
 type certificate = {
   lhs : Term.t;
   rhs : Term.t;
   left_e_matrix : D.e;
   left_d_matrix : D.d;
   right_e_matrix : D.e;
-  right_d_matrix : D.d
+  right_d_matrix : D.d;
+  bisim : UF.t
 } with sexp
 
-let generate_certificate t1 t2 t1' t2' _ =
+let generate_certificate t1 t2 t1' t2' uf =
   let t = D.make_term t1 in
   let t' = D.make_term t2 in
   let cert = {
@@ -25,6 +28,7 @@ let generate_certificate t1 t2 t1' t2' _ =
     right_e_matrix = D.get_e t';
     left_d_matrix = D.get_d t;
     right_d_matrix = D.get_d t';
+    bisim = uf
   } in
   let file = Pervasives.open_out "netkat.cert" in
   Printf.fprintf file ";; %s == %s\n"
