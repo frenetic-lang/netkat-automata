@@ -59,6 +59,6 @@ module WorkList = WorkList(struct
     let t1' = Deriv.DerivTerm.make_term t1 in 
 
     let ret = main_loop (WorkList.singleton (t1',t2')) in
-    (* Decide_PCC.generate_certificate t1 t2 t1' t2' (uf_eq, uf_find, uf_union); *)
+    (* Decide_PCC.generate_certificate t1 t2 t1' t2' uf; *)
     Decide_Util.print_debugging_info ();
     ret

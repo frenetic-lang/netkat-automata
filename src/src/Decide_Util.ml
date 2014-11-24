@@ -493,6 +493,18 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
    *)
   let validate t = check_root_refs !t; check_node_uniqueness !t
 
+  module Class = struct
+    type t = { identifier : Ord.t;
+               members : Ord.t list } with sexp
+    let members t = t.members
+    let canonical_element t = t.identifier 
+  end
+
+  let equivalence_classes t =
+    FindMap.fold (FindMap.fold !t ~init:FindMap.empty ~f:(fun ~key:k ~data:v acc -> match !(get_parent v) with
+        | Root_node(v,_) -> FindMap.add_multi acc ~key:v ~data:k
+        | _ -> failwith "Decide_Util.UnionFind.get_parent returned a non-root node!"))
+      ~init:[] ~f:(fun ~key:k ~data:v acc -> {Class.identifier = k; Class.members = v} :: acc)
 end
 
 module UnivMap = SetMapF(Field)(Value)

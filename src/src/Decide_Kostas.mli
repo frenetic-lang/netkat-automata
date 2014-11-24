@@ -25,16 +25,31 @@ end and TermSet : sig
   include Set.S with type Elt.t = Term.t
 end
 
-module DerivTerm : sig
-  type t with sexp
-  type e with sexp
-  type d with sexp
+module type DerivTerm = sig
+    module EMatrix : sig
+    type t with sexp
+    val run : t -> point -> bool
+    val compare : t -> t -> int
+    val empty : t
+    val intersection_empty : t -> t -> bool
+    val union : t -> t -> t
+  end
+
+  module DMatrix : sig
+    type t with sexp
+    val run : t -> point -> TermSet.t
+    val compare : t -> t -> int
+    val equivalent : (Term.t -> Term.t -> bool) -> t -> t -> bool
+  end
+  
+  type t with sexp  
   val make_term : Term.t -> t
   (* val get_term : t -> Term.t *)
   (* val to_term : t -> Decide_Ast.Term.t *)
-  val get_e : t -> e
-  val get_d : t -> d
+  val get_e : t -> EMatrix.t
+  val get_d : t -> DMatrix.t
   val sexp_of_t : t -> Sexplib.Sexp.t
-  val run_e : e -> point -> bool
-  val run_d : d -> point -> TermSet.t
+  val compare : t -> t -> int
 end
+
+module KostasDeriv : DerivTerm

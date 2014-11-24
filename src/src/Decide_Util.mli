@@ -101,11 +101,17 @@ open Core.Std
 module UnionFind : functor(Ord : Map.Key) -> 
 sig
   type t with sexp
+  module Class : sig
+    type t with sexp
+    val members : t -> Ord.t list
+    val canonical_element : t -> Ord.t
+  end
   val create : unit -> t
   val eq : t -> Ord.t -> Ord.t -> bool
   val find : t -> Ord.t -> Ord.t
   val union : t -> Ord.t -> Ord.t -> unit
   val validate : t -> unit
+  val equivalence_classes : t -> Class.t list
 end
 
 val remove_duplicates : 'a list -> 'a list

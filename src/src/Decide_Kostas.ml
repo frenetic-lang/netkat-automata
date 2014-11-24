@@ -113,80 +113,123 @@ end and TermSet : sig
 end = Set.Make (struct
       type t = Term.t with compare, sexp
     end)
+
+module type DerivTerm = sig
+    module EMatrix : sig
+    type t with sexp
+    val run : t -> point -> bool
+    val compare : t -> t -> int
+    val empty : t
+    val intersection_empty : t -> t -> bool
+    val union : t -> t -> t
+  end
+
+  module DMatrix : sig
+    type t with sexp
+    val run : t -> point -> TermSet.t
+    val compare : t -> t -> int
+    val equivalent : (Term.t -> Term.t -> bool) -> t -> t -> bool
+  end
   
-module rec DerivTerm : sig
-  type t with sexp
-  type e with sexp
-  type d with sexp
+  type t with sexp  
   val make_term : Term.t -> t
-  val get_term : t -> Term.t
+  (* val get_term : t -> Term.t *)
   (* val to_term : t -> Decide_Ast.Term.t *)
-  val get_e : t -> e
-  val get_d : t -> d
+  val get_e : t -> EMatrix.t
+  val get_d : t -> DMatrix.t
   val sexp_of_t : t -> Sexplib.Sexp.t
-  val run_e : e -> point -> bool
-  val run_d : d -> point -> TermSet.t
-end = struct
-  type e = Term.t with sexp  
-  let run_e = Term.compare_ab
-  let rec e_matrix_of_term t =
-    let open Term in
-    match t with
-    | Plus ts -> Plus (TermSet.map ts e_matrix_of_term)
-    | Dup -> Zero
-    | Times ts -> Times (List.map ts e_matrix_of_term)
-    | Star t -> Star (e_matrix_of_term t)
-    | _ -> t
+  val compare : t -> t -> int
+end
 
-  type compact_derivative = {
-    left_hand : Term.t;
-    right_hand : Term.t;
-  } with compare, sexp
+module rec KostasDeriv : DerivTerm = struct
+  
+  module EMatrix = struct
+    type t = Term.t with sexp  
+    let run = Term.compare_ab
+                
+    let rec matrix_of_term t =
+      let open Term in
+      match t with
+      | Plus ts -> Plus (TermSet.map ts matrix_of_term)
+      | Dup -> Zero
+      | Times ts -> Times (List.map ts matrix_of_term)
+      | Star t -> Star (matrix_of_term t)
+      | _ -> t
+        
+    let compare _ _ = failwith "NYI: Decide_Kostas.DerivTerm.EMatrix.compare"
+    let intersection_empty e e' = failwith "NYI: Decide_Kostas.EMatrix.intersection"
+    let empty = Term.Zero
+    let union e1 e2 = Term.Plus (TermSet.of_list [e1;e2])
+  end
 
-  module CompactDerivSet = Set.Make (struct
-      type t = compact_derivative with compare, sexp
-    end)
+  module DMatrix = struct
+    
+    type compact_derivative = {
+      left_hand : EMatrix.t;
+      right_hand : Term.t;
+    } with compare, sexp
 
-  type d = CompactDerivSet.t with sexp
+    module CompactDerivSet = Set.Make (struct
+        type t = compact_derivative with compare, sexp
+      end)
+
+    type t = CompactDerivSet.t with sexp
+
+    let compare _ _ = failwith "NYI: Decide_Kostas.DerivTerm.EMatrix.compare"
+        
+    let run t point =
+      CompactDerivSet.fold t ~init:TermSet.empty
+        ~f:(fun acc deriv -> if Term.compare_ab deriv.left_hand point
+             then TermSet.union (TermSet.singleton deriv.right_hand) acc
+             else acc)
+
+    let term_append t e = Term.Times [t; e]
+    let left_app e d = { d with left_hand = term_append d.left_hand e }
+    let right_app d e = { d with right_hand = term_append d.right_hand e }
+
+    let d_right_app ds e = CompactDerivSet.map ds (fun x -> right_app x e)
+    let d_left_app e ds = CompactDerivSet.map ds (left_app e)
+
+
+    let rec matrix_of_term t =
+      let open Term in
+      match t with
+      | Dup -> CompactDerivSet.singleton ({ left_hand = One; right_hand = One })
+      | Plus ts -> TermSet.fold ts ~f:(fun acc t -> CompactDerivSet.union (matrix_of_term t) acc) ~init:CompactDerivSet.empty
+      | Times (t::ts) -> CompactDerivSet.union (d_right_app (matrix_of_term t) (Times ts))
+                           (d_left_app (EMatrix.matrix_of_term t) (matrix_of_term (Times ts)))
+      | Star t -> d_left_app (Star t) (d_right_app (matrix_of_term t) (Star t))
+      | _ -> CompactDerivSet.empty
+
+    (* 
+       a) for each (b, e) \in D(elm1), (b',e') \in D(elm2), 
+          if b /\ b' != 0, then e bisim e'
+       b) \/ b == \/ b'
+    *)
+    let equivalent bisim d1 d2 =
+      CompactDerivSet.for_all d1 ~f:(fun elm1 -> CompactDerivSet.for_all d2 ~f:(fun elm2 ->
+          EMatrix.intersection_empty elm1.left_hand elm2.left_hand
+          || bisim elm1.right_hand elm2.right_hand))
+      && EMatrix.compare (CompactDerivSet.fold d1 ~init:EMatrix.empty ~f:(fun acc x -> EMatrix.union x.left_hand acc))
+        (CompactDerivSet.fold d1 ~init:EMatrix.empty ~f:(fun acc x -> EMatrix.union x.left_hand acc)) = 0
+  end
 
   type t = { desc : Term.t;
-             e_matrix : e;
-             d_matrix : d
+             e_matrix : EMatrix.t;
+             d_matrix : DMatrix.t
            } with sexp
     
   let get_e t = t.e_matrix
   let get_d t = t.d_matrix
   let get_term t = t.desc
 
-  let run_d t point =
-    CompactDerivSet.fold t ~init:TermSet.empty
-      ~f:(fun acc deriv -> if Term.compare_ab deriv.left_hand point
-           then TermSet.union (TermSet.singleton deriv.right_hand) acc
-           else acc)
       
-  let term_append t e = Term.Times [t; e]
-
-  let right_app d e = { d with right_hand = term_append d.right_hand e }
-  let left_app e d = { d with left_hand = term_append d.left_hand e }
-
-  let d_right_app ds e = CompactDerivSet.map ds (fun x -> right_app x e)
-  let d_left_app e ds = CompactDerivSet.map ds (left_app e)
-
-
-  let rec d_matrix_of_term t =
-    let open Term in
-    match t with
-    | Dup -> CompactDerivSet.singleton ({ left_hand = One; right_hand = One })
-    | Plus ts -> TermSet.fold ts ~f:(fun acc t -> CompactDerivSet.union (d_matrix_of_term t) acc) ~init:CompactDerivSet.empty
-    | Times (t::ts) -> CompactDerivSet.union (d_right_app (d_matrix_of_term t) (Times ts))
-                         (d_left_app (e_matrix_of_term t) (d_matrix_of_term (Times ts)))
-    | Star t -> d_left_app (Star t) (d_right_app (d_matrix_of_term t) (Star t))
-    | _ -> CompactDerivSet.empty
-
   let make_term term =
     { desc = term;
-      e_matrix = e_matrix_of_term term;
-      d_matrix = d_matrix_of_term term
+      e_matrix = EMatrix.matrix_of_term term;
+      d_matrix = DMatrix.matrix_of_term term
     }
+
+  let compare t t' = failwith "NYI: Decide_Kostas.KostasDeriv.compare"
 end
 
