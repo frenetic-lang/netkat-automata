@@ -119,3 +119,23 @@ val remove_duplicates : 'a list -> 'a list
 val thunkify : (unit -> 'a) -> (unit -> 'a)
 
 val string_fold : (char -> 'a -> 'a) -> string -> 'a -> 'a
+
+module HashCons : sig
+
+  type 'a hash_consed = private {
+    node : 'a;
+    tag : int
+  } with sexp, compare
+
+  module type HashedType = sig
+    type t with sexp, compare
+    val equal : t -> t -> bool
+    val hash : t -> int
+  end
+  
+  module Make (H : HashedType) : sig
+    type t
+    val create : int -> t
+    val hashcons : t -> H.t -> H.t hash_consed
+  end
+end

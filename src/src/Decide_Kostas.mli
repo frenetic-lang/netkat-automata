@@ -8,7 +8,8 @@ module PacketSet : sig
 end
 
 module rec Term : sig
-  type t = 
+  type t = term HashCons.hash_consed and
+  term = 
     | Assg of Field.t * Value.t
     | Test of Field.t * Value.t
     | Dup 
@@ -18,6 +19,15 @@ module rec Term : sig
     | Star of t
     | Zero 
     | One with compare, sexp
+  val assg : Field.t -> Value.t -> t
+  val test : Field.t -> Value.t -> t
+  val dup : t
+  val plus : TermSet.t -> t
+  val times : t list -> t    
+  val not : t -> t
+  val star : t -> t
+  val zero : t
+  val one : t
   val compare_ab : t -> point -> bool
   val eval : t -> packet -> PacketSet.t
   val to_string : t -> string

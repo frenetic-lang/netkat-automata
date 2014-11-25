@@ -1,4 +1,3 @@
-module D = Decide_Deriv.DerivTerm
 module S = Sexplib.Sexp
 module Base = Decide_Base.Base
                 
@@ -14,9 +13,11 @@ type point = packet * packet
 module PacketSet = Set.Make (struct
     type t = packet with sexp, compare
   end)
-    
-module rec Term : sig
-  type t = 
+
+  
+module rec TermBase : sig
+  type t = term HashCons.hash_consed and
+  term =
     | Assg of Field.t * Value.t
     | Test of Field.t * Value.t
     | Dup 
@@ -26,11 +27,9 @@ module rec Term : sig
     | Star of t
     | Zero 
     | One with compare, sexp
-  val compare_ab : t -> point -> bool
-  val eval : t -> packet -> PacketSet.t
-  val to_string : t -> string
-end = struct 
-  type t = 
+end = struct
+  type t = term HashCons.hash_consed and
+  term =
     | Assg of Field.t * Value.t
     | Test of Field.t * Value.t
     | Dup 
@@ -41,7 +40,31 @@ end = struct
     | Zero 
     | One with compare, sexp
 
-  let rec eval (t : Term.t) (pkt : packet) = match t with
+end and TermSet : sig
+  include Set.S with type Elt.t = TermBase.t
+end = Set.Make (struct
+      type t = TermBase.t with compare, sexp
+    end)
+
+module Term (* : sig *)
+(*   type t = TermBase.t with sexp, compare *)
+(*   type term = TermBase.term with sexp, compare *)
+(*   val compare_ab : t -> point -> bool *)
+(*   val eval : t -> packet -> PacketSet.t *)
+(*   val to_string : t -> string *)
+(*   val assg : Field.t -> Value.t -> t *)
+(*   val test : Field.t -> Value.t -> t *)
+(*   val dup : t *)
+(*   val plus : TermSet.t -> t *)
+(*   val times : t list -> t     *)
+(*   val not : t -> t *)
+(*   val star : t -> t *)
+(*   val zero : t *)
+(*   val one : t *)
+(* end *) = struct
+  include TermBase
+  open HashCons
+  let rec eval (t : TermBase.t) (pkt : packet) = match t.node with
     | Assg (f,v) -> PacketSet.singleton (FieldMap.add pkt ~key:f ~data:v)
     | Test (f,v) -> begin match FieldMap.find pkt f with
         | Some v' -> if v' = v
@@ -71,7 +94,7 @@ end = struct
       
   let rec to_string (t : t) : string =
     let out_precedence (t : t) : int =
-      match t with
+      match t.node with
         | Plus _ -> 0
         | Times _ -> 1
         | Not _ -> 2
@@ -85,7 +108,7 @@ end = struct
       match s with
         | [] -> init
         | _ -> String.concat ~sep:op s in
-    match t with
+    match t.node with
       | Assg (f,v) -> 
         Printf.sprintf "%s:=%s" 
           (Field.to_string f) (Value.to_string v)
@@ -107,12 +130,24 @@ end = struct
         "drop"
       | One -> 
         "id"
-      
-end and TermSet : sig
-  include Set.S with type Elt.t = Term.t
-end = Set.Make (struct
-      type t = Term.t with compare, sexp
+
+  module H = Make(struct
+      type t = TermBase.term with sexp, compare
+      let equal a b = compare a b = 0
+      let hash = Hashtbl.hash
     end)
+
+  let hashtbl = H.create 100
+  let assg f v = H.hashcons hashtbl (Assg (f,v))
+  let test f v = H.hashcons hashtbl (Test (f,v))
+  let dup = H.hashcons hashtbl Dup
+  let plus ts = H.hashcons hashtbl (Plus ts)
+  let times ts = H.hashcons hashtbl (Times ts)
+  let not t = H.hashcons hashtbl (Not t)
+  let star t = H.hashcons hashtbl (Star t)
+  let zero = H.hashcons hashtbl Zero
+  let one = H.hashcons hashtbl One
+end
 
 module type DerivTerm = sig
     module EMatrix : sig
@@ -146,24 +181,28 @@ module rec KostasDeriv : DerivTerm = struct
   module EMatrix = struct
     type t = Term.t with sexp  
     let run = Term.compare_ab
+    open HashCons
                 
     let rec matrix_of_term t =
       let open Term in
-      match t with
-      | Plus ts -> Plus (TermSet.map ts matrix_of_term)
-      | Dup -> Zero
-      | Times ts -> Times (List.map ts matrix_of_term)
-      | Star t -> Star (matrix_of_term t)
+      let open TermBase in
+      match t.node with
+      | Plus ts -> plus (TermSet.map ts matrix_of_term)
+      | Dup -> zero
+      | Times ts -> times (List.map ts matrix_of_term)
+      | Star t -> star (matrix_of_term t)
       | _ -> t
         
     let compare _ _ = failwith "NYI: Decide_Kostas.DerivTerm.EMatrix.compare"
     let intersection_empty e e' = failwith "NYI: Decide_Kostas.EMatrix.intersection"
-    let empty = Term.Zero
-    let union e1 e2 = Term.Plus (TermSet.of_list [e1;e2])
+    let empty = Term.zero
+    let union e1 e2 = Term.plus (TermSet.of_list [e1;e2])
   end
 
   module DMatrix = struct
-    
+
+    open HashCons
+
     type compact_derivative = {
       left_hand : EMatrix.t;
       right_hand : Term.t;
@@ -183,7 +222,7 @@ module rec KostasDeriv : DerivTerm = struct
              then TermSet.union (TermSet.singleton deriv.right_hand) acc
              else acc)
 
-    let term_append t e = Term.Times [t; e]
+    let term_append t e = Term.times [t; e]
     let left_app e d = { d with left_hand = term_append d.left_hand e }
     let right_app d e = { d with right_hand = term_append d.right_hand e }
 
@@ -193,12 +232,12 @@ module rec KostasDeriv : DerivTerm = struct
 
     let rec matrix_of_term t =
       let open Term in
-      match t with
-      | Dup -> CompactDerivSet.singleton ({ left_hand = One; right_hand = One })
+      match t.node with
+      | Dup -> CompactDerivSet.singleton ({ left_hand = one; right_hand = one })
       | Plus ts -> TermSet.fold ts ~f:(fun acc t -> CompactDerivSet.union (matrix_of_term t) acc) ~init:CompactDerivSet.empty
-      | Times (t::ts) -> CompactDerivSet.union (d_right_app (matrix_of_term t) (Times ts))
-                           (d_left_app (EMatrix.matrix_of_term t) (matrix_of_term (Times ts)))
-      | Star t -> d_left_app (Star t) (d_right_app (matrix_of_term t) (Star t))
+      | Times (t::ts) -> CompactDerivSet.union (d_right_app (matrix_of_term t) (times ts))
+                           (d_left_app (EMatrix.matrix_of_term t) (matrix_of_term (times ts)))
+      | Star t -> d_left_app (star t) (d_right_app (matrix_of_term t) (star t))
       | _ -> CompactDerivSet.empty
 
     (* 
