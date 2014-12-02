@@ -1,9 +1,9 @@
-module S = Sexplib.Sexp
 module Base = Decide_Base.Base
                 
 open Core.Std
 open Sexplib.Conv
 open Decide_Util
+open Tdk
 
 module FieldMap = Map.Make(Field)
 
@@ -176,6 +176,177 @@ module type DerivTerm = sig
   val compare : t -> t -> int
 end
 
+module rec BDDDeriv : DerivTerm = struct
+
+  module Bool = struct
+    type t = bool
+
+    let hash x = if x then 1 else 0
+
+    let compare x y =
+      match x, y with
+      | true , false -> -1
+      | false, true  ->  1
+      | _    , _     ->  0
+
+    let to_string x = if x then "true" else "false"
+
+    let one = true
+    let zero = false
+
+    let sum x y = x || y
+    let prod x y = x && y
+  end
+
+  open S
+
+  module PartialPacketSet = struct
+    type t = PacketSet.t
+    let pktHash pkt = FieldMap.fold pkt ~init:0 ~f:(fun ~key:k ~data:v acc -> acc * 17 + (Field.hash k) * 13 + (Value.hash v) * 11)
+    let hash pkts = PacketSet.fold pkts ~init:0 ~f:(fun acc x -> acc * 13 + pktHash x)
+    (* pkt <= pkt' *)
+    let partialPacketCompare : packet -> packet -> bool = failwith "NYI: partialPacketCompare"
+    let packetJoin : packet -> packet -> packet option = failwith "NYI: packetJoin"
+    let compare p1 p2 =
+      let pointwiseCompare p p' = PacketSet.for_all p (fun pkt -> PacketSet.exists p' (partialPacketCompare pkt)) in
+      match pointwiseCompare p1 p2 with
+      | true -> begin match pointwiseCompare p2 p1 with
+          | true -> 0
+          | false -> -1
+        end
+      | false -> begin match pointwiseCompare p2 p1 with
+          | true -> 1
+          | false -> -1
+        end
+    let contains p pkt = PacketSet.exists p (partialPacketCompare pkt)
+    (* We could simplify (i.e. {*} U {pkt} -> {*}), but KISS for now *)
+    let sum = PacketSet.union
+    let prod p1 p2 = PacketSet.fold p1 ~init:PacketSet.empty ~f:(fun acc x ->
+        PacketSet.union acc (PacketSet.filter_map p2 (packetJoin x)))
+    let zero = PacketSet.empty
+    let one = PacketSet.singleton FieldMap.empty
+
+    let to_string = failwith "NYI: PartialPacketSet.to_string"
+  end
+
+  module PacketDD = Tdk.Vcr.Make(Field)(Value)(PartialPacketSet)
+
+  module EMatrix = struct
+    open Term
+    open TermBase
+    open HashCons
+
+    type t = PacketDD.t
+
+    let t_of_sexp = failwith "NYI: Decide_Kostas.BDDDeriv.EMatrix.t_of_sexp"
+    let sexp_of_t = failwith "NYI: Decide_Kostas.BDDDeriv.EMatrix.sexp_of_t"
+
+    let run t (pkt1,pkt2) =
+      match PacketDD.peek (PacketDD.restrict (FieldMap.to_alist pkt1) t) with
+      | Some p -> PartialPacketSet.contains p pkt2
+      | None -> failwith "Decide_Kostas.BDDDeriv.EMatrix.run failed to get a value from the DD on the pkt"
+                     
+    let empty = PacketDD.const PartialPacketSet.zero
+
+    let eval : t -> packet -> PacketSet.t = failwith "NYI: EMatrix.eval"
+    let times e1 e2 = let e2' = eval e2 in
+          PacketDD.map_r (fun r -> PacketSet.fold r ~init:PacketSet.empty ~f:(fun acc pkt -> PacketSet.union acc (e2' pkt))) e1
+
+    let rec matrix_of_term t =
+      match t.node with
+      | Plus ts -> TermSet.fold ts ~init:empty ~f:(fun acc v -> PacketDD.sum acc (matrix_of_term v))
+      | Dup -> empty
+      | Times ts -> List.fold ts ~init:(PacketDD.const PartialPacketSet.one) ~f:(fun acc x -> times (matrix_of_term x) acc)
+      | Star t -> failwith "NYI: Decide_Kostas.BDDDeriv.EMatrix.matrix_of_term 'Star' case"
+      | Assg (f,v) -> PacketDD.const (PacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
+      | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
+      (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
+      | Not t -> PacketDD.map_r (fun p -> match PacketSet.equal PartialPacketSet.one p with
+          | true -> PartialPacketSet.zero
+          | false -> assert (PacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
+      | Zero -> empty
+      | One -> PacketDD.const PartialPacketSet.one
+        
+    let compare _ _ = failwith "NYI: Decide_Kostas.BDDDeriv.EMatrix.compare"
+    let intersection_empty e e' = PacketDD.equal (PacketDD.prod e e') empty
+    let union e1 e2 = PacketDD.sum e1 e2
+    let one = PacketDD.const PartialPacketSet.one
+    let zero = PacketDD.const PartialPacketSet.zero
+  end
+
+  module DMatrix = struct
+
+    open HashCons
+
+    type compact_derivative = {
+      left_hand : EMatrix.t;
+      right_hand : Term.t;
+    } with compare, sexp
+
+    module CompactDerivSet = Set.Make (struct
+        type t = compact_derivative with compare, sexp
+      end)
+
+    type t = CompactDerivSet.t with sexp
+
+    let compare _ _ = failwith "NYI: Decide_Kostas.DerivTerm.DMatrix.compare"
+        
+    let run t point =
+      CompactDerivSet.fold t ~init:TermSet.empty
+        ~f:(fun acc deriv -> if EMatrix.run deriv.left_hand point
+             then TermSet.union (TermSet.singleton deriv.right_hand) acc
+             else acc)
+
+    let term_append t e = Term.times [t; e]
+    let left_app e d = { d with left_hand = EMatrix.times d.left_hand e }
+    let right_app d e = { d with right_hand = term_append d.right_hand e }
+
+    let d_right_app ds e = CompactDerivSet.map ds (fun x -> right_app x e)
+    let d_left_app e ds = CompactDerivSet.map ds (left_app e)
+
+
+    let rec matrix_of_term t =
+      let open Term in
+      match t.node with
+      | Dup -> CompactDerivSet.singleton ({ left_hand = EMatrix.one; right_hand = one })
+      | Plus ts -> TermSet.fold ts ~f:(fun acc t -> CompactDerivSet.union (matrix_of_term t) acc) ~init:CompactDerivSet.empty
+      | Times (t::ts) -> CompactDerivSet.union (d_right_app (matrix_of_term t) (times ts))
+                           (d_left_app (EMatrix.matrix_of_term t) (matrix_of_term (times ts)))
+      | Star t -> d_left_app (EMatrix.matrix_of_term (star t)) (d_right_app (matrix_of_term t) (star t))
+      | _ -> CompactDerivSet.empty
+
+    (* 
+       a) for each (b, e) \in D(elm1), (b',e') \in D(elm2), 
+          if b /\ b' != 0, then e bisim e'
+       b) \/ b == \/ b'
+    *)
+    let equivalent bisim d1 d2 =
+      CompactDerivSet.for_all d1 ~f:(fun elm1 -> CompactDerivSet.for_all d2 ~f:(fun elm2 ->
+          EMatrix.intersection_empty elm1.left_hand elm2.left_hand
+          || bisim elm1.right_hand elm2.right_hand))
+      && EMatrix.compare (CompactDerivSet.fold d1 ~init:EMatrix.empty ~f:(fun acc x -> EMatrix.union x.left_hand acc))
+        (CompactDerivSet.fold d1 ~init:EMatrix.empty ~f:(fun acc x -> EMatrix.union x.left_hand acc)) = 0
+  end
+
+  type t = { desc : Term.t;
+             e_matrix : EMatrix.t;
+             d_matrix : DMatrix.t
+           } with sexp
+    
+  let get_e t = t.e_matrix
+  let get_d t = t.d_matrix
+  let get_term t = t.desc
+
+      
+  let make_term term =
+    { desc = term;
+      e_matrix = EMatrix.matrix_of_term term;
+      d_matrix = DMatrix.matrix_of_term term
+    }
+
+  let compare t t' = failwith "NYI: Decide_Kostas.KostasDeriv.compare"
+end
+  
 module rec KostasDeriv : DerivTerm = struct
   
   module EMatrix = struct

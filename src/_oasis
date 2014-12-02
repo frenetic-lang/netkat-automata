@@ -18,7 +18,8 @@ Library netkat_decide
     comparelib,
     comparelib.syntax,
     core,
-    threads
+    threads,
+    tdk
   InternalModules: 
     Decide_Base,
     Decide_Deriv,
