@@ -248,9 +248,26 @@ module rec BDDDeriv : DerivTerm = struct
                      
     let empty = PacketDD.const PartialPacketSet.zero
 
-    let eval : t -> packet -> PacketSet.t = failwith "NYI: EMatrix.eval"
-    let times e1 e2 = let e2' = eval e2 in
-          PacketDD.map_r (fun r -> PacketSet.fold r ~init:PacketSet.empty ~f:(fun acc pkt -> PacketSet.union acc (e2' pkt))) e1
+    (* let eval : t -> packet -> PacketSet.t = failwith "NYI: EMatrix.eval" *)
+
+    let one = PacketDD.const PartialPacketSet.one
+    let zero = PacketDD.const PartialPacketSet.zero
+
+    let cond v t f =
+      if PacketDD.equal t f then
+        t
+      else
+        PacketDD.(sum (prod (atom v PartialPacketSet.one PartialPacketSet.zero) t)
+                    (prod (atom v PartialPacketSet.zero PartialPacketSet.one) f))
+        
+    let times e1 e2 =
+      PacketDD.fold
+        (fun par ->
+           PacketSet.fold par ~init:zero ~f:(fun acc pkt ->
+               let e2' = PacketDD.restrict FieldMap.(to_alist pkt) e2 in
+               PacketDD.(sum (prod (const PacketSet.(singleton pkt)) e2') acc)))
+        (fun v t f -> cond v t f)
+        e1
 
     let rec matrix_of_term t =
       match t.node with
@@ -270,8 +287,6 @@ module rec BDDDeriv : DerivTerm = struct
     let compare _ _ = failwith "NYI: Decide_Kostas.BDDDeriv.EMatrix.compare"
     let intersection_empty e e' = PacketDD.equal (PacketDD.prod e e') empty
     let union e1 e2 = PacketDD.sum e1 e2
-    let one = PacketDD.const PartialPacketSet.one
-    let zero = PacketDD.const PartialPacketSet.zero
   end
 
   module DMatrix = struct
