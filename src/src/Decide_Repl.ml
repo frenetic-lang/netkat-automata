@@ -110,8 +110,8 @@ let rec repl (state : state) : unit =
 	    | None -> failwith "file load didn't work"
     ) 
     else input in
-  print_string "process or serialize: ";
-  (match (* read_line() *) "process"  with 
+  print_string "process, serialize, or verify: ";
+  (match read_line() (* "verify" *)  with 
     | "process" ->
       Printf.printf "processing...\n%!";
       (* if run_loop  *)
@@ -124,6 +124,11 @@ let rec repl (state : state) : unit =
       ignore file; 
       ignore formula;
       failwith "mode not currently supported"
+    | "verify" ->
+      print_string "where: ";
+      (* let file = read_line () in  *)
+      let file = "netkat.cert" in
+      Decide_Bisimulation.check_certificate file
     | _ -> repl state);
   repl state
 

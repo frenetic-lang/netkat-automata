@@ -17,11 +17,11 @@ module WorkList = WorkList(struct
   end)
     
   let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (DerivTerm.to_string a) (DerivTerm.to_string b)
+module PCC = Decide_PCC.PCC(DerivTerm)
+module UF = Decide_Util.UnionFind(DerivTerm)
 
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
 
-    let module PCC = Decide_PCC.PCC(DerivTerm) in
-    let module UF = Decide_Util.UnionFind(DerivTerm) in
     let bisim = UF.create ()
     in
     
@@ -65,3 +65,5 @@ module WorkList = WorkList(struct
     PCC.generate_certificate t1 t2 t1' t2' bisim;
     Decide_Util.print_debugging_info ();
     ret
+
+let check_certificate = PCC.parse_certificate

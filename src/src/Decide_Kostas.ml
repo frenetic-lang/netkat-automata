@@ -319,16 +319,20 @@ module rec BDDDeriv : DerivTerm = struct
 
     let rec t_of_sexp sexp = let open Sexplib in
       match sexp with
-      | Sexp.List ss -> cond (pair_of_sexp Field.t_of_sexp Value.t_of_sexp (List.nth_exn ss 0))
-                          (t_of_sexp (List.nth_exn ss 1))
-                          (t_of_sexp (List.nth_exn ss 2))
-      | Sexp.Atom _ -> PacketDD.const (PartialPacketSet.t_of_sexp sexp)
+      | Sexp.List ss -> begin match List.length ss with
+          | 3 -> cond (pair_of_sexp Field.t_of_sexp Value.t_of_sexp (List.nth_exn ss 0))
+                   (t_of_sexp (List.nth_exn ss 1))
+                   (t_of_sexp (List.nth_exn ss 2))
+          | 2 -> PacketDD.const (PartialPacketSet.t_of_sexp (List.nth_exn ss 1))
+        end
+      | Sexp.Atom _ -> failwith "This can't happen"
 
     let sexp_of_t = let open Sexplib in
-      PacketDD.fold PartialPacketSet.sexp_of_t (fun v t f ->
-          Sexp.List [sexp_of_pair Field.sexp_of_t Value.sexp_of_t v;
-                     t;
-                     f])
+      PacketDD.fold (fun r -> Sexp.List [Sexp.Atom "leaf"; PartialPacketSet.sexp_of_t r])
+        (fun v t f ->
+           Sexp.List [sexp_of_pair Field.sexp_of_t Value.sexp_of_t v;
+                      t;
+                      f])
 
     let run t (pkt1,pkt2) =
       match PacketDD.peek (PacketDD.restrict (FieldMap.to_alist pkt1) t) with
@@ -403,9 +407,9 @@ module rec BDDDeriv : DerivTerm = struct
         type t = compact_derivative with compare, sexp
       end)
 
-    type t = CompactDerivSet.t with sexp
+    type t = CompactDerivSet.t with sexp, compare
 
-    let compare _ _ = failwith "NYI: Decide_Kostas.DerivTerm.DMatrix.compare"
+    (* let compare = t_compare *)
         
     let run t point =
       CompactDerivSet.fold t ~init:TermSet.empty
@@ -488,7 +492,11 @@ module rec BDDDeriv : DerivTerm = struct
       d
 
   let get_term t = t.desc
-      
+
+  let sexp_of_t t = t.e_matrix <- Some (get_e t);
+    t.d_matrix <- Some (get_d t);
+    sexp_of_t t
+
   let make_term terms =
     (* let open HashCons in *)
     (* let terms = match term.node with *)
