@@ -39,9 +39,10 @@ Executable netkat
   Path: src
   CompiledObject: best
   MainIs: Decide_Repl.ml
-  Install: false
+  Install: true
   BuildDepends:
     threads,
     core,
     sexplib,
-    comparelib
+    comparelib,
+    tdk

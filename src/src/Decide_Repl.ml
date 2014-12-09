@@ -4,11 +4,11 @@ type state = int
 let init_state = 0
     
 let run_bisimulation t1 t2 = 
-  let t1vals = Decide_Ast.Term.values t1 in 
-  let t2vals = Decide_Ast.Term.values t2 in 
+  let t1vals = Decide_Kostas.Term.values t1 in 
+  let t2vals = Decide_Kostas.Term.values t2 in 
   if set_univ [t1vals; t2vals]
   then Decide_Bisimulation.check_equivalent t1 t2
-  else Decide_Ast.Term.equal t1 t2
+  else Decide_Kostas.Term.equal t1 t2
 
 exception ParseError of int * int * string
                               
@@ -27,14 +27,14 @@ let parse (s : string) =
 let process (input : string) : unit =
   try
     let parsed = parse input in
-    let l,r = Decide_Ast.Formula.terms parsed in 
+    let l,r = Decide_Kostas.Formula.terms parsed in 
     Printf.printf "unfolded\n%!";
-    Printf.printf "LHS term:%s\n" (Decide_Ast.Term.to_string l);
-    Printf.printf "RHS term:%s\n" (Decide_Ast.Term.to_string r);
+    Printf.printf "LHS term:%s\n" (Decide_Kostas.Term.to_string l);
+    Printf.printf "RHS term:%s\n" (Decide_Kostas.Term.to_string r);
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )
   with
-  | Decide_Ast.Empty -> 
+  | Decide_Kostas.Empty -> 
     ()
   | Decide_Lexer.LexError s -> 
     Printf.printf "Lex Error: %s\n" s
@@ -50,29 +50,29 @@ let split_string (sr : string) (c : char) : string list =
  
       
 
-let proc_loop (input : string) : unit =
-  let open Decide_Ast.Formula in 
-  try
-    let (edge,_),(pol,_),(topo,_) = match split_string input '%' with 
-      | [edge;pol;topo] -> 
-	terms (parse (edge ^ " == drop")),
-	terms (parse (pol ^ " == drop")),
-	terms (parse (topo ^ " == drop"))
-      | _ -> failwith "parse error!" in 
-    Printf.printf "unfolded\n%!";
-    Printf.printf "edge policy %s\npol: %s\ntopo: %s\n "
-      (Decide_Ast.Term.to_string edge)
-      (Decide_Ast.Term.to_string pol)
-      (Decide_Ast.Term.to_string topo);
-    Printf.printf "Loop-freedom result: %b\n"
-      (Decide_Loopfree.loop_freedom edge pol topo ())
-  with
-  | Decide_Ast.Empty -> 
-    ()
-  | Decide_Lexer.LexError s -> 
-    Printf.printf "Lex Error: %s\n" s
-  | ParseError (l, ch, t) ->
-    Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
+(* let proc_loop (input : string) : unit = *)
+(*   let open Decide_Kostas.Formula in  *)
+(*   try *)
+(*     let (edge,_),(pol,_),(topo,_) = match split_string input '%' with  *)
+(*       | [edge;pol;topo] ->  *)
+(* 	terms (parse (edge ^ " == drop")), *)
+(* 	terms (parse (pol ^ " == drop")), *)
+(* 	terms (parse (topo ^ " == drop")) *)
+(*       | _ -> failwith "parse error!" in  *)
+(*     Printf.printf "unfolded\n%!"; *)
+(*     Printf.printf "edge policy %s\npol: %s\ntopo: %s\n " *)
+(*       (Decide_Kostas.Term.to_string edge) *)
+(*       (Decide_Kostas.Term.to_string pol) *)
+(*       (Decide_Kostas.Term.to_string topo); *)
+(*     Printf.printf "Loop-freedom result: %b\n" *)
+(*       (Decide_Loopfree.loop_freedom edge pol topo ()) *)
+(*   with *)
+(*   | Decide_Kostas.Empty ->  *)
+(*     () *)
+(*   | Decide_Lexer.LexError s ->  *)
+(*     Printf.printf "Lex Error: %s\n" s *)
+(*   | ParseError (l, ch, t) -> *)
+(*     Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t *)
 
   
 (* read from a file *)
@@ -114,9 +114,9 @@ let rec repl (state : state) : unit =
   (match (* read_line() *) "process"  with 
     | "process" ->
       Printf.printf "processing...\n%!";
-      if run_loop 
-      then proc_loop input 
-      else process input;
+      (* if run_loop  *)
+      (* then proc_loop input  *)
+      (* else *) process input;
     | "serialize" -> 
       print_string "where: ";
       let file = read_line () in 

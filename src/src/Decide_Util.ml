@@ -380,26 +380,29 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
     | Root_node of Ord.t * int ref (* maxdepth *)
     | Leaf_node of Ord.t * union_find_ds ref with sexp
 
-  type t = union_find_ds FindMap.t ref
+  type t = { mutable node_map : union_find_ds FindMap.t;
+             mutable root_ref_map : (union_find_ds ref) FindMap.t}
 
   let create () =
-    ref FindMap.empty
+    {node_map = FindMap.empty; root_ref_map = FindMap.empty}
    
   (* Returns a reference to the root node of the equivalence class *)
-  let rec get_parent = function 
+  let rec get_parent t = function 
     | Leaf_node (_,p) -> 
       (match !p with 
        | Root_node _ -> p
-       | Leaf_node _ -> get_parent !p)
-    | _ -> failwith "you have already gotten the parent."
+       | Leaf_node _ -> get_parent t !p)
+    | Root_node (e,_)  -> FindMap.find_exn t.root_ref_map e
 
   let find_ref t e =
-    match FindMap.find !t e with
+    match FindMap.find t.node_map e with
     | None ->
       let root = (Root_node (e, ref 0)) in
-      t := FindMap.add !t ~key:e ~data:root;
-      ref root
-    | Some v -> get_parent v
+      t.node_map <- FindMap.add t.node_map ~key:e ~data:root;
+      let r = ref root in
+      t.root_ref_map <- FindMap.add t.root_ref_map ~key:e ~data:r;
+      r
+    | Some v -> get_parent t v
 
   let find t e = match !(find_ref t e) with
     | Root_node (v, _) -> v
@@ -418,23 +421,23 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
       else if !d2 < !d1 then (*c1 is new root*)
         let leaf = Leaf_node (l2,c1_root) in
 	c2_root := leaf;
-        t := FindMap.add !t ~key:l2 ~data:leaf
+        t.node_map <- FindMap.add t.node_map ~key:l2 ~data:leaf
       else if !d1 > !d2 then
         let leaf = Leaf_node (l1,c2_root) in
 	c1_root := leaf;
-        t := FindMap.add !t ~key:l1 ~data:leaf
+        t.node_map <- FindMap.add t.node_map ~key:l1 ~data:leaf
       else
         let leaf = Leaf_node(l2,c1_root) in
 	d1 := !d1 + 1;
         c2_root := leaf;
-        t := FindMap.add !t ~key:l2 ~data:leaf
+        t.node_map <- FindMap.add t.node_map ~key:l2 ~data:leaf
     | _ -> failwith "get_parent didn't return a Root node!"
 
   let sexp_of_t t =
     let canonical_map = 
-      FindMap.fold !t ~init:FindMap.empty ~f:(fun ~key:x ~data:node acc ->
+      FindMap.fold t.node_map ~init:FindMap.empty ~f:(fun ~key:x ~data:node acc ->
           let root = find t x in
-          if root = x
+          if Ord.compare root x = 0
           then
             acc
           else
@@ -443,12 +446,14 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
       
   let t_of_sexp sexp =
     let alist = <:of_sexp<(Ord.t * (Ord.t list)) list>> sexp in
-    ref (List.fold alist ~init:FindMap.empty ~f:(fun acc x ->
+    let node_map, root_ref_map = (List.fold alist ~init:(FindMap.empty, FindMap.empty) ~f:(fun acc x ->
         let root, nodes = x in
         let root_node = Root_node (root, ref (if List.length nodes > 0 then 1 else 0)) in
         let root_ref = ref root_node in
-        List.fold nodes ~init:(FindMap.add acc ~key:root ~data:root_node) ~f:(fun acc v ->
-            FindMap.add acc ~key:v ~data:(Leaf_node (v, root_ref)))))
+        (List.fold nodes ~init:(FindMap.add (fst acc) ~key:root ~data:root_node) ~f:(fun acc v ->
+             FindMap.add acc ~key:v ~data:(Leaf_node (v, root_ref)))),
+        FindMap.add (snd acc) ~key:root ~data:root_ref)) in
+    { node_map; root_ref_map }
 
   exception Invalid_root_reference
   exception Duplicate_node
@@ -463,9 +468,9 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
           (* Not sure this will work (not symmetric) *)
           | _ -> failwith "Should only be called on Root_node"
       end) in
-    let _ = FindMap.fold t ~init:NodeMap.empty
+    let _ = FindMap.fold t.node_map ~init:NodeMap.empty
         ~f:(fun ~key:key ~data:data node_map -> match data with
-            | Leaf_node(l1,d1) -> let root_ref = get_parent data in
+            | Leaf_node(l1,d1) -> let root_ref = get_parent t data in
               begin match NodeMap.mem node_map !root_ref with
                 | true -> if not (phys_equal (NodeMap.find_exn node_map !root_ref) root_ref)
                   then raise Invalid_root_reference
@@ -481,17 +486,17 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
     let rec crawl_up_tree f node = match node with
       | Leaf_node (l, r) -> f node; crawl_up_tree f !r
       | Root_node (l, d) -> f node in
-    FindMap.iter t ~f:(fun ~key:key ~data:data ->
+    FindMap.iter t.node_map ~f:(fun ~key:key ~data:data ->
         crawl_up_tree (fun node -> match node with
             | Root_node(v,_)
-            | Leaf_node(v,_) -> if FindMap.find_exn t v = node then () else raise Duplicate_node) data)
+            | Leaf_node(v,_) -> if FindMap.find_exn t.node_map v = node then () else raise Duplicate_node) data)
    (* Invariants:
      1) Every node with a reference to a root node uses the same reference
      2) There is only one node with a given Ord.t value
      3) FindMap.find e points to the unique node with value e
      4) if n = Root_node(e, d), then d = depth of the tree under n
    *)
-  let validate t = check_root_refs !t; check_node_uniqueness !t
+  let validate t = check_root_refs t; check_node_uniqueness t
 
   module Class = struct
     type t = { identifier : Ord.t;
@@ -501,7 +506,7 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
   end
 
   let equivalence_classes t =
-    FindMap.fold (FindMap.fold !t ~init:FindMap.empty ~f:(fun ~key:k ~data:v acc -> match !(get_parent v) with
+    FindMap.fold (FindMap.fold t.node_map ~init:FindMap.empty ~f:(fun ~key:k ~data:v acc -> match !(get_parent t v) with
         | Root_node(v,_) -> FindMap.add_multi acc ~key:v ~data:k
         | _ -> failwith "Decide_Util.UnionFind.get_parent returned a non-root node!"))
       ~init:[] ~f:(fun ~key:k ~data:v acc -> {Class.identifier = k; Class.members = v} :: acc)

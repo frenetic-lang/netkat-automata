@@ -1,3 +1,5 @@
+exception Empty
+
 open Core.Std
 open Decide_Util
 
@@ -7,6 +9,7 @@ module PacketSet : sig
   include Set.S with type Elt.t = packet
 end
 
+ 
 module rec Term : sig
   type t = term HashCons.hash_consed and
   term = 
@@ -19,6 +22,7 @@ module rec Term : sig
     | Star of t
     | Zero 
     | One with compare, sexp
+  val equal : t -> t -> bool
   val assg : Field.t -> Value.t -> t
   val test : Field.t -> Value.t -> t
   val dup : t
@@ -31,13 +35,28 @@ module rec Term : sig
   val compare_ab : t -> point -> bool
   val eval : t -> packet -> PacketSet.t
   val to_string : t -> string
+  val values : t -> UnivMap.t
 end and TermSet : sig
   include Set.S with type Elt.t = Term.t
 end
 
+module Formula : sig
+  type t 
+  val make_eq : Term.t -> Term.t -> t
+  val make_le : Term.t -> Term.t -> t
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val to_string : t -> string
+  val terms : t -> Term.t * Term.t
+end
+
 module type DerivTerm = sig
-    module EMatrix : sig
+  
+  type t with sexp
+
+  module EMatrix : sig
     type t with sexp
+    val fold : t -> init:'a -> f:('a -> point -> 'a) -> 'a
     val run : t -> point -> bool
     val compare : t -> t -> int
     val empty : t
@@ -49,17 +68,18 @@ module type DerivTerm = sig
     type t with sexp
     val run : t -> point -> TermSet.t
     val compare : t -> t -> int
-    val equivalent : (Term.t -> Term.t -> bool) -> t -> t -> bool
+    val equivalent : (TermSet.t -> TermSet.t -> bool) -> t -> t -> bool
+    val points : t -> EMatrix.t
   end
   
-  type t with sexp  
-  val make_term : Term.t -> t
-  (* val get_term : t -> Term.t *)
-  (* val to_term : t -> Decide_Ast.Term.t *)
+  val make_term : TermSet.t -> t
+  val get_termset : t -> TermSet.t
   val get_e : t -> EMatrix.t
   val get_d : t -> DMatrix.t
   val sexp_of_t : t -> Sexplib.Sexp.t
   val compare : t -> t -> int
+  val to_string : t -> string
 end
 
-module KostasDeriv : DerivTerm
+(* module KostasDeriv : DerivTerm *)
+module BDDDeriv : DerivTerm

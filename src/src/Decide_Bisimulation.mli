@@ -1,4 +1,4 @@
 
-val check_equivalent : Decide_Ast.Term.t -> Decide_Ast.Term.t -> bool 
+val check_equivalent : Decide_Kostas.Term.t -> Decide_Kostas.Term.t -> bool 
     
 

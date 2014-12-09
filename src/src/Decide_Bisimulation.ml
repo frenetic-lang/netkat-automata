@@ -4,22 +4,24 @@ open Decide_Util
 
     
 module U = Decide_Base
-module Ast = Decide_Ast
-module Deriv = Decide_Deriv
-  
+module Ast = Decide_Kostas
+module Deriv = Decide_Kostas
+module DerivTerm = Deriv.BDDDeriv
+
 module WorkList = WorkList(struct 
-  type t = (Deriv.DerivTerm.t * Deriv.DerivTerm.t) 
+  type t = (DerivTerm.t * DerivTerm.t) 
     let compare = (fun (a1,b1) (a2,b2) -> 
-      match (Deriv.DerivTerm.compare a1 a2) with 
-	| 0 -> (Deriv.DerivTerm.compare b1 b2)
+      match (DerivTerm.compare a1 a2) with 
+	| 0 -> (DerivTerm.compare b1 b2)
 	| k -> k)
   end)
     
-  let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (Deriv.DerivTerm.to_string a) (Deriv.DerivTerm.to_string b)
+  let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (DerivTerm.to_string a) (DerivTerm.to_string b)
 
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
-    
-    let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in
+
+    let module PCC = Decide_PCC.PCC(DerivTerm) in
+    let module UF = Decide_Util.UnionFind(DerivTerm) in
     let bisim = UF.create ()
     in
     
@@ -30,35 +32,36 @@ module WorkList = WorkList(struct
       else
 	let q1,q2 = WorkList.hd work_list in
 	let rest_work_list = WorkList.tl work_list in
-	let q1_E = Deriv.DerivTerm.run_e q1 in 
-	let q2_E = Deriv.DerivTerm.run_e q2 in 
-	if not (U.Base.Set.equal q1_E q2_E)
+	let q1_E = DerivTerm.get_e q1 in 
+	let q2_E = DerivTerm.get_e q2 in 
+	if not (DerivTerm.EMatrix.compare q1_E q2_E = 0)
 	then false
 	else
 	  let u,f = UF.find bisim q1, UF.find bisim q2 in
          (* find e returns the canonical element for e, so equality of classes
             is just equality of canonical elements *)
-          if  u = f
+          if  DerivTerm.compare u f = 0
 	  then main_loop rest_work_list
 	  else 
 	    (let _ = UF.union bisim u f in
-	     let q1_matrix,q1_points = Deriv.DerivTerm.run_d q1 in 
-	     let q2_matrix,q2_points = Deriv.DerivTerm.run_d q2 in 
-	     let work_list = U.Base.Set.fold_points
-	       (fun pt expanded_work_list -> 
-		 let q1' = q1_matrix pt in
-		 let q2' = q2_matrix pt in
-		 WorkList.add (q1',q2')
-		   expanded_work_list
-	       )
-	       (U.Base.Set.union q1_points q2_points) rest_work_list in
-	     main_loop work_list) in
+	     let q1d = DerivTerm.get_d q1 in 
+	     let q2d = DerivTerm.get_d q2 in 
+             let work_list = DerivTerm.EMatrix.fold
+                 (DerivTerm.EMatrix.union (DerivTerm.DMatrix.points q1d) (DerivTerm.DMatrix.points q2d))
+                 ~init:rest_work_list
+	         ~f:(fun expanded_work_list pt -> 
+                     let q1' = DerivTerm.DMatrix.run q1d pt in
+		     let q2' = DerivTerm.DMatrix.run q2d pt in
+		     WorkList.add (DerivTerm.make_term q1',DerivTerm.make_term q2')
+                     expanded_work_list)
+      in
+      main_loop work_list) in
 
-    let t2' = Deriv.DerivTerm.make_term t2 in
+    let t2' = DerivTerm.make_term (Ast.TermSet.singleton t2) in
 
-    let t1' = Deriv.DerivTerm.make_term t1 in 
+    let t1' = DerivTerm.make_term (Ast.TermSet.singleton t1) in
 
     let ret = main_loop (WorkList.singleton (t1',t2')) in
-    (* Decide_PCC.generate_certificate t1 t2 t1' t2' uf; *)
+    PCC.generate_certificate t1 t2 t1' t2' bisim;
     Decide_Util.print_debugging_info ();
     ret
