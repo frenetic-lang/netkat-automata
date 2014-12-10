@@ -240,30 +240,11 @@ end
 
 module rec BDDDeriv : DerivTerm = struct
 
-  module Bool = struct
-    type t = bool
-
-    let hash x = if x then 1 else 0
-
-    let compare x y =
-      match x, y with
-      | true , false -> -1
-      | false, true  ->  1
-      | _    , _     ->  0
-
-    let to_string x = if x then "true" else "false"
-
-    let one = true
-    let zero = false
-
-    let sum x y = x || y
-    let prod x y = x && y
-  end
-
   open S
 
   module PartialPacketSet = struct
-    type t = PacketSet.t with sexp
+    include PacketSet
+    (* type t = PacketSet.t with sexp *)
     let pktHash pkt = FieldMap.fold pkt ~init:0 ~f:(fun ~key:k ~data:v acc -> acc * 17 + (Field.hash k) * 13 + (Value.hash v) * 11)
     let hash pkts = PacketSet.fold pkts ~init:0 ~f:(fun acc x -> acc * 13 + pktHash x)
     (* pkt <= pkt' *)
@@ -317,6 +298,17 @@ module rec BDDDeriv : DerivTerm = struct
         PacketDD.(sum (prod (atom v PartialPacketSet.one PartialPacketSet.zero) t)
                     (prod (atom v PartialPacketSet.zero PartialPacketSet.one) f))
 
+    let mask (t : t) (f,v) = PacketDD.fold (fun r -> PacketDD.const (PartialPacketSet.map r (fun pkt -> match FieldMap.find pkt f with
+        | Some v' -> if v = v' then FieldMap.remove pkt f else pkt
+        | None -> pkt)))
+        (fun v t f -> cond v t f) t
+    (* Because (h=v;h<-v) == h=v, we don't have canonical
+       representation in DD's. This function canonicalizes by removing
+       shadowed modifications 
+    *)
+    let reduce t = PacketDD.fold (fun r -> PacketDD.const r)
+        (fun v t f -> cond v (mask t v) f) t
+
     let rec t_of_sexp sexp = let open Sexplib in
       match sexp with
       | Sexp.List ss -> begin match List.length ss with
@@ -345,15 +337,15 @@ module rec BDDDeriv : DerivTerm = struct
     let zero = PacketDD.const PartialPacketSet.zero
        
     let times e1 e2 =
-      PacketDD.fold
-        (fun par ->
-           PacketSet.fold par ~init:zero ~f:(fun acc pkt ->
-               let e2' = PacketDD.restrict FieldMap.(to_alist pkt) e2 in
-               PacketDD.(sum (prod (const PacketSet.(singleton pkt)) e2') acc)))
-        (fun v t f -> cond v t f)
-        e1
+      reduce (PacketDD.fold
+                (fun par ->
+                   PacketSet.fold par ~init:zero ~f:(fun acc pkt ->
+                       let e2' = PacketDD.restrict FieldMap.(to_alist pkt) e2 in
+                       PacketDD.(sum (prod (const PacketSet.(singleton pkt)) e2') acc)))
+                (fun v t f -> cond v t f)
+                e1)
 
-    let plus e1 e2 = PacketDD.sum e1 e2
+    let plus e1 e2 = reduce (PacketDD.sum e1 e2)
     let star e =
       let rec loop acc =
         let acc' = plus one (times e acc) in
@@ -361,27 +353,28 @@ module rec BDDDeriv : DerivTerm = struct
         then acc
         else loop acc'
       in
-      loop e
+      reduce (loop e)
 
     let rec matrix_of_term t =
-      match t.node with
-      | Plus ts -> TermSet.fold ts ~init:zero ~f:(fun acc v -> plus acc (matrix_of_term v))
-      | Dup -> empty
-      | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times (matrix_of_term x) acc)
-      | Star t -> star (matrix_of_term t)
-      | Assg (f,v) -> PacketDD.const (PacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
-      | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
-      (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
-      | Not t -> PacketDD.map_r (fun p -> match PacketSet.equal PartialPacketSet.one p with
-          | true -> PartialPacketSet.zero
-          | false -> assert (PacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
-      | Zero -> zero
-      | One -> one
-        
+      let result = match t.node with
+        | Plus ts -> TermSet.fold ts ~init:zero ~f:(fun acc v -> plus acc (matrix_of_term v))
+        | Dup -> empty
+        | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times acc (matrix_of_term x))
+        | Star t -> star (matrix_of_term t)
+        | Assg (f,v) -> PacketDD.const (PacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
+        | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
+        (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
+        | Not t -> PacketDD.map_r (fun p -> match PacketSet.equal PartialPacketSet.one p with
+            | true -> PartialPacketSet.zero
+            | false -> assert (PacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
+        | Zero -> zero
+        | One -> one in
+      reduce result
+
     let compare t1 t2 = if PacketDD.equal t1 t2 then 0 else -1
     let intersection_empty e e' = PacketDD.equal (PacketDD.prod e e') empty
-    let union e1 e2 = PacketDD.sum e1 e2
-    let intersection e1 e2 = PacketDD.prod e1 e2
+    let union e1 e2 = reduce (PacketDD.sum e1 e2)
+    let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
 
     let convert_point (pt : Base.point) : point = match pt with
       | Point (lhs,rhs) -> (Base.Map.fold (fun k v acc -> FieldMap.add acc ~key:k ~data:v) lhs FieldMap.empty,

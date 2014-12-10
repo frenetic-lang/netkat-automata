@@ -410,14 +410,14 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
   
   let eq t a b =
     let l1,l2 = (find t a, find t b) in
-    l1 = l2
+    Ord.compare l1 l2 = 0
 
   let union t c1 c2 =
     let c1_root = find_ref t c1 in
     let c2_root = find_ref t c2 in
     match (!c1_root,!c2_root) with 
     | (Root_node (l1,d1), Root_node (l2,d2)) -> 
-      if l1 = l2 then ()
+      if Ord.compare l1 l2 = 0 then ()
       else if !d2 < !d1 then (*c1 is new root*)
         let leaf = Leaf_node (l2,c1_root) in
 	c2_root := leaf;

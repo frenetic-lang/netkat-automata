@@ -31,6 +31,7 @@ module UF = Decide_Util.UnionFind(DerivTerm)
 	true
       else
 	let q1,q2 = WorkList.hd work_list in
+        Printf.printf "q1: %s\nq2: %s\n" (DerivTerm.to_string q1) (DerivTerm.to_string q2);
 	let rest_work_list = WorkList.tl work_list in
 	let q1_E = DerivTerm.get_e q1 in 
 	let q2_E = DerivTerm.get_e q2 in 
