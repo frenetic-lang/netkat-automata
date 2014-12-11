@@ -259,18 +259,19 @@ module rec BDDDeriv : DerivTerm = struct
         | `Both (_,v) -> raise Not_found))
       with Not_found -> None
       
-          
-    let compare p1 p2 =
-      let pointwiseCompare p p' = PacketSet.for_all p (fun pkt -> PacketSet.exists p' (partialPacketCompare pkt)) in
-      match pointwiseCompare p1 p2 with
-      | true -> begin match pointwiseCompare p2 p1 with
-          | true -> 0
-          | false -> -1
-        end
-      | false -> begin match pointwiseCompare p2 p1 with
-          | true -> 1
-          | false -> -1
-        end
+
+    (* let compare p1 p2 = *)
+    (*   let pointwiseCompare p p' = PacketSet.for_all p (fun pkt -> PacketSet.exists p' (partialPacketCompare pkt)) in *)
+    (*   match pointwiseCompare p1 p2 with *)
+    (*   | true -> begin match pointwiseCompare p2 p1 with *)
+    (*       | true -> 0 *)
+    (*       | false -> -1 *)
+    (*     end *)
+    (*   | false -> begin match pointwiseCompare p2 p1 with *)
+    (*       | true -> 1 *)
+    (*       | false -> -1 *)
+    (*     end *)
+    let compare = PacketSet.compare
     let contains p pkt = PacketSet.exists p (partialPacketCompare pkt)
     (* We could simplify (i.e. {*} U {pkt} -> {*}), but KISS for now *)
     let sum = PacketSet.union
@@ -278,6 +279,7 @@ module rec BDDDeriv : DerivTerm = struct
         PacketSet.union acc (PacketSet.filter_map p2 (packetJoin x)))
     let zero = PacketSet.empty
     let one = PacketSet.singleton FieldMap.empty
+    let union = sum
 
     let to_string t = Sexplib.Sexp.to_string (sexp_of_t t)
   end
@@ -345,16 +347,23 @@ module rec BDDDeriv : DerivTerm = struct
     let times e1 e2 =
       reduce (PacketDD.fold
                 (fun par ->
-                   PacketSet.fold par ~init:zero ~f:(fun acc pkt ->
+                   PartialPacketSet.fold par ~init:zero ~f:(fun acc pkt ->
                        let e2' = PacketDD.restrict FieldMap.(to_alist pkt) e2 in
                        PacketDD.(sum (PacketDD.map_r (fun pkts -> PartialPacketSet.map pkts (seq_pkt pkt)) e2') acc)))
                 (fun v t f -> cond v t f)
                 e1)
 
     let plus e1 e2 = reduce (PacketDD.sum e1 e2)
+
     let star e =
+      Printf.printf "one: %s\n" (PacketDD.to_string one);
+      Printf.printf "zero: %s\n" (PacketDD.to_string zero);
       let rec loop acc =
+        Printf.printf "acc:     %s\n" (PacketDD.to_string acc);
         let acc' = plus one (times e acc) in
+        Printf.printf "product: %s\n" (PacketDD.to_string (times e acc));
+        Printf.printf "acc':    %s\n" (PacketDD.to_string acc');
+        Printf.printf "'real':  %s\n" (PacketDD.to_string (PacketDD.map_r (PartialPacketSet.union PartialPacketSet.one) (times e acc)));
         if PacketDD.equal acc acc'
         then acc
         else loop acc'
@@ -367,12 +376,12 @@ module rec BDDDeriv : DerivTerm = struct
         | Dup -> empty
         | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times acc (matrix_of_term x))
         | Star t -> star (matrix_of_term t)
-        | Assg (f,v) -> PacketDD.const (PacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
+        | Assg (f,v) -> PacketDD.const (PartialPacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
         | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
         (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
-        | Not t -> PacketDD.map_r (fun p -> match PacketSet.equal PartialPacketSet.one p with
+        | Not t -> PacketDD.map_r (fun p -> match PartialPacketSet.equal PartialPacketSet.one p with
             | true -> PartialPacketSet.zero
-            | false -> assert (PacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
+            | false -> assert (PartialPacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
         | Zero -> zero
         | One -> one in
       reduce result
@@ -388,7 +397,7 @@ module rec BDDDeriv : DerivTerm = struct
 
     let fold t ~init:init ~f:f =
       let of_assg_map pkt = FieldMap.fold pkt ~init:(Base.Set.singleton (Base.univ_base ())) ~f:(fun ~key:k ~data:v acc -> Base.Set.mult acc (Base.Set.singleton (Base.of_assg k v))) in
-      let base = PacketDD.fold (fun r -> Base.Set.compact (PacketSet.fold r ~init:Base.Set.empty ~f:(fun acc pkt -> Base.Set.union (of_assg_map pkt) acc)))
+      let base = PacketDD.fold (fun r -> Base.Set.compact (PartialPacketSet.fold r ~init:Base.Set.empty ~f:(fun acc pkt -> Base.Set.union (of_assg_map pkt) acc)))
           (fun (h,v) t f -> Base.Set.union (Base.Set.mult (Base.Set.singleton (Base.of_test h v)) t) (Base.Set.mult (Base.Set.singleton (Base.of_neg_test h v)) f)) t in
       Base.Set.fold_points (fun pt a -> f a (convert_point pt)) base init
   end
