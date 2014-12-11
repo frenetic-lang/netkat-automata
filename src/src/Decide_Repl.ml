@@ -111,7 +111,7 @@ let rec repl (state : state) : unit =
     ) 
     else input in
   print_string "process, serialize, or verify: ";
-  (match read_line() (* "verify" *)  with 
+  (match (* read_line() *) "process"  with 
     | "process" ->
       Printf.printf "processing...\n%!";
       (* if run_loop  *)

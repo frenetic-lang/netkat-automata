@@ -335,13 +335,19 @@ module rec BDDDeriv : DerivTerm = struct
 
     let one = PacketDD.const PartialPacketSet.one
     let zero = PacketDD.const PartialPacketSet.zero
-       
+
+    let seq_pkt pkt1 pkt2 = FieldMap.merge pkt1 pkt2 ~f:(fun ~key:k v ->
+        match v with
+        | `Right v -> Some v
+        | `Left v -> Some v
+        | `Both (_,v) -> Some v)
+    
     let times e1 e2 =
       reduce (PacketDD.fold
                 (fun par ->
                    PacketSet.fold par ~init:zero ~f:(fun acc pkt ->
                        let e2' = PacketDD.restrict FieldMap.(to_alist pkt) e2 in
-                       PacketDD.(sum (prod (const PacketSet.(singleton pkt)) e2') acc)))
+                       PacketDD.(sum (PacketDD.map_r (fun pkts -> PartialPacketSet.map pkts (seq_pkt pkt)) e2') acc)))
                 (fun v t f -> cond v t f)
                 e1)
 
