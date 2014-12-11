@@ -8,7 +8,7 @@ let run_bisimulation t1 t2 =
   let t2vals = Decide_Kostas.Term.values t2 in 
   if set_univ [t1vals; t2vals]
   then Decide_Bisimulation.check_equivalent t1 t2
-  else Decide_Kostas.Term.equal t1 t2
+  else Decide_Bisimulation.check_equivalent t1 t2
 
 exception ParseError of int * int * string
                               
