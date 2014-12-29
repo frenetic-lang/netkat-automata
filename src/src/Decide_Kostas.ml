@@ -22,7 +22,7 @@ module rec TermBase : sig
     | Assg of Field.t * Value.t
     | Test of Field.t * Value.t
     | Dup 
-    | Plus of TermSet.t
+    | Plus of TermSetBase.t
     | Times of t list 
     | Not of t
     | Star of t
@@ -34,14 +34,14 @@ end = struct
     | Assg of Field.t * Value.t
     | Test of Field.t * Value.t
     | Dup 
-    | Plus of TermSet.t
+    | Plus of TermSetBase.t
     | Times of t list 
     | Not of t
     | Star of t
     | Zero 
     | One with compare, sexp
 
-end and TermSet : sig
+end and TermSetBase : sig
   include Set.S with type Elt.t = TermBase.t
 end = Set.Make (struct
       type t = TermBase.t with compare, sexp
@@ -74,7 +74,7 @@ module Term (* : sig *)
         | None -> PacketSet.empty
       end
     | Dup -> raise (Failure "t must be dup-free")  
-    | Plus ts -> TermSet.fold ts ~f:(fun acc t -> PacketSet.union (eval t pkt) acc) ~init:PacketSet.empty
+    | Plus ts -> TermSetBase.fold ts ~f:(fun acc t -> PacketSet.union (eval t pkt) acc) ~init:PacketSet.empty
     | Times ts -> List.fold ts ~init:(PacketSet.singleton pkt) ~f:(fun accum t ->
         PacketSet.fold accum ~init:PacketSet.empty ~f:(fun acc pkt -> PacketSet.union acc (eval t pkt)))
     | Not t -> let ret = eval t pkt in
@@ -120,7 +120,7 @@ module Term (* : sig *)
         "dup"
       | Plus (ts) -> 
         assoc_to_string " + " "0" 
-          (List.map ~f:protect (TermSet.elements ts))
+          (List.map ~f:protect (TermSetBase.elements ts))
       | Times (ts) -> 
         assoc_to_string ";" "1" (List.map ~f:protect ts)
       | Not (t) -> 
@@ -155,14 +155,18 @@ module Term (* : sig *)
     let rec collect (m : UnivMap.t) (t : TermBase.t) : UnivMap.t =
       match t.node with
 	| (Assg (x,v) | Test (x,v)) -> UnivMap.add x v m
-	| Plus s -> TermSet.fold s ~init:m ~f:collect
+	| Plus s -> TermSetBase.fold s ~init:m ~f:collect
 	| Times s -> List.fold_right s ~init:m ~f:(fun a b -> collect b a)
 	| (Not x | Star x) -> collect m x
 	| (Dup  | Zero  | One ) -> m in
     collect UnivMap.empty t
 
   let equal t1 t2 = compare t1 t2 = 0
-      
+end
+
+module TermSet = struct
+  include TermSetBase
+  let to_string ts = Printf.sprintf "{%s}" (String.concat ~sep:", " (List.map (elements ts) Term.to_string))
 end
 
 module Formula = struct
@@ -400,6 +404,9 @@ module rec BDDDeriv : DerivTerm = struct
       let base = PacketDD.fold (fun r -> Base.Set.compact (PartialPacketSet.fold r ~init:Base.Set.empty ~f:(fun acc pkt -> Base.Set.union (of_assg_map pkt) acc)))
           (fun (h,v) t f -> Base.Set.union (Base.Set.mult (Base.Set.singleton (Base.of_test h v)) t) (Base.Set.mult (Base.Set.singleton (Base.of_neg_test h v)) f)) t in
       Base.Set.fold_points (fun pt a -> f a (convert_point pt)) base init
+
+    let to_string = PacketDD.to_string
+
   end
 
   module DMatrix = struct
@@ -478,6 +485,10 @@ module rec BDDDeriv : DerivTerm = struct
         (CompactDerivSet.fold d1 ~init:EMatrix.empty ~f:(fun acc x -> EMatrix.union x.left_hand acc)) = 0
 
     let points t = CompactDerivSet.fold t ~init:EMatrix.zero ~f:(fun acc x -> EMatrix.union acc x.left_hand)
+
+    let to_string t = Printf.sprintf "{%s}" (String.concat ~sep:"; " (List.map (CompactDerivSet.elements t)
+                                                                        (fun elm -> Printf.sprintf "(%s,%s)" (EMatrix.to_string elm.left_hand)
+                                                                            (Term.to_string elm.right_hand))))
   end
 
   type t = { desc : TermSet.t;
@@ -516,7 +527,10 @@ module rec BDDDeriv : DerivTerm = struct
     }
 
   let compare t t' = TermSet.compare t.desc t'.desc
-  let to_string t = Sexplib.Sexp.to_string (sexp_of_t t)
+  let to_string t = Printf.sprintf "[desc: %s; e_matrix: %s; d_matrix: %s]"
+      (TermSet.to_string t.desc)
+      (EMatrix.to_string (get_e t))
+      (DMatrix.to_string (get_d t))
 end
   
 (* module rec KostasDeriv : DerivTerm = struct *)
