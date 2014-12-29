@@ -48,7 +48,8 @@ module Base : sig
 
     val project_lhs : t -> t
     module Set : sig 
-      include Set.S with type elt = t
+      include Core.Std.Set.S with type Elt.t = t
+      val add : Elt.t -> t -> t
       val t_of_sexp : Sexplib.Sexp.t -> t
       val sexp_of_t : t -> Sexplib.Sexp.t
       val shallow_equal : t -> t -> bool

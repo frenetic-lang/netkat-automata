@@ -22,17 +22,13 @@ Library netkat_decide
     tdk
   InternalModules: 
     Decide_Base,
-    Decide_Deriv,
     Decide_PCC,
     Decide_Lexer,
     Decide_Parser,
     Decide_Repl,
-    Decide_Set,
     Decide_Kostas
   Modules:
     Decide_Util,
-    Decide_Ast,
-    Decide_Loopfree,
     Decide_Bisimulation
 
 Executable netkat

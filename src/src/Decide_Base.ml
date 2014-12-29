@@ -257,6 +257,8 @@ module Base = struct
 
 
   type t = Base of atom * assg with sexp
+  let base_sexp_of_t = sexp_of_t
+  let base_t_of_sexp = t_of_sexp
   (* must be a Pos * completely-filled-in thing*)
   type point = Point of assg * assg with sexp
 
@@ -312,9 +314,9 @@ module Base = struct
   let equal (x:t) (y:t) : bool = 
     compare x y = 0
 
-  type this_t = t
-  module S = Decide_Set.Make(struct
-    type t = this_t
+  type this_t = t with sexp
+  module S = Core.Std.Set.Make(struct
+    type t = this_t with sexp
     let compare = compare
     let equal = equal
   end)
@@ -493,29 +495,28 @@ module Base = struct
     include S
 
     (* sexp_of_t in the body refers to Base.sexp_of_t *)
-    let sexp_of_t t = Sexplib.Conv.sexp_of_list sexp_of_t (elements t)
-    let t_of_sexp s = of_list (Sexplib.Conv.list_of_sexp t_of_sexp s)
+    let sexp_of_t t = Sexplib.Conv.sexp_of_list base_sexp_of_t (elements t)
+    let t_of_sexp s = of_list (Sexplib.Conv.list_of_sexp base_t_of_sexp s)
         
     let to_string (bs:t) : string = 
       Printf.sprintf "{%s}" 
-        (S.fold 
-	   (fun x s -> 
-	     (if s = "" then s else s ^ ",\n") ^ to_string x) bs "")
+        (S.fold bs ~init:"" ~f:(fun s x -> 
+	     (if s = "" then s else s ^ ",\n") ^ to_string x))
 	  
 
-    let failed_Count = Decide_Util.failed_Count
-    let success_count = Decide_Util.success_count
-    (* TODO: a more efficient multiplication would be nice.*)
-    let old_mult (left : t) (right : t) : t =
-      let f x y (r : t) : t =
-        match mult x y with
-          | Some z -> success_count := !success_count + 1; assert (!success_count > 0); add z r
-          | None -> failed_Count := !failed_Count + 1; assert (!failed_Count > 0); r in
-      let g x  (r : t) : t = fold (f x) right r in
-      fold g left empty
+    (* let failed_Count = Decide_Util.failed_Count *)
+    (* let success_count = Decide_Util.success_count *)
+    (* (\* TODO: a more efficient multiplication would be nice.*\) *)
+    (* let old_mult (left : t) (right : t) : t = *)
+    (*   let f x y (r : t) : t = *)
+    (*     match mult x y with *)
+    (*       | Some z -> success_count := !success_count + 1; assert (!success_count > 0); add z r *)
+    (*       | None -> failed_Count := !failed_Count + 1; assert (!failed_Count > 0); r in *)
+    (*   let g x  (r : t) : t = fold (f x) right r in *)
+    (*   fold g left empty *)
 
     let contains_point (st : t) (pt : point) : bool = 
-      fold (fun e acc -> (contains_point pt e) || acc) st false
+      fold st ~init:false ~f:(fun acc e -> (contains_point pt e) || acc)
 	
     (* we're dealing with duplicates right now by 
        rememering and skipping points.  
@@ -524,21 +525,19 @@ module Base = struct
     *)
 
     let fold_points (f : (point -> 'a -> 'a)) (st : t) (acc : 'a) : 'a =
-      snd (fold 
-	     (fun base pacc -> 
+      snd (fold st ~init:(S.empty,acc) ~f:(fun pacc base -> 
 	       fold_points (fun elt (seen_points,acc) -> 
 		 let belt = base_of_point elt in 
-		 if S.mem belt seen_points
+		 if S.mem seen_points belt
 		 then seen_points,acc
-		 else (S.add belt seen_points, f elt acc))
-		 base pacc)
-	     st (S.empty,acc))
+		 else (S.add seen_points belt, f elt acc))
+		 base pacc))
 
 	
     let shallow_equal a b = 
-      if cardinal a = cardinal b 
+      if length a = length b
       then List.fold_left2
-	(fun (acc : bool) (a : elt) (b : elt) -> 
+	(fun (acc : bool) (a : Elt.t) (b : Elt.t) -> 
 	  acc && (0 = compar a b)
 	) true (elements a) (elements b) 
       else false
@@ -555,39 +554,43 @@ module Base = struct
        or should you restart as soon as you've succeeded on a merge? *)
 
     let compare_rhs (Base(_,a)) (Base(_,b)) = assg_compare a b
-      
+
+    let fold_range s ~init ~f ~start ~stop =
+      fold_until s ~init:init ~f:(fun acc x -> match start x, stop x with
+          | true,true -> `Continue (f acc x)
+          | false, _ -> `Continue acc
+          | _, false -> `Stop acc)
+
     let merge_element : this_t -> t -> t = (fun a e' -> 
       let a = ref a in 
       let to_remove = 
-	(fold_range 	    
+	(fold_range e' ~init:empty ~f:(fun (acc : t) b ->
+	     assert (compare_rhs !a b = 0);
+	     match bunion !a b with 
+	       | [a'] -> let olda = !a in a:= a'; (add (add acc b) olda)
+	       | [a;b] -> acc
+	       | _ -> failwith "bunion didn't work like i wanted.")
 	   (* minimal base with equal RHS *)
-	   (fun e -> match compare_rhs e !a with 
+	   ~start:(fun e -> match compare_rhs e !a with 
 	     | -1 -> false
 	     | (0 | 1) -> true
 	     | _ -> failwith "bad compare function")
 	   (* maximal base with equal RHS *)
-	   (fun e -> match compare_rhs e !a with 
+	   ~stop:(fun e -> match compare_rhs e !a with 
 	     | (-1 | 0) -> true 
 	     | 1 -> false
-	     | _ -> failwith "bad compare function" )
-	   (fun b acc -> 
-	     assert (compare_rhs !a b = 0);
-	     match bunion !a b with 
-	       | [a'] -> let olda = !a in a:= a'; (add olda (add b acc))
-	       | [a;b] -> acc
-	       | _ -> failwith "bunion didn't work like i wanted.") 
-	   e' empty ) in 
-      add !a (diff e' to_remove)
+	     | _ -> failwith "bad compare function" )) in 
+      add (diff e' to_remove) !a
     )
 
     let rec compact e = 
-      let old_cardinal = cardinal e in 
-      let e' = fold merge_element e e  in 
+      let old_cardinal = length e in 
+      let e' = fold e ~init:e ~f:(fun acc x -> merge_element x acc)  in 
       if Decide_Util.debug_mode 
       then (assert (equal e e');
-	    assert (old_cardinal >= (cardinal e'))
+	    assert (old_cardinal >= (length e'))
       );
-      if old_cardinal = (cardinal e')
+      if old_cardinal = (length e')
       then e' 
       else compact e'
 	  
@@ -595,9 +598,9 @@ module Base = struct
       let res = union a b in 
       res
 
-    let add a b = 
+    let add a b =
       let res = 
-	if mem a b then b
+	if mem b a then b
 	else merge_element a b in 
       res
 (*
@@ -644,31 +647,31 @@ module Base = struct
 	    ValHash.replace hash k (add v (ValHash.find hash k))) ks;
 	hash in
 
-      let phase1 = fold 
-	(fun b  acc -> 
-	  let Base(test,assg) = b in
-	  List.map
-	    (fun (field,valset,valhash,others) -> 
-	      try 
-		let a = Map.find field assg in 
-		field,Decide_Util.ValueSet.add a valset,incr_add a b valhash, others
-	      with Not_found -> 
-		try 
-		  let a = Map.find field test in 
-		  match a with 
-		    | PosNeg.Pos(_,a) -> field,
-		      Decide_Util.ValueSet.union a valset,incr_add_all a b valhash, others
-		    | _ -> raise Not_found
-		with Not_found -> 
-		  field,valset,valhash,add b others) acc)
-	left (Decide_Util.FieldSet.fold 
+      let phase1 = fold left ~init:(Decide_Util.FieldSet.fold 
 		 (fun f acc -> 
 		   (f,Decide_Util.ValueSet.empty,ValHash.create 1000,empty)::acc) 
-		 (!Decide_Util.all_fields ()) []) in
+                   (!Decide_Util.all_fields ()) [])
+	  ~f:(fun acc b -> 
+	let Base(test,assg) = b in
+	List.map
+	  (fun (field,valset,valhash,others) -> 
+	     try 
+	       let a = Map.find field assg in 
+	       field,Decide_Util.ValueSet.add a valset,incr_add a b valhash, others
+	     with Not_found -> 
+	       try 
+		 let a = Map.find field test in 
+		 match a with 
+		 | PosNeg.Pos(_,a) -> field,
+		                      Decide_Util.ValueSet.union a valset,incr_add_all a b valhash, others
+		 | _ -> raise Not_found
+	       with Not_found -> 
+		 field,valset,valhash,add b others) acc)
+      in
 
       let phase2 = 
-	fold 
-	  (fun b acc -> 
+	fold right
+	  ~f:(fun acc b -> 
 	    let to_intersect = 
 	      List.map
 		(fun (f,vs,vh,bs) -> 
@@ -677,7 +680,7 @@ module Base = struct
 		    (Decide_Util.ValueSet.fold 
 		       (fun a -> union (ValHash.find vh a)) i empty) 
 		    bs) phase1 in 
-	    (b,intersect_all to_intersect)::acc) right [] in 
+	    (b,intersect_all to_intersect)::acc) ~init:[] in 
 
 	(* TODO: take (lhs - phase2) and do mult with that as well.  assert that 
 	   the result is empty for each pair.  If it's not empty, print out the pair that 
@@ -687,24 +690,24 @@ module Base = struct
       let phase3 = 
 	List.fold_left
 	  (fun acc (rhs,cnds) -> 
-	    fold (fun lhs acc -> 
+	    fold cnds ~f:(fun acc lhs -> 
 	      match (mult lhs rhs) with 
 		| Some r -> add r acc
 		| None -> acc
-	    ) cnds acc) empty phase2 in 
+	    ) ~init:acc) empty phase2 in 
       
-      if Decide_Util.debug_mode 
-      then (
-	let old_res = (old_mult left right) in
-	if not (equal old_res phase3)
-	then (Printf.eprintf "LHS of mult: %s\nRHS of mult: %s\nNew result: %s\nOld result: %s\n"
-		(to_string left) 
-		(to_string right) 
-		(to_string (compact (compact (compact (compact phase3)))))
-		(to_string (compact (compact (compact (compact old_res)))));
-	      failwith "new mult and old mult don't agree!");
-	phase3)
-      else phase3
+      (* if Decide_Util.debug_mode  *)
+      (* then ( *)
+      (*   let old_res = (old_mult left right) in *)
+      (*   if not (equal old_res phase3) *)
+      (*   then (Printf.eprintf "LHS of mult: %s\nRHS of mult: %s\nNew result: %s\nOld result: %s\n" *)
+      (*   	(to_string left)  *)
+      (*   	(to_string right)  *)
+      (*   	(to_string (compact (compact (compact (compact phase3))))) *)
+      (*   	(to_string (compact (compact (compact (compact old_res))))); *)
+      (*         failwith "new mult and old mult don't agree!"); *)
+      (*   phase3) *)
+      (* else *) phase3
 
 
 
@@ -712,12 +715,12 @@ module Base = struct
 
       
     let filter_alpha bs (beta : complete_test) = 
-      fold
-	(fun b acc -> 
+      fold bs
+	~f:(fun acc b -> 
 	  match (filter_alpha b beta) with 
 	    | None -> acc
 	    | Some r -> add r acc)
-	bs empty
+	~init:empty
 
 
     let print_debugging_info _ = ()
