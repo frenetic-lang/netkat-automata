@@ -119,10 +119,10 @@ module Term (* : sig *)
       | Dup -> 
         "dup"
       | Plus (ts) -> 
-        assoc_to_string " + " "0" 
+        assoc_to_string " + " "drop" 
           (List.map ~f:protect (TermSetBase.elements ts))
       | Times (ts) -> 
-        assoc_to_string ";" "1" (List.map ~f:protect ts)
+        assoc_to_string ";" "id" (List.map ~f:protect ts)
       | Not (t) -> 
         "~" ^ (protect t)
       | Star (t) -> 
@@ -143,7 +143,10 @@ module Term (* : sig *)
   let test f v = H.hashcons hashtbl (Test (f,v))
   let dup = H.hashcons hashtbl Dup
   let plus ts = H.hashcons hashtbl (Plus ts)
-  let times ts = H.hashcons hashtbl (Times ts)
+  let times ts = H.hashcons hashtbl (Times (List.fold_right ts ~init:[] ~f:(fun x acc -> match x.node with
+      | One -> acc
+      | Times ts' -> ts' @ acc
+      | _ -> x :: acc)))
   let not t = H.hashcons hashtbl (Not t)
   let star t = H.hashcons hashtbl (Star t)
   let zero = H.hashcons hashtbl Zero
@@ -360,14 +363,8 @@ module rec BDDDeriv : DerivTerm = struct
     let plus e1 e2 = reduce (PacketDD.sum e1 e2)
 
     let star e =
-      Printf.printf "one: %s\n" (PacketDD.to_string one);
-      Printf.printf "zero: %s\n" (PacketDD.to_string zero);
       let rec loop acc =
-        Printf.printf "acc:     %s\n" (PacketDD.to_string acc);
         let acc' = plus one (times e acc) in
-        Printf.printf "product: %s\n" (PacketDD.to_string (times e acc));
-        Printf.printf "acc':    %s\n" (PacketDD.to_string acc');
-        Printf.printf "'real':  %s\n" (PacketDD.to_string (PacketDD.map_r (PartialPacketSet.union PartialPacketSet.one) (times e acc)));
         if PacketDD.equal acc acc'
         then acc
         else loop acc'
@@ -407,6 +404,11 @@ module rec BDDDeriv : DerivTerm = struct
 
     let to_string = PacketDD.to_string
 
+    let packet_to_beta pkt = Term.times (FieldMap.fold pkt ~init:[] ~f:(fun ~key:k ~data:v acc ->
+        assg k v :: acc))
+        
+    let betas = PacketDD.fold (fun pkts -> PartialPacketSet.fold pkts ~init:TermSet.empty ~f:(fun acc x -> TermSet.union acc (TermSet.singleton (packet_to_beta x)))) (fun _ -> TermSet.union)
+
   end
 
   module DMatrix = struct
@@ -429,11 +431,11 @@ module rec BDDDeriv : DerivTerm = struct
     let run t point =
       CompactDerivSet.fold t ~init:TermSet.empty
         ~f:(fun acc deriv -> if EMatrix.run deriv.left_hand point
-             then TermSet.union (TermSet.singleton deriv.right_hand) acc
+             then TermSet.union (TermSet.map (EMatrix.betas deriv.left_hand) ~f:(fun b -> Term.times [b; deriv.right_hand])) acc
              else acc)
 
     let term_append t e = Term.times [t; e]
-    let left_app e d = { d with left_hand = EMatrix.times d.left_hand e }
+    let left_app e d = { d with left_hand = EMatrix.times e d.left_hand }
     let right_app d e = { d with right_hand = term_append d.right_hand e }
 
     let d_right_app ds e = CompactDerivSet.map ds (fun x -> right_app x e)
