@@ -325,6 +325,7 @@ module rec BDDDeriv : DerivTerm = struct
                    (t_of_sexp (List.nth_exn ss 1))
                    (t_of_sexp (List.nth_exn ss 2))
           | 2 -> PacketDD.const (PartialPacketSet.t_of_sexp (List.nth_exn ss 1))
+          | _ -> of_sexp_error "Neither a leaf nor a branch node" sexp
         end
       | Sexp.Atom _ -> failwith "This can't happen"
 
@@ -393,7 +394,7 @@ module rec BDDDeriv : DerivTerm = struct
     let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
 
     let convert_point (pt : Base.point) : point = match pt with
-      | Point (lhs,rhs) -> (Base.Map.fold (fun k v acc -> FieldMap.add acc ~key:k ~data:v) lhs FieldMap.empty,
+      | Base.Point (lhs,rhs) -> (Base.Map.fold (fun k v acc -> FieldMap.add acc ~key:k ~data:v) lhs FieldMap.empty,
                             Base.Map.fold (fun k v acc -> FieldMap.add acc ~key:k ~data:v) rhs FieldMap.empty)
 
     let fold t ~init:init ~f:f =
