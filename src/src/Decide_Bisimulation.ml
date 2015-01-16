@@ -1,9 +1,7 @@
 
-open Decide_Base
 open Decide_Util
 
     
-module U = Decide_Base
 module Ast = Decide_Kostas
 module Deriv = Decide_Kostas
 module DerivTerm = Deriv.BDDDeriv

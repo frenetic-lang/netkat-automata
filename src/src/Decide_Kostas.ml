@@ -1,5 +1,3 @@
-module Base = Decide_Base.Base
-                
 open Core.Std
 open Sexplib.Conv
 open Decide_Util
@@ -8,7 +6,11 @@ open Tdk
 module FieldMap = Map.Make(Field)
 
 type packet = Value.t FieldMap.t with sexp,compare
-type point = packet * packet
+type point = packet * packet with sexp, compare
+
+module PointSet = Set.Make (struct
+    type t = point with sexp, compare
+  end)
 
 module PacketSet = Set.Make (struct
     type t = packet with sexp, compare
@@ -393,15 +395,30 @@ module rec BDDDeriv : DerivTerm = struct
     let union e1 e2 = reduce (PacketDD.sum e1 e2)
     let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
 
-    let convert_point (pt : Base.point) : point = match pt with
-      | Base.Point (lhs,rhs) -> (Base.Map.fold (fun k v acc -> FieldMap.add acc ~key:k ~data:v) lhs FieldMap.empty,
-                            Base.Map.fold (fun k v acc -> FieldMap.add acc ~key:k ~data:v) rhs FieldMap.empty)
+    let get_points t : PointSet.t =
+      let base_points =
+        PacketDD.fold
+          (fun r -> PartialPacketSet.fold r ~f:(fun acc pkt -> PointSet.add acc (FieldMap.empty, pkt)) ~init:PointSet.empty)
+          (fun (h,v) t f ->
+             PointSet.union f (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2)))
+          t
+      in
+      Printf.printf "Base points: %s\n" (Sexp.to_string (PointSet.sexp_of_t base_points));
+      PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Decide_Util.FieldSet.fold (fun field pts ->
+          PointSet.fold pts ~f:(fun acc (a,b) -> PointSet.union acc
+          begin
+            match FieldMap.find a field, FieldMap.find b field with
+            | Some _, Some _ -> PointSet.singleton (a,b)
+            | Some x, None -> PointSet.singleton (a, FieldMap.add b ~key:field ~data:x)
+            | None, Some _ -> Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, b)) (!Decide_Util.all_values () field) PointSet.empty
+            | None, None -> Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, FieldMap.add b ~key:field ~data:v))
+                              (!Decide_Util.all_values () field) PointSet.empty
+          end) ~init:PointSet.empty) (!Decide_Util.all_fields ()) (PointSet.singleton pt))) ~init:PointSet.empty
 
     let fold t ~init:init ~f:f =
-      let of_assg_map pkt = FieldMap.fold pkt ~init:(Base.Set.singleton (Base.univ_base ())) ~f:(fun ~key:k ~data:v acc -> Base.Set.mult acc (Base.Set.singleton (Base.of_assg k v))) in
-      let base = PacketDD.fold (fun r -> Base.Set.compact (PartialPacketSet.fold r ~init:Base.Set.empty ~f:(fun acc pkt -> Base.Set.union (of_assg_map pkt) acc)))
-          (fun (h,v) t f -> Base.Set.union (Base.Set.mult (Base.Set.singleton (Base.of_test h v)) t) (Base.Set.mult (Base.Set.singleton (Base.of_neg_test h v)) f)) t in
-      Base.Set.fold_points (fun pt a -> f a (convert_point pt)) base init
+      let pts = get_points t in
+      Printf.printf "get_points: %s\n" (Sexp.to_string (PointSet.sexp_of_t pts));
+      PointSet.fold pts ~f:f ~init:init
 
     let to_string = PacketDD.to_string
 

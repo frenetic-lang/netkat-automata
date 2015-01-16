@@ -21,7 +21,6 @@ Library netkat_decide
     threads,
     tdk
   InternalModules: 
-    Decide_Base,
     Decide_PCC,
     Decide_Lexer,
     Decide_Parser,
