@@ -1,8 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5bf810f699010b28aee0c90112ce2c55)
+# DO NOT EDIT (digest: f7e94c33d1635f6e4304b5f9f83d59af)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
+true: annot, bin_annot
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
 ".bzr": -traverse
@@ -15,5 +16,18 @@
 "_darcs": not_hygienic
 # Library netkat_decide
 "src/netkat_decide.cmxs": use_netkat_decide
+<src/*.ml{,i,y}>: package(comparelib.syntax)
+<src/*.ml{,i,y}>: package(sexplib.syntax)
 # Executable netkat
+<src/Decide_Repl.{native,byte}>: package(comparelib)
+<src/Decide_Repl.{native,byte}>: package(core)
+<src/Decide_Repl.{native,byte}>: package(sexplib)
+<src/Decide_Repl.{native,byte}>: package(tdk)
+<src/Decide_Repl.{native,byte}>: package(threads)
+<src/*.ml{,i,y}>: package(comparelib)
+<src/*.ml{,i,y}>: package(core)
+<src/*.ml{,i,y}>: package(sexplib)
+<src/*.ml{,i,y}>: package(tdk)
+<src/*.ml{,i,y}>: package(threads)
 # OASIS_STOP
+<src/*.ml{,i}>: syntax_camlp4o

@@ -1,5 +1,6 @@
 exception Quit
 exception Undo
+open Sexplib.Std
 
 let debug_mode = false
 let profile_mode = false
@@ -24,7 +25,7 @@ let string_fold f s a =
     
 
 module Field = struct 
-  type t = int
+  type t = int with sexp
   let compare = Pervasives.compare
   let as_int x = x
   let hash x = Hashtbl.hash x
@@ -56,7 +57,7 @@ end
       
   
 module Value = struct 
-  type t = int
+  type t = int with sexp
   let compare = Pervasives.compare
   let as_int x = x
   let hash x = Hashtbl.hash x
@@ -87,7 +88,11 @@ end
 module ValueSet = struct 
   include Set.Make(Value) 
   let of_list (ts:elt list) : t = 
-    List.fold_left (fun acc t -> add t acc) empty ts 
+    List.fold_left (fun acc t -> add t acc) empty ts
+  let elt_of_sexp = Value.t_of_sexp
+  let sexp_of_elt = Value.sexp_of_t
+  let t_of_sexp (s : Sexplib.Sexp.t) : t = of_list (list_of_sexp elt_of_sexp s)
+  let sexp_of_t (s : t) : Sexplib.Sexp.t = sexp_of_list sexp_of_elt (elements s)
 end
 
 let all_fields_fail = (fun _ -> failwith 
@@ -99,7 +104,7 @@ let all_values = ref all_values_fail
 
 
 module FieldArray = struct
-  type 'a t = 'a array
+  type 'a t = 'a array with sexp
 
   let size = 1
 
@@ -376,64 +381,144 @@ struct
     
 end
 
-module UnionFind = functor(Ord : Map.OrderedType) -> struct
+module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
+  open Core.Std  
   module FindMap = Map.Make(Ord)
   type union_find_ds = 
-    | Intermediate_node of int * (union_find_ds ref) * int (* depth*)
-    | Root_node of int * int ref (*label + maxdepth*)
-    | Leaf_node of Ord.t * (union_find_ds ref);;
+    | Root_node of Ord.t * int ref (* maxdepth *)
+    | Leaf_node of Ord.t * union_find_ds ref with sexp
+
+  type t = { mutable node_map : union_find_ds FindMap.t;
+             mutable root_ref_map : (union_find_ds ref) FindMap.t}
+
+  let create () =
+    {node_map = FindMap.empty; root_ref_map = FindMap.empty}
+   
+  (* Returns a reference to the root node of the equivalence class *)
+  let rec get_parent t = function 
+    | Leaf_node (_,p) -> 
+      (match !p with 
+       | Root_node _ -> p
+       | Leaf_node _ -> get_parent t !p)
+    | Root_node (e,_)  -> FindMap.find_exn t.root_ref_map e
+
+  let find_ref t e =
+    match FindMap.find t.node_map e with
+    | None ->
+      let root = (Root_node (e, ref 0)) in
+      t.node_map <- FindMap.add t.node_map ~key:e ~data:root;
+      let r = ref root in
+      t.root_ref_map <- FindMap.add t.root_ref_map ~key:e ~data:r;
+      r
+    | Some v -> get_parent t v
+
+  let find t e = match !(find_ref t e) with
+    | Root_node (v, _) -> v
+    | _ -> failwith "get_parent didn't return a Root node!"
   
-  let init_union_find _ : 
-      ((union_find_ds ref -> union_find_ds ref -> bool)* 
-	  (Ord.t -> union_find_ds ref) * 
-	  (union_find_ds ref -> union_find_ds ref -> 
-	   union_find_ds ref)) = 
-    let hash = ref FindMap.empty in 
-    let fresh_int = ref 0 in
-    let rec get_parent = function 
-      | Intermediate_node (l,p,d) -> 
-	(
-	  match !p with 
-	    | Root_node _ -> p
-	    | _ -> get_parent !p)
-      | Leaf_node (_,p) -> 
-	(match !p with 
-	  | Root_node _ -> p
-	  | Leaf_node _ -> failwith "leaf can't point to leaf!!! bad!!!"
-	  | _ -> get_parent !p)
-      | _ -> failwith "you have already gotten the parent."
-    in
-    let eq a b = 
-      match (!a,!b) with 
-	| (Root_node (l1,_),Root_node (l2,_)) -> l1 = l2
-	| _ -> failwith "equality only defined on roots" in
-    let find e = 
-      try get_parent(FindMap.find e !hash)
-      with Not_found -> 
-	hash := (FindMap.add e 
-		   (let cntr = !fresh_int in 
-		    fresh_int := !fresh_int + 1;
-		    Leaf_node(e, ref (Root_node (cntr, ref 1)))
-		   ) !hash); 
-	get_parent(FindMap.find e !hash) in
-    let union c1 c2 = 
-      match (!c1,!c2) with 
-	| (Root_node (l1,d1), Root_node (l2,d2)) -> 
-	  if l1 = l2 then c1
-	  else if !d2 < !d1 then (*c1 is new root*)
-	    (c2:= Intermediate_node (l2,c1,!d2); c1)
-	  else if !d1 > !d2 then 
-	    (c1:= Intermediate_node (l1,c2,!d1); c2)
-	  else 
-	    (d1:= !d1 + 1; c2:= Intermediate_node(l2,c1,!d2); c1)
-	| _ -> failwith "call union on the root nodes please." in
-    eq,find,union
+  let eq t a b =
+    let l1,l2 = (find t a, find t b) in
+    Ord.compare l1 l2 = 0
+
+  let union t c1 c2 =
+    let c1_root = find_ref t c1 in
+    let c2_root = find_ref t c2 in
+    match (!c1_root,!c2_root) with 
+    | (Root_node (l1,d1), Root_node (l2,d2)) -> 
+      if Ord.compare l1 l2 = 0 then ()
+      else if !d2 < !d1 then (*c1 is new root*)
+        let leaf = Leaf_node (l2,c1_root) in
+	c2_root := leaf;
+        t.node_map <- FindMap.add t.node_map ~key:l2 ~data:leaf
+      else if !d1 > !d2 then
+        let leaf = Leaf_node (l1,c2_root) in
+	c1_root := leaf;
+        t.node_map <- FindMap.add t.node_map ~key:l1 ~data:leaf
+      else
+        let leaf = Leaf_node(l2,c1_root) in
+	d1 := !d1 + 1;
+        c2_root := leaf;
+        t.node_map <- FindMap.add t.node_map ~key:l2 ~data:leaf
+    | _ -> failwith "get_parent didn't return a Root node!"
+
+  let sexp_of_t t =
+    let canonical_map = 
+      FindMap.fold t.node_map ~init:FindMap.empty ~f:(fun ~key:x ~data:node acc ->
+          let root = find t x in
+          if Ord.compare root x = 0
+          then
+            acc
+          else
+            FindMap.add_multi acc ~key:root ~data:x) in
+    <:sexp_of<(Ord.t * (Ord.t list)) list>> (FindMap.to_alist canonical_map)
       
+  let t_of_sexp sexp =
+    let alist = <:of_sexp<(Ord.t * (Ord.t list)) list>> sexp in
+    let node_map, root_ref_map = (List.fold alist ~init:(FindMap.empty, FindMap.empty) ~f:(fun acc x ->
+        let root, nodes = x in
+        let root_node = Root_node (root, ref (if List.length nodes > 0 then 1 else 0)) in
+        let root_ref = ref root_node in
+        (List.fold nodes ~init:(FindMap.add (fst acc) ~key:root ~data:root_node) ~f:(fun acc v ->
+             FindMap.add acc ~key:v ~data:(Leaf_node (v, root_ref)))),
+        FindMap.add (snd acc) ~key:root ~data:root_ref)) in
+    { node_map; root_ref_map }
+
+  exception Invalid_root_reference
+  exception Duplicate_node
+
+  (* 1) Every node with a reference to a root node uses the same reference *)
+  let check_root_refs t =
+    let module NodeMap = Map.Make(struct 
+        type t = union_find_ds with sexp
+        let compare n1 n2 =
+          match n1,n2 with
+          | Root_node(l1, d1), Root_node(l2, d2) -> Pervasives.compare (l1,d1) (l2,d2)
+          (* Not sure this will work (not symmetric) *)
+          | _ -> failwith "Should only be called on Root_node"
+      end) in
+    let _ = FindMap.fold t.node_map ~init:NodeMap.empty
+        ~f:(fun ~key:key ~data:data node_map -> match data with
+            | Leaf_node(l1,d1) -> let root_ref = get_parent t data in
+              begin match NodeMap.mem node_map !root_ref with
+                | true -> if not (phys_equal (NodeMap.find_exn node_map !root_ref) root_ref)
+                  then raise Invalid_root_reference
+                  else node_map
+                | false -> NodeMap.add node_map ~key:!root_ref ~data:root_ref
+              end
+            | _ -> node_map) in
+    ()
+
+  (* 2) There is only one node with a given Ord.t value *)
+  (* 3) FindMap.find e points to the unique node with value e *)
+  let check_node_uniqueness t =
+    let rec crawl_up_tree f node = match node with
+      | Leaf_node (l, r) -> f node; crawl_up_tree f !r
+      | Root_node (l, d) -> f node in
+    FindMap.iter t.node_map ~f:(fun ~key:key ~data:data ->
+        crawl_up_tree (fun node -> match node with
+            | Root_node(v,_)
+            | Leaf_node(v,_) -> if FindMap.find_exn t.node_map v = node then () else raise Duplicate_node) data)
+   (* Invariants:
+     1) Every node with a reference to a root node uses the same reference
+     2) There is only one node with a given Ord.t value
+     3) FindMap.find e points to the unique node with value e
+     4) if n = Root_node(e, d), then d = depth of the tree under n
+   *)
+  let validate t = check_root_refs t; check_node_uniqueness t
+
+  module Class = struct
+    type t = { identifier : Ord.t;
+               members : Ord.t list } with sexp
+    let members t = t.members
+    let canonical_element t = t.identifier 
+  end
+
+  let equivalence_classes t =
+    FindMap.fold (FindMap.fold t.node_map ~init:FindMap.empty ~f:(fun ~key:k ~data:v acc -> match !(get_parent t v) with
+        | Root_node(v,_) -> FindMap.add_multi acc ~key:v ~data:k
+        | _ -> failwith "Decide_Util.UnionFind.get_parent returned a non-root node!"))
+      ~init:[] ~f:(fun ~key:k ~data:v acc -> {Class.identifier = k; Class.members = v} :: acc)
 end
-      
-
-
-
 
 module UnivMap = SetMapF(Field)(Value)
 
@@ -458,3 +543,45 @@ let set_univ (tvallist : UnivMap.t list) : bool =
   all_fields := (fun _ -> UnivDescr.all_fields);
   all_values := (fun _ -> UnivDescr.all_values);
   List.exists (fun e -> not (UnivMap.is_empty e)) tvallist
+
+module HashCons = struct
+  open Core.Std
+
+  type 'a hash_consed = {
+    node : 'a;
+    tag : int
+  } with sexp, compare
+
+  module type HashedType = sig
+    type t with sexp, compare
+    val equal : t -> t -> bool
+    val hash : t -> int
+  end
+  
+  module Make (H : HashedType) = struct
+
+    module Key = struct
+      module T = struct
+        type t = H.t with sexp
+        let compare = H.compare
+        let hash = H.hash
+      end
+      include T
+      include Hashable.Make (T)
+    end
+    
+    type t = (H.t, H.t hash_consed) Hashtbl.t
+
+    let create n = Key.Table.create () ~size:n
+    let cnt = ref 0
+
+    let hashcons t h =
+      match Hashtbl.find t h with
+      | Some h -> h
+      | None ->
+        let uid = !cnt in
+        let _ = incr cnt in
+        let h' = {node = h; tag = uid} in
+        Hashtbl.add_exn t ~key:h ~data:h'; h'
+  end
+end

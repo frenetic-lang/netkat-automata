@@ -14,7 +14,7 @@ val stats : stats
 val print_debugging_info : unit -> unit
 
 module Field : sig
-  type t
+  type t with sexp
   val compare : t -> t -> int
   val hash : t -> int 
   val as_int : t -> int
@@ -24,7 +24,7 @@ module Field : sig
   
 end
 module FieldArray : sig
-  type 'a t
+  type 'a t with sexp
   val make : 'a -> 'a t
   val init : (Field.t -> 'a) -> 'a t
   val set : 'a t -> Field.t -> 'a -> unit 
@@ -39,7 +39,7 @@ module FieldSet : sig
 end
   
 module Value : sig
-  type t 
+  type t with sexp
   val compare : t -> t -> int
   val hash : t -> int 
   val as_int : t -> int
@@ -50,6 +50,10 @@ module Value : sig
 end
 module ValueSet : sig 
   include Set.S with type elt = Value.t
+  val elt_of_sexp : Sexplib.Sexp.t -> elt
+  val sexp_of_elt : elt -> Sexplib.Sexp.t
+  val t_of_sexp : Sexplib.Sexp.t -> t
+  val sexp_of_t : t -> Sexplib.Sexp.t
   val of_list : Value.t list -> t
 end
 
@@ -92,14 +96,22 @@ sig
   val all_seen_items : t -> K.t list
 end
 
-module UnionFind : functor(Ord : Map.OrderedType) -> 
+open Core.Std
+
+module UnionFind : functor(Ord : Map.Key) -> 
 sig
-  type union_find_ds
-  val init_union_find : unit -> 
-    ((union_find_ds ref -> union_find_ds ref -> bool)* 
-	(Ord.t -> union_find_ds ref) * 
-	(union_find_ds ref -> union_find_ds ref -> 
-	 union_find_ds ref))
+  type t with sexp
+  module Class : sig
+    type t with sexp
+    val members : t -> Ord.t list
+    val canonical_element : t -> Ord.t
+  end
+  val create : unit -> t
+  val eq : t -> Ord.t -> Ord.t -> bool
+  val find : t -> Ord.t -> Ord.t
+  val union : t -> Ord.t -> Ord.t -> unit
+  val validate : t -> unit
+  val equivalence_classes : t -> Class.t list
 end
 
 val remove_duplicates : 'a list -> 'a list
@@ -107,3 +119,23 @@ val remove_duplicates : 'a list -> 'a list
 val thunkify : (unit -> 'a) -> (unit -> 'a)
 
 val string_fold : (char -> 'a -> 'a) -> string -> 'a -> 'a
+
+module HashCons : sig
+
+  type 'a hash_consed = private {
+    node : 'a;
+    tag : int
+  } with sexp, compare
+
+  module type HashedType = sig
+    type t with sexp, compare
+    val equal : t -> t -> bool
+    val hash : t -> int
+  end
+  
+  module Make (H : HashedType) : sig
+    type t
+    val create : int -> t
+    val hashcons : t -> H.t -> H.t hash_consed
+  end
+end

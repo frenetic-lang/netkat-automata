@@ -1,7 +1,7 @@
 %{
-open Decide_Ast
-open Decide_Ast.Term
-open Decide_Ast.Formula
+open Decide_Kostas
+open Decide_Kostas.Term
+open Decide_Kostas.Formula
 %}
 
 %token <string> VAR
@@ -19,14 +19,14 @@ open Decide_Ast.Formula
 %nonassoc NOT STAR /* highest precedence */
 
 %start formula_main term_main  /* entry points */
-%type <Decide_Ast.Formula.t> formula_main
-%type <Decide_Ast.Term.t> term_main
+%type <Decide_Kostas.Formula.t> formula_main
+%type <Decide_Kostas.Term.t> term_main
 
 %%
 
 formula_main:
   | formula EOL { $1 }
-  | EOL { raise Decide_Ast.Empty } 
+  | EOL { raise Decide_Kostas.Empty } 
 ;
 
 term_main:
@@ -34,18 +34,18 @@ term_main:
 ;
 
 term:
-  | VAR ASSG STRING { make_assg (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3) }
-  | VAR EQ STRING   { make_test (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3) }
-  | VAR NEQ STRING  { make_not (make_test (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3)) }
-  | ZERO            { make_zero ()}
-  | ONE             { make_one ()}
-  | DUP             { make_dup ()} 
+  | VAR ASSG STRING { assg (Decide_Util.Field.of_string $1) (Decide_Util.Value.of_string $3) }
+  | VAR EQ STRING   { test (Decide_Util.Field.of_string $1) (Decide_Util.Value.of_string $3) }
+  | VAR NEQ STRING  { not (test (Decide_Util.Field.of_string $1) (Decide_Util.Value.of_string $3)) }
+  | ZERO            { zero }
+  | ONE             { one }
+  | DUP             { dup } 
   | LPAREN term RPAREN { $2 }
-  | term PLUS term  { make_plus (TermSet.of_list [$1; $3]) }
-  | term TIMES term { make_times [$1; $3] }
-  | term STAR       { make_star $1 }
-  | NOT term        { make_not $2 }
-  | term term %prec TIMES { make_times [$1; $2] }
+  | term PLUS term  { plus (TermSet.of_list [$1; $3]) }
+  | term TIMES term { times [$1; $3] }
+  | term STAR       { star $1 }
+  | NOT term        { not $2 }
+  | term term %prec TIMES { times [$1; $2] }
 ;
 
 formula:

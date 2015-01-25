@@ -1,20 +1,25 @@
 
-open Decide_Base
 open Decide_Util
 
     
-module U = Decide_Base
-module Ast = Decide_Ast
-module Deriv = Decide_Deriv
-  
+module Ast = Decide_Kostas
+module Deriv = Decide_Kostas
+module DerivTerm = Deriv.BDDDeriv
+
 module WorkList = WorkList(struct 
-  type t = (Deriv.DerivTerm.t * Deriv.DerivTerm.t) 
+  type t = (DerivTerm.t * DerivTerm.t) 
     let compare = (fun (a1,b1) (a2,b2) -> 
-      match (Deriv.DerivTerm.compare a1 a2) with 
-	| 0 -> (Deriv.DerivTerm.compare b1 b2)
+      match (DerivTerm.compare a1 a2) with 
+	| 0 -> (DerivTerm.compare b1 b2)
 	| k -> k)
   end)
     
+<<<<<<< HEAD
+  let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (DerivTerm.to_string a) (DerivTerm.to_string b)
+module PCC = Decide_PCC.PCC(DerivTerm)
+module UF = Decide_Util.UnionFind(DerivTerm)
+
+=======
   let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (Deriv.DerivTerm.to_string a) (Deriv.DerivTerm.to_string b)
     
   let get_state,update_state,print_states = 
@@ -22,57 +27,52 @@ module WorkList = WorkList(struct
     (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())  
       
       
+>>>>>>> master
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
-    
-    let uf_eq,uf_find,uf_union = 
-    let module UF = Decide_Util.UnionFind(Deriv.DerivTerm) in 
-      UF.init_union_find ()
+
+    let bisim = UF.create ()
     in
     
     let rec main_loop work_list = 
       if WorkList.is_empty work_list
-      then 
-	(print_states (); true)
+      then
+	true
       else
 	let q1,q2 = WorkList.hd work_list in
+        Printf.printf "q1: %s\nq2: %s\n" (DerivTerm.to_string q1) (DerivTerm.to_string q2);
 	let rest_work_list = WorkList.tl work_list in
-	let q1_E = Deriv.DerivTerm.run_e q1 in 
-	let q2_E = Deriv.DerivTerm.run_e q2 in 
-	if not (U.Base.Set.equal q1_E q2_E)
+	let q1_E = DerivTerm.get_e q1 in 
+	let q2_E = DerivTerm.get_e q2 in 
+	if not (DerivTerm.EMatrix.compare q1_E q2_E = 0)
 	then false
 	else
-	  let u,f = uf_find(q1),uf_find(q2) in
-	  if  uf_eq u f  
+	  let u,f = UF.find bisim q1, UF.find bisim q2 in
+         (* find e returns the canonical element for e, so equality of classes
+            is just equality of canonical elements *)
+          if  DerivTerm.compare u f = 0
 	  then main_loop rest_work_list
 	  else 
-	    (let _ = uf_union u f in
-	     let (dot_bundle : Decide_Dot.t) = 
-	       get_state 
-		 q1 q2 q1_E q2_E in
-	     let q1_matrix,q1_points = Deriv.DerivTerm.run_d q1 in 
-	     let q2_matrix,q2_points = Deriv.DerivTerm.run_d q2 in 
-	     let numpoints = ref 0 in
-	     let work_list = U.Base.Set.fold_points
-	       (fun pt expanded_work_list -> 
-		 numpoints := !numpoints + 1;
-		 let q1' = q1_matrix pt in
-		 let q2' = q2_matrix pt in
-		 update_state 
-		   dot_bundle 
-		   q1'
-		   q2'
-		   (Deriv.DerivTerm.run_e q1')
-		   (Deriv.DerivTerm.run_e q2');
-		 WorkList.add (q1',q2')
-		   expanded_work_list
-	       )
-	       (U.Base.Set.union q1_points q2_points) rest_work_list in
-	     main_loop work_list) in
+	    (let _ = UF.union bisim u f in
+	     let q1d = DerivTerm.get_d q1 in 
+	     let q2d = DerivTerm.get_d q2 in 
+             let work_list = DerivTerm.EMatrix.fold
+                 (DerivTerm.EMatrix.union (DerivTerm.DMatrix.points q1d) (DerivTerm.DMatrix.points q2d))
+                 ~init:rest_work_list
+	         ~f:(fun expanded_work_list pt -> 
+                     let q1' = DerivTerm.DMatrix.run q1d pt in
+		     let q2' = DerivTerm.DMatrix.run q2d pt in
+		     WorkList.add (DerivTerm.make_term q1',DerivTerm.make_term q2')
+                     expanded_work_list)
+      in
+      main_loop work_list) in
 
-    let t2 = Deriv.DerivTerm.make_term t2 in
+    let t2' = DerivTerm.make_term (Ast.TermSet.singleton t2) in
 
-    let t1 = Deriv.DerivTerm.make_term t1 in 
+    let t1' = DerivTerm.make_term (Ast.TermSet.singleton t1) in
 
-    let ret = main_loop (WorkList.singleton (t1,t2)) in
-    Decide_Util.print_debugging_info (); 
+    let ret = main_loop (WorkList.singleton (t1',t2')) in
+    PCC.generate_certificate t1 t2 t1' t2' bisim;
+    Decide_Util.print_debugging_info ();
     ret
+
+let check_certificate = PCC.parse_certificate
