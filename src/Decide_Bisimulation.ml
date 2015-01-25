@@ -14,20 +14,10 @@ module WorkList = WorkList(struct
 	| k -> k)
   end)
     
-<<<<<<< HEAD
   let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (DerivTerm.to_string a) (DerivTerm.to_string b)
 module PCC = Decide_PCC.PCC(DerivTerm)
 module UF = Decide_Util.UnionFind(DerivTerm)
 
-=======
-  let print_wl_pair (a,b)= Printf.sprintf "%s\n%s" (Deriv.DerivTerm.to_string a) (Deriv.DerivTerm.to_string b)
-    
-  let get_state,update_state,print_states = 
-    (* Decide_Dot.init Deriv.DerivTerm.to_string (fun a -> not (U.Base.Set.is_empty a)) *)
-    (fun _ _ _ _ -> true,true,1,1), (fun _ _ _ _ _ -> ()), (fun _ -> ())  
-      
-      
->>>>>>> master
   let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
 
     let bisim = UF.create ()
@@ -63,8 +53,8 @@ module UF = Decide_Util.UnionFind(DerivTerm)
 		     let q2' = DerivTerm.DMatrix.run q2d pt in
 		     WorkList.add (DerivTerm.make_term q1',DerivTerm.make_term q2')
                      expanded_work_list)
-      in
-      main_loop work_list) in
+             in
+             main_loop work_list) in
 
     let t2' = DerivTerm.make_term (Ast.TermSet.singleton t2) in
 

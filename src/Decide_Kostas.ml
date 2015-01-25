@@ -338,21 +338,21 @@ module rec BDDDeriv : DerivTerm = struct
                       t;
                       f])
 
+    let seq_pkt pkt1 pkt2 = FieldMap.merge pkt1 pkt2 ~f:(fun ~key:k v ->
+        match v with
+        | `Right v -> Some v
+        | `Left v -> Some v
+        | `Both (_,v) -> Some v)
+    
     let run t (pkt1,pkt2) =
       match PacketDD.peek (PacketDD.restrict (FieldMap.to_alist pkt1) t) with
-      | Some p -> PartialPacketSet.contains p pkt2
+      | Some p -> PartialPacketSet.contains (PartialPacketSet.map p (seq_pkt pkt1)) pkt2
       | None -> failwith "Decide_Kostas.BDDDeriv.EMatrix.run failed to get a value from the DD on the pkt"
                      
     let empty = PacketDD.const PartialPacketSet.zero
 
     let one = PacketDD.const PartialPacketSet.one
     let zero = PacketDD.const PartialPacketSet.zero
-
-    let seq_pkt pkt1 pkt2 = FieldMap.merge pkt1 pkt2 ~f:(fun ~key:k v ->
-        match v with
-        | `Right v -> Some v
-        | `Left v -> Some v
-        | `Both (_,v) -> Some v)
     
     let times e1 e2 =
       reduce (PacketDD.fold
@@ -403,7 +403,7 @@ module rec BDDDeriv : DerivTerm = struct
              PointSet.union f (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2)))
           t
       in
-      Printf.printf "Base points: %s\n" (Sexp.to_string (PointSet.sexp_of_t base_points));
+      (* Printf.printf "Base points: %s\n" (Sexp.to_string (PointSet.sexp_of_t base_points)); *)
       PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Decide_Util.FieldSet.fold (fun field pts ->
           PointSet.fold pts ~f:(fun acc (a,b) -> PointSet.union acc
           begin
@@ -417,7 +417,7 @@ module rec BDDDeriv : DerivTerm = struct
 
     let fold t ~init:init ~f:f =
       let pts = get_points t in
-      Printf.printf "get_points: %s\n" (Sexp.to_string (PointSet.sexp_of_t pts));
+      (* Printf.printf "get_points: %s\n" (Sexp.to_string (PointSet.sexp_of_t pts)); *)
       PointSet.fold pts ~f:f ~init:init
 
     let to_string = PacketDD.to_string
@@ -445,10 +445,17 @@ module rec BDDDeriv : DerivTerm = struct
     type t = CompactDerivSet.t with sexp, compare
 
     (* let compare = t_compare *)
-        
+
+    let compact_derivative_to_string elm = Printf.sprintf "(%s,%s)" (EMatrix.to_string elm.left_hand)
+                                                                            (Term.to_string elm.right_hand)
+    let to_string t = Printf.sprintf "{%s}" (String.concat ~sep:"; " (List.map (CompactDerivSet.elements t) compact_derivative_to_string))
+    
     let run t point =
       CompactDerivSet.fold t ~init:TermSet.empty
-        ~f:(fun acc deriv -> if EMatrix.run deriv.left_hand point
+        ~f:(fun acc deriv ->
+            let result = EMatrix.run deriv.left_hand point in
+            (* Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (Sexp.to_string (sexp_of_point point)) result; *)
+               if result
              then TermSet.union (TermSet.map (EMatrix.betas deriv.left_hand) ~f:(fun b -> Term.times [b; deriv.right_hand])) acc
              else acc)
 
@@ -506,9 +513,6 @@ module rec BDDDeriv : DerivTerm = struct
 
     let points t = CompactDerivSet.fold t ~init:EMatrix.zero ~f:(fun acc x -> EMatrix.union acc x.left_hand)
 
-    let to_string t = Printf.sprintf "{%s}" (String.concat ~sep:"; " (List.map (CompactDerivSet.elements t)
-                                                                        (fun elm -> Printf.sprintf "(%s,%s)" (EMatrix.to_string elm.left_hand)
-                                                                            (Term.to_string elm.right_hand))))
   end
 
   type t = { desc : TermSet.t;
