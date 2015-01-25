@@ -30,7 +30,7 @@ module Field = struct
   let as_int x = x
   let hash x = Hashtbl.hash x
   let equal a b = 0 = (compare a b)
-  let of_string,to_string,choose,reset = 
+  let of_string,to_string,reset = 
     let stringtoint = Hashtbl.create 11 in 
     let inttostring = Hashtbl.create 11 in 
     let counter = ref 0 in 
@@ -47,7 +47,7 @@ module Field = struct
     let reset () = counter := 0;
       Hashtbl.clear stringtoint;
       Hashtbl.clear inttostring in
-    of_string,to_string,(fun () -> !counter),reset
+    of_string,to_string,reset
 end
 module FieldSet = struct 
   include Set.Make(Field)
@@ -106,18 +106,25 @@ let all_values = ref all_values_fail
 module FieldArray = struct
   type 'a t = 'a array with sexp
 
-  let size = 4
+  let size = 1
 
   let make (a : 'a) : 'a t = 
-    let _ = !all_fields () in 
-    Array.make size a
+    let seen = FieldSet.cardinal (!all_fields ()) in 
+    Array.make (size + seen) a
   let init f = 
-    let _ = !all_fields () in 
-    Array.init size f
+    let seen = FieldSet.cardinal (!all_fields ()) in 
+    Array.init (size + seen) f
   let set this k = 
     Array.set this (Field.as_int k)
   let get this k = 
-    Array.get this (Field.as_int k)
+    try 
+      Array.get this (Field.as_int k)
+    with (Invalid_argument _) -> 
+      invalid_arg 
+	(Printf.sprintf 
+	   "Error! This field is not tracked: \"%s\" (has int %u)\n all_fields: %s" 
+	   (Field.to_string k) (Field.as_int k) 
+	   (FieldSet.fold (fun s -> Printf.sprintf "(%s : %u) %s " (Field.to_string s) (Field.as_int s)) (!all_fields ()) ""))
   let fold f arr acc =
     let accr = ref acc in 
     Array.iteri (fun indx elem -> 
@@ -126,6 +133,7 @@ module FieldArray = struct
     !accr
   let copy = Array.copy
   let size a = Array.length a
+
 end 
 module ValueArray = struct
   type 'a t = 'a array

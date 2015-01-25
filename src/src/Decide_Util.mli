@@ -21,7 +21,7 @@ module Field : sig
   val equal : t -> t -> bool 
   val to_string : t -> string
   val of_string : string -> t
-  val choose : unit -> t
+  
 end
 module FieldArray : sig
   type 'a t with sexp
