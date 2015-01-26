@@ -68,3 +68,4 @@ pass + (a=1;b:=2);(c=3;drop) + (c=3;drop) <= c=3;drop
 
 pass <= drop
 
+x = 1; dup <= dup

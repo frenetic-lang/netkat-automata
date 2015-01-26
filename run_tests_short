@@ -13,7 +13,7 @@ do
     fi
     if [[ `echo "$line""
 process
-quit" | ./netkat | grep 'Bisimulation result' | rev | cut -d\  -f1 | rev` = $desired_result ]]
+quit" | ./Decide_Repl.native | grep 'Bisimulation result' | rev | cut -d\  -f1 | rev` = $desired_result ]]
     then echo -n "" 
     else echo "TEST FAILED: $line"
     fi
