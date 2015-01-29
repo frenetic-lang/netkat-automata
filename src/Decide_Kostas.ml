@@ -8,6 +8,13 @@ module FieldMap = Map.Make(Field)
 type packet = Value.t FieldMap.t with sexp,compare
 type point = packet * packet with sexp, compare
 
+let packet_to_string pkt = Printf.sprintf "[%s]"
+    (String.concat ~sep:";"
+       (FieldMap.fold pkt ~init:[]
+          ~f:(fun ~key ~data acc -> (Printf.sprintf "%s := %s" (Field.to_string key) (Value.to_string data) :: acc))))
+
+let point_to_string (pkt1, pkt2) = Printf.sprintf "(%s,%s)" (packet_to_string pkt1) (packet_to_string pkt2)
+
 module PointSet = Set.Make (struct
     type t = point with sexp, compare
   end)
@@ -423,9 +430,13 @@ module rec BDDDeriv : DerivTerm = struct
     let to_string = PacketDD.to_string
 
     let packet_to_beta pkt = Term.times (FieldMap.fold pkt ~init:[] ~f:(fun ~key:k ~data:v acc ->
-        assg k v :: acc))
-        
-    let betas = PacketDD.fold (fun pkts -> PartialPacketSet.fold pkts ~init:TermSet.empty ~f:(fun acc x -> TermSet.union acc (TermSet.singleton (packet_to_beta x)))) (fun _ -> TermSet.union)
+        test k v :: acc))
+
+    (* TODO: I'm not sure this handles the negative branch correctly. *)
+    let betas = PacketDD.fold (fun pkts -> PartialPacketSet.fold pkts ~init:TermSet.empty
+                                  ~f:(fun acc x -> TermSet.union acc (TermSet.singleton (packet_to_beta x))))
+        (fun (h,v) t f -> TermSet.union (TermSet.map t (fun beta -> Term.times [test h v; beta]))
+                                        (TermSet.map f (fun beta -> Term.times [not (test h v); beta])))
 
   end
 
@@ -449,14 +460,16 @@ module rec BDDDeriv : DerivTerm = struct
     let compact_derivative_to_string elm = Printf.sprintf "(%s,%s)" (EMatrix.to_string elm.left_hand)
                                                                             (Term.to_string elm.right_hand)
     let to_string t = Printf.sprintf "{%s}" (String.concat ~sep:"; " (List.map (CompactDerivSet.elements t) compact_derivative_to_string))
-    
+
+    let pkt_to_beta pkt = Term.times (FieldMap.fold pkt ~init:[] ~f:(fun ~key ~data acc -> Term.test key data :: acc))
+               
     let run t point =
       CompactDerivSet.fold t ~init:TermSet.empty
         ~f:(fun acc deriv ->
             let result = EMatrix.run deriv.left_hand point in
-            (* Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (Sexp.to_string (sexp_of_point point)) result; *)
+            Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result;
                if result
-             then TermSet.union (TermSet.map (EMatrix.betas deriv.left_hand) ~f:(fun b -> Term.times [b; deriv.right_hand])) acc
+             then TermSet.add acc (Term.times [pkt_to_beta (snd point); deriv.right_hand])
              else acc)
 
     let term_append t e = Term.times [t; e]
