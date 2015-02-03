@@ -1,7 +1,7 @@
 
 module D = Decide_Kostas.BDDDeriv
 module S = Sexplib.Sexp
-module Ast = Decide_Kostas
+module Ast = Decide_Ast
 module Term = Ast.Term
                 
 open Core.Std

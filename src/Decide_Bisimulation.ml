@@ -2,7 +2,7 @@
 open Decide_Util
 
     
-module Ast = Decide_Kostas
+module Ast = Decide_Ast
 module Deriv = Decide_Kostas
 module DerivTerm = Deriv.BDDDeriv
 

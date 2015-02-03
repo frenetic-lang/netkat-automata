@@ -1,7 +1,7 @@
 %{
-open Decide_Kostas
-open Decide_Kostas.Term
-open Decide_Kostas.Formula
+open Decide_Ast
+open Decide_Ast.Term
+open Decide_Ast.Formula
 %}
 
 %token <string> VAR
@@ -19,8 +19,8 @@ open Decide_Kostas.Formula
 %nonassoc NOT STAR /* highest precedence */
 
 %start formula_main term_main  /* entry points */
-%type <Decide_Kostas.Formula.t> formula_main
-%type <Decide_Kostas.Term.t> term_main
+%type <Decide_Ast.Formula.t> formula_main
+%type <Decide_Ast.Term.t> term_main
 
 %%
 

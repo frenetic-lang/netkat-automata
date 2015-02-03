@@ -28,7 +28,8 @@ Library netkat_decide
     Decide_Kostas
   Modules:
     Decide_Util,
-    Decide_Bisimulation
+    Decide_Bisimulation,
+    Decide_Ast
 
 Executable netkat
   Path: src
