@@ -1,5 +1,5 @@
 
-module D = Decide_Kostas.BDDDeriv
+module D = Decide_Deriv.BDDDeriv
 module S = Sexplib.Sexp
 module Ast = Decide_Ast
 module Term = Ast.Term
@@ -7,7 +7,7 @@ module Term = Ast.Term
 open Core.Std
 open Sexplib.Conv
 
-module PCC (D : Decide_Kostas.DerivTerm) = struct
+module PCC (D : Decide_Deriv.DerivTerm) = struct
   module UF = Decide_Util.UnionFind(D)
 
   type certificate = {

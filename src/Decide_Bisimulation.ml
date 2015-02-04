@@ -3,7 +3,7 @@ open Decide_Util
 
     
 module Ast = Decide_Ast
-module Deriv = Decide_Kostas
+module Deriv = Decide_Deriv
 module DerivTerm = Deriv.BDDDeriv
 
 module WorkList = WorkList(struct 

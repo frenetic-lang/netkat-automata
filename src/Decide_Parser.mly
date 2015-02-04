@@ -26,7 +26,7 @@ open Decide_Ast.Formula
 
 formula_main:
   | formula EOL { $1 }
-  | EOL { raise Decide_Kostas.Empty } 
+  | EOL { raise Decide_Deriv.Empty } 
 ;
 
 term_main:

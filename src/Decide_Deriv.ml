@@ -140,7 +140,7 @@ module rec BDDDeriv : DerivTerm = struct
     let run t (pkt1,pkt2) =
       match PacketDD.peek (PacketDD.restrict (FieldMap.to_alist pkt1) t) with
       | Some p -> PartialPacketSet.contains (PartialPacketSet.map p (seq_pkt pkt1)) pkt2
-      | None -> failwith "Decide_Kostas.BDDDeriv.EMatrix.run failed to get a value from the DD on the pkt"
+      | None -> failwith "Decide_Deriv.BDDDeriv.EMatrix.run failed to get a value from the DD on the pkt"
                      
     let empty = PacketDD.const PartialPacketSet.zero
 

@@ -1,11 +1,12 @@
 # OASIS_START
-# DO NOT EDIT (digest: 80e1c65cc809ae93fb5745d8d38c40ce)
+# DO NOT EDIT (digest: f4bad4d98b194c7ecee26b0f1371f61f)
 Decide_Util
 Decide_Bisimulation
 Decide_Ast
+Decide_Loopfree
 Decide_PCC
 Decide_Lexer
 Decide_Parser
 Decide_Repl
-Decide_Kostas
+Decide_Deriv
 # OASIS_STOP

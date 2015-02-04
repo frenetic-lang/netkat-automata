@@ -35,7 +35,7 @@ let process (input : string) : unit =
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )
   with
-  | Decide_Kostas.Empty -> 
+  | Decide_Deriv.Empty -> 
     ()
   | Decide_Lexer.LexError s -> 
     Printf.printf "Lex Error: %s\n" s
@@ -68,7 +68,7 @@ let split_string (sr : string) (c : char) : string list =
 (*     Printf.printf "Loop-freedom result: %b\n" *)
 (*       (Decide_Loopfree.loop_freedom edge pol topo ()) *)
 (*   with *)
-(*   | Decide_Kostas.Empty ->  *)
+(*   | Decide_Deriv.Empty ->  *)
 (*     () *)
 (*   | Decide_Lexer.LexError s ->  *)
 (*     Printf.printf "Lex Error: %s\n" s *)
