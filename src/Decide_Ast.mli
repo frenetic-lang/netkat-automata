@@ -42,6 +42,7 @@ module rec Term : sig
   val eval : t -> packet -> PacketSet.t
   val to_string : t -> string
   val values : t -> UnivMap.t
+  val size : t -> int
 end and TermSet : sig
   include Set.S with type Elt.t = Term.t
   val to_string : t -> string

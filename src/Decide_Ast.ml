@@ -167,6 +167,26 @@ module Term (* : sig *)
     collect UnivMap.empty t
 
   let equal t1 t2 = compare t1 t2 = 0
+  let rec size t = 
+    match t.node with 
+      | Assg(f,v) -> 
+        1
+      | Test(f,v) -> 
+        1
+      | Dup -> 
+        1
+      | Plus ts -> 
+        TermSetBase.fold ts
+          ~f:(fun n ti -> (size ti) + n)
+          ~init:1
+      | Times ts -> 
+        List.fold_left ts 
+          ~f:(fun n ti -> n + (size ti))
+          ~init:1
+      | Not t -> 1 + size t
+      | Star t -> 1 + size t
+      | Zero -> 1
+      | One -> 1                    
 end
 
 module TermSet = struct
