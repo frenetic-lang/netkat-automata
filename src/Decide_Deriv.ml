@@ -6,9 +6,13 @@ open Decide_Ast
 
 exception Empty
 
-module PointSet = Set.Make (struct
+module PointSet = struct
+  include Set.Make (struct
     type t = point with sexp, compare
-  end)
+    end)
+  let to_string pts = Printf.sprintf "{%s}" (String.concat ~sep:"," (fold pts ~init:[] ~f:(fun acc pt -> point_to_string pt :: acc)))
+end
+
 
 module type DerivTerm = sig
   type t with sexp
@@ -110,8 +114,8 @@ module rec BDDDeriv : DerivTerm = struct
        representation in DD's. This function canonicalizes by removing
        shadowed modifications 
     *)
-    let reduce t = PacketDD.fold (fun r -> PacketDD.const r)
-        (fun v t f -> cond v (mask t v) f) t
+    let reduce t = t (* PacketDD.fold (fun r -> PacketDD.const r) *)
+        (* (fun v t f -> cond v (mask t v) f) t *)
 
     let rec t_of_sexp sexp = let open Sexplib in
       match sexp with
@@ -183,8 +187,6 @@ module rec BDDDeriv : DerivTerm = struct
         | One -> one in
       reduce result
 
-    let compare t1 t2 = if PacketDD.equal t1 t2 then 0 else -1
-    let intersection_empty e e' = PacketDD.equal (PacketDD.prod e e') empty
     let union e1 e2 = reduce (PacketDD.sum e1 e2)
     let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
 
@@ -193,10 +195,12 @@ module rec BDDDeriv : DerivTerm = struct
         PacketDD.fold
           (fun r -> PartialPacketSet.fold r ~f:(fun acc pkt -> PointSet.add acc (FieldMap.empty, pkt)) ~init:PointSet.empty)
           (fun (h,v) t f ->
-             PointSet.union f (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2)))
+             let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in
+             PointSet.union (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2))
+               f)
           t
       in
-      (* Printf.printf "Base points: %s\n" (Sexp.to_string (PointSet.sexp_of_t base_points)); *)
+      Printf.printf "Base points: %s\n" (PointSet.to_string base_points);
       PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Decide_Util.FieldSet.fold (fun field pts ->
           PointSet.fold pts ~f:(fun acc (a,b) -> PointSet.union acc
           begin
@@ -210,9 +214,17 @@ module rec BDDDeriv : DerivTerm = struct
 
     let fold t ~init:init ~f:f =
       let pts = get_points t in
-      (* Printf.printf "get_points: %s\n" (Sexp.to_string (PointSet.sexp_of_t pts)); *)
+      Printf.printf "get_points: %s\n" (PointSet.to_string pts);
       PointSet.fold pts ~f:f ~init:init
-
+        
+    (* Since PacketDD is not guaranteed to be canonical, we have to semantically compare *)
+    let compare t1 t2 = let eq = PacketDD.equal t1 t2 ||
+                                 (fold t1 ~init:true ~f:(fun acc pt -> acc &&
+                                                                       run t1 pt = run t2 pt)
+                                  && fold t2 ~init:true ~f:(fun acc pt -> acc && run t1 pt = run t2 pt)) in
+      if eq then 0 else -1
+    let intersection_empty e e' = (compare (PacketDD.prod e e') empty) = 0
+    
     let to_string = PacketDD.to_string
 
     let packet_to_beta pkt = Term.times (FieldMap.fold pkt ~init:[] ~f:(fun ~key:k ~data:v acc ->

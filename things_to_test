@@ -69,3 +69,8 @@ pass + (a=1;b:=2);(c=3;drop) + (c=3;drop) <= c=3;drop
 pass <= drop
 
 x = 1; dup <= dup
+
+#This exploits non-canonicity of FDDs, naive implementation gets it wrong
+f:=1;g := 2 == f:=1;g:=2 + g=2;f := 1
+
+f=0;g:=0 + f=1;g:=1 + f!=1;g:=0 == f=1;g:=1 + f!=1;g:=0
