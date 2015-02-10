@@ -33,7 +33,8 @@ module Field = struct
   let of_string,to_string,reset = 
     let stringtoint = Hashtbl.create 11 in 
     let inttostring = Hashtbl.create 11 in 
-    let counter = ref 0 in 
+    let counter = ref 0 in
+    let warning =  "⚠" in
     let of_string (x : string) : t = 
       try Hashtbl.find stringtoint x 
       with Not_found -> 
@@ -43,7 +44,8 @@ module Field = struct
 	Hashtbl.replace inttostring id x;
 	id in 
     let to_string (x : t) : string = 
-      Hashtbl.find inttostring x in 
+      try Hashtbl.find inttostring x
+      with Not_found -> warning in 
     let reset () = counter := 0;
       Hashtbl.clear stringtoint;
       Hashtbl.clear inttostring in
@@ -66,6 +68,7 @@ module Value = struct
     let stringtoint = Hashtbl.create 11 in 
     let inttostring = Hashtbl.create 11 in 
     let snowman =  "☃" in
+    let warning =  "⚠" in
     Hashtbl.replace stringtoint snowman (-1);
     Hashtbl.replace inttostring (-1) snowman;
     let counter = ref 0 in 
@@ -78,7 +81,8 @@ module Value = struct
 	Hashtbl.replace inttostring id x;
 	id in 
     let to_string (x : t) : string = 
-      Hashtbl.find inttostring x in 
+      try Hashtbl.find inttostring x
+      with Not_found -> warning in
     let reset () = counter := 0; 
       Hashtbl.clear stringtoint;
       Hashtbl.clear inttostring in

@@ -7,6 +7,10 @@ module Term = Ast.Term
 open Core.Std
 open Sexplib.Conv
 
+exception WrongEMatrix of string
+exception WrongDMatrix of string
+exception InvalidBisimulation
+
 module PCC (D : Decide_Deriv.DerivTerm) = struct
   module UF = Decide_Util.UnionFind(D)
 
@@ -53,9 +57,19 @@ module PCC (D : Decide_Deriv.DerivTerm) = struct
     UF.validate cert.bisim;
     let lhs_deriv = D.make_term (Ast.TermSet.singleton cert.lhs) in
     let rhs_deriv = D.make_term (Ast.TermSet.singleton cert.rhs) in
-    assert (D.EMatrix.compare (D.get_e lhs_deriv) cert.left_e_matrix = 0);
-    assert (D.DMatrix.compare (D.get_d lhs_deriv) cert.left_d_matrix = 0);
-    assert (D.EMatrix.compare (D.get_e rhs_deriv) cert.right_e_matrix = 0);
-    assert (D.DMatrix.compare (D.get_d rhs_deriv) cert.right_d_matrix = 0);
-    assert (verify_bisimulation cert.bisim lhs_deriv rhs_deriv)
+    if (try D.EMatrix.compare (D.get_e lhs_deriv) cert.left_e_matrix <> 0
+       with Not_found -> true) then
+      raise (WrongEMatrix(Printf.sprintf "left-hand side E matrix did not match term %s" (Term.to_string cert.lhs)))
+    else if (try D.DMatrix.compare (D.get_d lhs_deriv) cert.left_d_matrix <> 0
+             with Not_found -> true) then
+      raise (WrongDMatrix(Printf.sprintf "left-hand side D matrix did not match term %s" (Term.to_string cert.lhs)))
+    else if (try D.EMatrix.compare (D.get_e rhs_deriv) cert.right_e_matrix <> 0
+             with Not_found -> true) then
+      raise (WrongEMatrix(Printf.sprintf "right-hand side E matrix did not match term %s" (Term.to_string cert.rhs)))
+    else if (try D.DMatrix.compare (D.get_d rhs_deriv) cert.right_d_matrix <> 0
+             with Not_found -> true) then
+      raise (WrongDMatrix(Printf.sprintf "right-hand side D matrix did not match term %s" (Term.to_string cert.lhs)))
+    else if (try not (verify_bisimulation cert.bisim lhs_deriv rhs_deriv)
+             with Not_found -> true) then
+      raise InvalidBisimulation
 end

@@ -103,7 +103,7 @@ let rec repl (state : state) : unit =
   let input = read_line() in
   let run_loop = input = "loop" in
   let input = if run_loop then (print_string "> "; read_line ()) else input in 
-  if input = "quit" then raise Quit;
+  if (input = "quit" || input = "exit") then raise Quit;
   let input = if input = "load" 
     then (print_string ": ";
 	  match (load (read_line ())) with 
@@ -112,7 +112,7 @@ let rec repl (state : state) : unit =
     ) 
     else input in
   print_string "process, serialize, or verify: ";
-  (match (* read_line() *) "process"  with 
+  (match read_line() (* "process" *)  with 
     | "process" ->
       Printf.printf "processing...\n%!";
       (* if run_loop  *)
@@ -127,9 +127,11 @@ let rec repl (state : state) : unit =
       failwith "mode not currently supported"
     | "verify" ->
       print_string "where: ";
-      (* let file = read_line () in  *)
-      let file = "netkat.cert" in
-      Decide_Bisimulation.check_certificate file
+      let file = read_line () in
+      (* let file = "netkat.cert" in *)
+      print_string "Checking certificate\n";      
+      Decide_Bisimulation.check_certificate file;
+      print_string "Certificate verified\n"      
     | _ -> repl state);
   repl state
 

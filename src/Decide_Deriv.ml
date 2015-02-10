@@ -200,7 +200,7 @@ module rec BDDDeriv : DerivTerm = struct
                f)
           t
       in
-      Printf.printf "Base points: %s\n" (PointSet.to_string base_points);
+      (* Printf.printf "Base points: %s\n" (PointSet.to_string base_points); *)
       PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Decide_Util.FieldSet.fold (fun field pts ->
           PointSet.fold pts ~f:(fun acc (a,b) -> PointSet.union acc
           begin
@@ -214,7 +214,7 @@ module rec BDDDeriv : DerivTerm = struct
 
     let fold t ~init:init ~f:f =
       let pts = get_points t in
-      Printf.printf "get_points: %s\n" (PointSet.to_string pts);
+      (* Printf.printf "get_points: %s\n" (PointSet.to_string pts); *)
       PointSet.fold pts ~f:f ~init:init
         
     (* Since PacketDD is not guaranteed to be canonical, we have to semantically compare *)
@@ -265,7 +265,7 @@ module rec BDDDeriv : DerivTerm = struct
       CompactDerivSet.fold t ~init:TermSet.empty
         ~f:(fun acc deriv ->
             let result = EMatrix.run deriv.left_hand point in
-            Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result;
+            (* Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result; *)
                if result
              then TermSet.add acc (Term.times [pkt_to_beta (snd point); deriv.right_hand])
              else acc)

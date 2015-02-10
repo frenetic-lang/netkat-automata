@@ -29,7 +29,7 @@ module UF = Decide_Util.UnionFind(DerivTerm)
 	true
       else
 	let q1,q2 = WorkList.hd work_list in
-        Printf.printf "q1: %s\nq2: %s\n" (DerivTerm.to_string q1) (DerivTerm.to_string q2);
+        (* Printf.printf "q1: %s\nq2: %s\n" (DerivTerm.to_string q1) (DerivTerm.to_string q2); *)
 	let rest_work_list = WorkList.tl work_list in
 	let q1_E = DerivTerm.get_e q1 in 
 	let q2_E = DerivTerm.get_e q2 in 
@@ -56,13 +56,16 @@ module UF = Decide_Util.UnionFind(DerivTerm)
              in
              main_loop work_list) in
 
+    let initial_time = Sys.time () in
     let t2' = DerivTerm.make_term (Ast.TermSet.singleton t2) in
 
     let t1' = DerivTerm.make_term (Ast.TermSet.singleton t1) in
 
     let ret = main_loop (WorkList.singleton (t1',t2')) in
+    let final_time = Sys.time () in
     PCC.generate_certificate t1 t2 t1' t2' bisim;
     Decide_Util.print_debugging_info ();
+    Printf.printf "Running time: %f s\n" (final_time -. initial_time);
     ret
 
 let check_certificate = PCC.parse_certificate
