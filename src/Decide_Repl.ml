@@ -30,8 +30,8 @@ let process (input : string) : unit =
     let parsed = parse input in
     let l,r = Ast.Formula.terms parsed in 
     Printf.printf "unfolded\n%!";
-    Printf.printf "LHS term:%s\n" (Ast.Term.to_string l);
-    Printf.printf "RHS term:%s\n" (Ast.Term.to_string r);
+    (* Printf.printf "LHS term:%s\n" (Ast.Term.to_string l); *)
+    (* Printf.printf "RHS term:%s\n" (Ast.Term.to_string r); *)
     Printf.printf "Bisimulation result: %b\n"
       (run_bisimulation l r )
   with
@@ -136,12 +136,12 @@ let rec repl (state : state) : unit =
   repl state
 
 let main () =
-  (if (Array.length Sys.argv) > 1 then
+  if (Array.length Sys.argv) > 1 then
     let args = List.tl (Array.to_list Sys.argv) in
     List.iter process_file args
   else
-    print_endline "NetKAT");
-    try repl init_state
-    with Quit -> print_endline "bye"
+    (print_endline "NetKAT";
+     try repl init_state
+     with Quit -> print_endline "bye")
 
 let _ = main ()
