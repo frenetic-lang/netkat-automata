@@ -140,19 +140,28 @@ module Term (* : sig *)
       let hash = Hashtbl.hash
     end)
 
-  let hashtbl = H.create 100
+  let hashtbl = H.create 100  
+  let zero = H.hashcons hashtbl Zero
+  let one = H.hashcons hashtbl One
   let assg f v = H.hashcons hashtbl (Assg (f,v))
   let test f v = H.hashcons hashtbl (Test (f,v))
   let dup = H.hashcons hashtbl Dup
-  let plus ts = H.hashcons hashtbl (Plus ts)
+  let plus ts = H.hashcons hashtbl (Plus (TermSetBase.filter ts ~f:(fun x -> match x.node with
+      | Zero -> false
+      | _ -> true)))
   let times ts = H.hashcons hashtbl (Times (List.fold_right ts ~init:[] ~f:(fun x acc -> match x.node with
       | One -> acc
+      | Zero -> [zero]
       | Times ts' -> ts' @ acc
       | _ -> x :: acc)))
-  let not t = H.hashcons hashtbl (Not t)
-  let star t = H.hashcons hashtbl (Star t)
-  let zero = H.hashcons hashtbl Zero
-  let one = H.hashcons hashtbl One
+  let not t = match t.node with
+    | Zero -> one
+    | One -> zero
+    | _ -> H.hashcons hashtbl (Not t)
+  let star t = match t.node with
+    | Zero
+    | One -> one
+    | _ -> H.hashcons hashtbl (Star t)
 
   module UnivMap = SetMapF(Field)(Value)
   (* Collect the possible values of each variable *)

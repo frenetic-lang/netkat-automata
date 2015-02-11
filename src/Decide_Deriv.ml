@@ -149,18 +149,25 @@ module rec BDDDeriv : DerivTerm = struct
     let empty = PacketDD.const PartialPacketSet.zero
 
     let one = PacketDD.const PartialPacketSet.one
-    let zero = PacketDD.const PartialPacketSet.zero
-    
-    let times e1 e2 =
-      reduce (PacketDD.fold
-                (fun par ->
-                   PartialPacketSet.fold par ~init:zero ~f:(fun acc pkt ->
-                       let e2' = PacketDD.restrict FieldMap.(to_alist pkt) e2 in
-                       PacketDD.(sum (PacketDD.map_r (fun pkts -> PartialPacketSet.map pkts (seq_pkt pkt)) e2') acc)))
-                (fun v t f -> cond v t f)
-                e1)
+    let zero = empty
 
-    let plus e1 e2 = reduce (PacketDD.sum e1 e2)
+    let plus e1 e2 = if PacketDD.equal e1 zero then e2
+      else if PacketDD.equal e2 zero then e1
+      else if PacketDD.equal e1 e2 then e1        
+      else reduce (PacketDD.sum e1 e2)
+    
+    let times e1 e2 = if PacketDD.equal e1 one then e2
+      else if PacketDD.equal e2 one then e1
+      else if PacketDD.equal e1 zero then zero
+      else if PacketDD.equal e2 zero then zero
+      else
+        reduce (PacketDD.fold
+                  (fun par ->
+                     PartialPacketSet.fold par ~init:zero ~f:(fun acc pkt ->
+                         let e2' = PacketDD.restrict FieldMap.(to_alist pkt) e2 in
+                         (plus (PacketDD.map_r (fun pkts -> PartialPacketSet.map pkts (seq_pkt pkt)) e2') acc)))
+                  (fun v t f -> cond v t f)
+                  e1)
 
     let star e =
       let rec loop acc =
@@ -174,7 +181,7 @@ module rec BDDDeriv : DerivTerm = struct
     let rec matrix_of_term t =
       let result = match t.node with
         | Plus ts -> TermSet.fold ts ~init:zero ~f:(fun acc v -> plus acc (matrix_of_term v))
-        | Dup -> empty
+        | Dup -> zero
         | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times acc (matrix_of_term x))
         | Star t -> star (matrix_of_term t)
         | Assg (f,v) -> PacketDD.const (PartialPacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
@@ -182,20 +189,25 @@ module rec BDDDeriv : DerivTerm = struct
         (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
         | Not t -> PacketDD.map_r (fun p -> match PartialPacketSet.equal PartialPacketSet.one p with
             | true -> PartialPacketSet.zero
-            | false -> assert (PartialPacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
+            | false -> PartialPacketSet.one) (matrix_of_term t)
         | Zero -> zero
         | One -> one in
       reduce result
 
-    let union e1 e2 = reduce (PacketDD.sum e1 e2)
-    let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
+    let union = plus
+    let intersection e1 e2 = if PacketDD.equal e1 zero then zero
+      else if PacketDD.equal e2 zero then zero
+      else if PacketDD.equal e1 e2 then e1
+      else if PacketDD.equal e1 one then e2
+      else if PacketDD.equal e2 one then e1
+      else reduce (PacketDD.prod e1 e2)
 
     let get_points t : PointSet.t =
       let base_points =
         PacketDD.fold
           (fun r -> PartialPacketSet.fold r ~f:(fun acc pkt -> PointSet.add acc (FieldMap.empty, pkt)) ~init:PointSet.empty)
           (fun (h,v) t f ->
-             let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in
+             (* let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in *)
              PointSet.union (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2))
                f)
           t
