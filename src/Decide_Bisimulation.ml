@@ -18,7 +18,7 @@ module WorkList = WorkList(struct
 module PCC = Decide_PCC.PCC(DerivTerm)
 module UF = Decide_Util.UnionFind(DerivTerm)
 
-  let check_equivalent (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
+  let check_equivalent ?(certificate=false) (t1: Ast.Term.t) (t2: Ast.Term.t) : bool = 
 
     let bisim = UF.create ()
     in
@@ -63,7 +63,7 @@ module UF = Decide_Util.UnionFind(DerivTerm)
 
     let ret = main_loop (WorkList.singleton (t1',t2')) in
     let final_time = Sys.time () in
-    PCC.generate_certificate t1 t2 t1' t2' bisim;
+    if certificate then PCC.generate_certificate t1 t2 t1' t2' bisim;
     Decide_Util.print_debugging_info ();
     Printf.printf "Running time: %f s\n" (final_time -. initial_time);
     ret
