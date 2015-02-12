@@ -392,6 +392,11 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
     | Root_node of Ord.t * int ref (* maxdepth *)
     | Leaf_node of Ord.t * union_find_ds ref with sexp
 
+  let rec node_eq n1 n2 = match n1,n2 with
+    | Root_node(o1,n1), Root_node(o2, n2) -> (Ord.compare o1 o2 = 0) && (!n1 = !n2)
+    | Leaf_node(o1, n1'), Leaf_node(o2, n2') -> (Ord.compare o1 o2 = 0) && node_eq !n1' !n2'
+    | _,_ -> false
+    
   type t = { mutable node_map : union_find_ds FindMap.t;
              mutable root_ref_map : (union_find_ds ref) FindMap.t}
 
@@ -501,7 +506,7 @@ module UnionFind = functor(Ord : Core.Std.Map.Key) -> struct
     FindMap.iter t.node_map ~f:(fun ~key:key ~data:data ->
         crawl_up_tree (fun node -> match node with
             | Root_node(v,_)
-            | Leaf_node(v,_) -> if FindMap.find_exn t.node_map v = node then () else raise Duplicate_node) data)
+            | Leaf_node(v,_) -> if node_eq (FindMap.find_exn t.node_map v) node then () else raise Duplicate_node) data)
    (* Invariants:
      1) Every node with a reference to a root node uses the same reference
      2) There is only one node with a given Ord.t value
