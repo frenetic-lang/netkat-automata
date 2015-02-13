@@ -55,6 +55,8 @@ module PCC (D : Decide_Deriv.DerivTerm) = struct
     let file = S.load_sexp file in
     let cert = certificate_of_sexp file in
     UF.validate cert.bisim;
+    Decide_Util.set_univ [Decide_Ast.Term.values cert.lhs;
+                          Decide_Ast.Term.values cert.rhs];
     let lhs_deriv = D.make_term (Ast.TermSet.singleton cert.lhs) in
     let rhs_deriv = D.make_term (Ast.TermSet.singleton cert.rhs) in
     if (try D.EMatrix.compare (D.get_e lhs_deriv) cert.left_e_matrix <> 0
