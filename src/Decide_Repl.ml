@@ -129,9 +129,12 @@ let rec repl (state : state) : unit =
       print_string "where: ";
       let file = read_line () in
       (* let file = "netkat.cert" in *)
-      print_string "Checking certificate\n";      
+      print_string "Checking certificate\n";
+      let initial_time = Sys.time () in
       Decide_Bisimulation.check_certificate file;
-      print_string "Certificate verified\n"      
+      let final_time = Sys.time () in
+      print_string "Certificate verified\n";
+      Printf.printf "Running time: %f s\n" (final_time -. initial_time)
     | _ -> repl state);
   repl state
 
