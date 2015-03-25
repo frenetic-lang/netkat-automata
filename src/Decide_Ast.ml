@@ -7,9 +7,120 @@ module FieldMap = Map.Make(Field)
 type packet = Value.t FieldMap.t with sexp,compare
 type point = packet * packet with sexp, compare
 
-module PacketSet = Set.Make (struct
-    type t = packet with sexp, compare
-  end)
+module PacketSet = struct
+  module S = Set.Make (struct
+      type t = packet with sexp, compare
+    end)
+
+  let max_pkts_num = ref None
+  let max_pkts () : int = match !max_pkts_num with
+    | Some n -> n
+    | None -> let fields = !all_fields () in
+      let values = !all_values () in
+      let max = FieldSet.fold (fun f acc -> acc * ValueSet.cardinal (values f)) fields 1 in
+      max_pkts_num := Some max;
+      max
+
+  type t =
+    | Positive of S.t
+    | Negative of S.t with sexp
+
+  type elt = packet with sexp, compare
+
+  let empty = Positive S.empty
+  let all = Negative S.empty
+  let singleton a = Positive (S.singleton a)
+
+  let complement t = match t with
+    | Positive s -> Negative s
+    | Negative s -> Positive s
+
+  let length t = match t with
+    | Positive s -> S.length s
+    | Negative s -> max_pkts () - S.length s
+
+  let is_empty t = match t with
+    | Positive s -> S.is_empty s
+    | Negative s -> max_pkts () = S.length s
+
+  let mem t a = match t with
+    | Positive s -> S.mem s a
+    | Negative s -> not (S.mem s a)
+
+  let add t a = match t with
+    | Positive s -> Positive (S.add s a)
+    | Negative s -> Negative (S.remove s a)
+
+  let remove t a = match t with
+    | Positive s -> Positive (S.remove s a)
+    | Negative s -> Negative (S.add s a)
+
+  let union t t' = match t,t' with
+    | Positive s, Positive s' -> Positive (S.union s s')
+    | Negative s, Negative s' -> Negative (S.inter s s')
+    | Positive s, Negative s' -> Negative (S.diff s' s)
+    | Negative s, Positive s' -> Negative (S.diff s s')
+
+  let union_list ts = List.fold ts ~f:union ~init:empty
+
+  let inter t t' = match t,t' with
+    | Positive s, Positive s' -> Positive (S.inter s s')
+    | Negative s, Negative s' -> Negative (S.union s s')
+    | Positive s, Negative s' -> Positive (S.diff s s')
+    | Negative s, Positive s' -> Positive (S.diff s' s)
+
+  let diff t t' = match t,t' with
+    | Positive s, Positive s' -> Positive (S.diff s s')
+    | t, Negative s' -> inter t (Positive s')
+    | Negative s, Positive s' -> Negative (S.union s s')
+
+  let equal t t' = if length t <> length t'
+    then false
+    else match t, t' with
+      | Positive s, Positive s' -> S.equal s s'
+      | Negative s, Negative s' -> S.equal s s'
+      (* 
+       Thm: if |A| = |B|, then A = B iff A-B = {} or B-A = {} To avoid
+       constructing a bigger set, we always subtract the negative set
+       from the positive one 
+      *)
+      | Negative s, Positive s' -> is_empty (diff t' t)
+      | Positive s, Negative s' -> is_empty (diff t t')
+
+  let exists t ~f = match t with
+    | Positive s -> S.exists s ~f
+    | Negative s -> failwith "NYI: PacketSet.exists (Negative)"
+
+  let for_all t ~f = match t with
+    | Positive s -> S.for_all s ~f
+    | Negative s -> failwith "NYI: PacketSet.for_all (Negative)"
+
+  let count t ~f = match t with
+    | Positive s -> S.count s ~f
+    | Negative s -> failwith "NYI: PacketSet.count (Negative)"
+
+  let map t ~f = match t with
+    | Positive s -> Positive (S.map s ~f)
+    | Negative s -> failwith "NYI: PacketSet.map (Negative)"
+
+  let filter_map t ~f = match t with
+    | Positive s -> Positive (S.filter_map s ~f)
+    | Negative s -> failwith "NYI: PacketSet.filter_map (Negative)"
+
+  let filter t ~f = match t with
+    | Positive s -> Positive (S.filter s ~f)
+    | Negative s -> failwith "NYI: PacketSet.filter (Negative)"
+
+  let fold t ~init ~f = match t with
+    | Positive s -> S.fold s ~f ~init
+    | Negative s -> failwith "NYI: PacketSet.fold (Negative)"
+
+  let elements t = match t with
+    | Positive s -> S.elements s
+    | Negative s -> failwith "NYI: PacketSet.elements (Negative)"
+
+  let compare t t' = if equal t t' then 0 else -1
+end
 
 let packet_to_string pkt = Printf.sprintf "[%s]"
     (String.concat ~sep:";"
@@ -25,7 +136,8 @@ module rec TermBase : sig
     | Test of Field.t * Value.t
     | Dup 
     | Plus of TermSetBase.t
-    | Times of t list 
+    | Times of t list
+    | Intersection of TermSetBase.t
     | Not of t
     | Star of t
     | Zero 
@@ -37,7 +149,8 @@ end = struct
     | Test of Field.t * Value.t
     | Dup 
     | Plus of TermSetBase.t
-    | Times of t list 
+    | Times of t list
+    | Intersection of TermSetBase.t
     | Not of t
     | Star of t
     | Zero 
@@ -149,6 +262,7 @@ module Term (* : sig *)
       | One -> acc
       | Times ts' -> ts' @ acc
       | _ -> x :: acc)))
+  let intersection ts = H.hashcons hashtbl (Intersection ts)
   let not t = H.hashcons hashtbl (Not t)
   let star t = H.hashcons hashtbl (Star t)
   let zero = H.hashcons hashtbl Zero

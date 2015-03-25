@@ -15,7 +15,9 @@ module type DerivTerm = sig
     val compare : t -> t -> int
     val empty : t
     val intersection_empty : t -> t -> bool
+    val intersection : t -> t -> t
     val union : t -> t -> t
+    val negate : t -> t
   end
 
   module DMatrix : sig

@@ -7,7 +7,7 @@ open Decide_Ast.Formula
 %token <string> VAR
 %token <string> STRING
 %token ZERO ONE DUP
-%token PLUS TIMES STAR
+%token PLUS TIMES STAR INTER
 %token NOT
 %token LPAREN RPAREN
 %token EQ NEQ EQUIV LE ASSG
@@ -43,6 +43,7 @@ term:
   | LPAREN term RPAREN { $2 }
   | term PLUS term  { plus (TermSet.of_list [$1; $3]) }
   | term TIMES term { times [$1; $3] }
+  | term INTER term { intersection (TermSet.of_list [$1; $3]) }
   | term STAR       { star $1 }
   | NOT term        { not $2 }
   | term term %prec TIMES { times [$1; $2] }

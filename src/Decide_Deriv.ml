@@ -24,7 +24,9 @@ module type DerivTerm = sig
     val compare : t -> t -> int
     val empty : t
     val intersection_empty : t -> t -> bool
+    val intersection : t -> t -> t
     val union : t -> t -> t
+    val negate : t -> t
   end
 
   module DMatrix : sig
@@ -87,6 +89,9 @@ module rec BDDDeriv : DerivTerm = struct
     let zero = PacketSet.empty
     let one = PacketSet.singleton FieldMap.empty
     let union = sum
+    let complement t = if equal t zero then one
+      else if equal t one then zero
+      else PacketSet.complement t
 
     let to_string t = Sexplib.Sexp.to_string (sexp_of_t t)
   end
@@ -171,25 +176,6 @@ module rec BDDDeriv : DerivTerm = struct
       in
       reduce (loop e)
 
-    let rec matrix_of_term t =
-      let result = match t.node with
-        | Plus ts -> TermSet.fold ts ~init:zero ~f:(fun acc v -> plus acc (matrix_of_term v))
-        | Dup -> empty
-        | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times acc (matrix_of_term x))
-        | Star t -> star (matrix_of_term t)
-        | Assg (f,v) -> PacketDD.const (PartialPacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
-        | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
-        (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
-        | Not t -> PacketDD.map_r (fun p -> match PartialPacketSet.equal PartialPacketSet.one p with
-            | true -> PartialPacketSet.zero
-            | false -> assert (PartialPacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
-        | Zero -> zero
-        | One -> one in
-      reduce result
-
-    let union e1 e2 = reduce (PacketDD.sum e1 e2)
-    let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
-
     let get_points t : PointSet.t =
       let base_points =
         PacketDD.fold
@@ -216,13 +202,40 @@ module rec BDDDeriv : DerivTerm = struct
       let pts = get_points t in
       Printf.printf "get_points: %s\n" (PointSet.to_string pts);
       PointSet.fold pts ~f:f ~init:init
-        
+
     (* Since PacketDD is not guaranteed to be canonical, we have to semantically compare *)
     let compare t1 t2 = let eq = PacketDD.equal t1 t2 ||
                                  (fold t1 ~init:true ~f:(fun acc pt -> acc &&
                                                                        run t1 pt = run t2 pt)
                                   && fold t2 ~init:true ~f:(fun acc pt -> acc && run t1 pt = run t2 pt)) in
       if eq then 0 else -1
+    
+    let negate t = if compare t one = 0
+      then zero
+      else if compare t zero = 0
+      then one
+      else PacketDD.map_r PartialPacketSet.complement t
+
+    let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
+
+    let rec matrix_of_term t =
+      let result = match t.node with
+        | Zero -> zero
+        | One -> one
+        | Plus ts -> TermSet.fold ts ~init:zero ~f:(fun acc v -> plus acc (matrix_of_term v))
+        | Dup -> empty
+        | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times acc (matrix_of_term x))
+        | Star t -> star (matrix_of_term t)
+        | Assg (f,v) -> PacketDD.const (PartialPacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
+        | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
+        (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
+        | Not t -> negate (matrix_of_term t)
+        | Intersection ts -> TermSet.fold ts ~init:one ~f:(fun acc x -> intersection acc (matrix_of_term x))
+      in
+      reduce result
+
+    let union e1 e2 = reduce (PacketDD.sum e1 e2)
+
     let intersection_empty e e' = (compare (PacketDD.prod e e') empty) = 0
     
     let to_string = PacketDD.to_string
@@ -235,7 +248,6 @@ module rec BDDDeriv : DerivTerm = struct
                                   ~f:(fun acc x -> TermSet.union acc (TermSet.singleton (packet_to_beta x))))
         (fun (h,v) t f -> TermSet.union (TermSet.map t (fun beta -> Term.times [test h v; beta]))
                                         (TermSet.map f (fun beta -> Term.times [not (test h v); beta])))
-
   end
 
   module DMatrix = struct
@@ -282,26 +294,52 @@ module rec BDDDeriv : DerivTerm = struct
       let rec matrix_of_term' t =
         let open Term in
         begin match t.node with
-        | Dup -> CompactDerivSet.singleton ({ left_hand = EMatrix.one; right_hand = one })
-        | Plus ts -> TermSet.fold ts ~f:(fun acc t -> CompactDerivSet.union (matrix_of_term' t) acc) ~init:CompactDerivSet.empty
-        | Times (t::ts) -> CompactDerivSet.union (d_right_app (matrix_of_term' t) (times ts))
-                             (d_left_app (EMatrix.matrix_of_term t) (matrix_of_term' (times ts)))
-        | Star t -> d_left_app (EMatrix.matrix_of_term (star t)) (d_right_app (matrix_of_term' t) (star t))
-        | _ -> CompactDerivSet.empty
+          | Dup             -> CompactDerivSet.singleton ({ left_hand = EMatrix.one;
+                                                            right_hand = one })
+          | Plus ts         -> TermSet.fold ts
+                               ~f:(fun acc t -> CompactDerivSet.union (matrix_of_term' t) acc)
+                               ~init:CompactDerivSet.empty
+          | Times (t::ts)   -> CompactDerivSet.union (d_right_app (matrix_of_term' t) (times ts))
+                                 (d_left_app (EMatrix.matrix_of_term t)
+                                    (matrix_of_term' (times ts)))
+          | Star t          -> d_left_app (EMatrix.matrix_of_term (star t))
+                                 (d_right_app (matrix_of_term' t) (star t))
+          | Intersection ts -> let intersect d1 d2 = CompactDerivSet.fold d1
+              ~f:(fun acc x -> CompactDerivSet.union acc
+                     (CompactDerivSet.map d2
+                        ~f:(fun d ->
+                          {left_hand = EMatrix.intersection d.left_hand x.left_hand;
+                           right_hand = Term.intersection (TermSet.of_list [d.right_hand;
+                                                                            x.right_hand])})))
+              ~init:CompactDerivSet.empty in
+            TermSet.fold ts ~f:(fun acc t -> intersect acc (matrix_of_term' t))
+              ~init:CompactDerivSet.empty
+          | Not t           -> let d_ts = matrix_of_term' t in
+            CompactDerivSet.map d_ts ~f:(fun d -> {left_hand = EMatrix.(negate d.left_hand);
+                                                   right_hand = Term.not d.right_hand})
+          | Times []
+          | Assg _
+          | Test _
+          | One
+          | Zero            -> CompactDerivSet.empty
+                    
         end in
-      TermSet.fold t ~init:CompactDerivSet.empty ~f:(fun acc x -> CompactDerivSet.union acc (matrix_of_term' x))
-
-    (* 
-       a) for each (b, e) \in D(elm1), (b',e') \in D(elm2), 
-          if b /\ b' != 0, then e bisim e'
-       b) \/ b == \/ b'
-    *)
+      TermSet.fold t
+        ~init:CompactDerivSet.empty
+        ~f:(fun acc x -> CompactDerivSet.union acc (matrix_of_term' x))
 
     let rec power_set = function
       | [] -> [[]]
       | x :: xs -> let rem = power_set xs in
         rem @ (List.map rem (fun y -> x :: y))
 
+
+    (* 
+       a) for each (b, e) \in D(elm1), (b',e') \in D(elm2), 
+          if b /\ b' != 0, then e bisim e'
+       b) \/ b == \/ b'
+    *)
+    
     let d_equivalent bisim d1 d2 =
       let compute_intersections d = 
         let dlst = CompactDerivSet.elements d in
