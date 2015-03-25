@@ -213,8 +213,9 @@ module Term (* : sig *)
       match t.node with
         | Plus _ -> 0
         | Times _ -> 1
-        | Not _ -> 2
-        | Star _ -> 3
+        | Intersection _ -> 2
+        | Not _ -> 3
+        | Star _ -> 4
         | _ -> 4 in
     let protect (u:t) : string =
       let s = to_string u in
@@ -235,6 +236,9 @@ module Term (* : sig *)
         "dup"
       | Plus (ts) -> 
         assoc_to_string " + " "drop" 
+          (List.map ~f:protect (TermSetBase.elements ts))
+      | Intersection (ts) ->
+        assoc_to_string " ^ " "WRONG_EMPTY_INTERSECTION" 
           (List.map ~f:protect (TermSetBase.elements ts))
       | Times (ts) -> 
         assoc_to_string ";" "id" (List.map ~f:protect ts)
@@ -274,7 +278,8 @@ module Term (* : sig *)
     let rec collect (m : UnivMap.t) (t : TermBase.t) : UnivMap.t =
       match t.node with
 	| (Assg (x,v) | Test (x,v)) -> UnivMap.add x v m
-	| Plus s -> TermSetBase.fold s ~init:m ~f:collect
+        | Plus s -> TermSetBase.fold s ~init:m ~f:collect
+        | Intersection s -> TermSetBase.fold s ~init:m ~f:collect
 	| Times s -> List.fold_right s ~init:m ~f:(fun a b -> collect b a)
 	| (Not x | Star x) -> collect m x
 	| (Dup  | Zero  | One ) -> m in
@@ -296,6 +301,10 @@ module Term (* : sig *)
       | Times ts -> 
         List.fold_left ts 
           ~f:(fun n ti -> n + (size ti))
+          ~init:1
+      | Intersection ts -> 
+        TermSetBase.fold ts
+          ~f:(fun n ti -> (size ti) + n)
           ~init:1
       | Not t -> 1 + size t
       | Star t -> 1 + size t
