@@ -7,6 +7,11 @@ module FieldMap = Map.Make(Field)
 type packet = Value.t FieldMap.t with sexp,compare
 type point = packet * packet with sexp, compare
 
+let packet_to_string pkt = Printf.sprintf "[%s]"
+    (String.concat ~sep:";"
+       (FieldMap.fold pkt ~init:[]
+          ~f:(fun ~key ~data acc -> (Printf.sprintf "%s := %s" (Field.to_string key) (Value.to_string data) :: acc))))
+
 module PacketSet = struct
   module S = Set.Make (struct
       type t = packet with sexp, compare
@@ -121,11 +126,6 @@ module PacketSet = struct
 
   let compare t t' = if equal t t' then 0 else -1
 end
-
-let packet_to_string pkt = Printf.sprintf "[%s]"
-    (String.concat ~sep:";"
-       (FieldMap.fold pkt ~init:[]
-          ~f:(fun ~key ~data acc -> (Printf.sprintf "%s := %s" (Field.to_string key) (Value.to_string data) :: acc))))
 
 let point_to_string (pkt1, pkt2) = Printf.sprintf "(%s,%s)" (packet_to_string pkt1) (packet_to_string pkt2)
 

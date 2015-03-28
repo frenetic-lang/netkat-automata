@@ -93,7 +93,7 @@ module rec BDDDeriv : DerivTerm = struct
       else if equal t one then zero
       else PacketSet.complement t
 
-    let to_string t = Sexplib.Sexp.to_string (sexp_of_t t)
+    let to_string t = Printf.sprintf "{%s}" (String.concat ~sep:", " (PacketSet.fold t ~f:(fun lst pkt -> packet_to_string pkt :: lst) ~init:[]))
   end
 
   module PacketDD = Tdk.Vcr.Make(Field)(Value)(PartialPacketSet)
