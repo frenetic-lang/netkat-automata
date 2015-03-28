@@ -216,7 +216,28 @@ module rec BDDDeriv : DerivTerm = struct
       then one
       else PacketDD.map_r PartialPacketSet.complement t
 
-    let intersection e1 e2 = reduce (PacketDD.prod e1 e2)
+    let set_intersection e s = PacketDD.map_r (PartialPacketSet.inter s) e
+
+    let restrict (h,v) e = PacketDD.fold (fun x -> PacketDD.const x)
+        (fun (h',v') left right -> if h = h then
+            match v = v' with
+            | true -> left
+            | false -> right
+          else cond (h', v') left right) e
+
+    let restrict_neg (h,v) e = PacketDD.fold (fun x -> PacketDD.const x)
+        (fun (h',v') left right -> if h = h && v = v' then
+            right
+          else
+            cond (h', v') left right) e
+
+    let intersection e1 e2 = PacketDD.fold
+        (set_intersection e2)
+        (fun (h,v) left right -> cond (h,v) (PacketDD.restrict [(h,v)] left)
+            (restrict_neg (h,v) right))
+        e1
+        
+    (* let intersection e1 e2 = reduce (PacketDD.prod e1 e2) *)
 
     let to_string = PacketDD.to_string
 
