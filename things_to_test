@@ -78,3 +78,4 @@ f=0;g:=0 + f=1;g:=1 + f!=1;g:=0 == f=1;g:=1 + f!=1;g:=0
 #intersection
 (x := 1; x:= 1) ^ (x := 1) == x := 1
 (x = 1 + x := 2) ^ (x = 1) == x = 1
+(sw = 0; sw := 1; dup; sw = 1) ^ (sw = 0; sw := 1; dup) == sw = 0; sw := 1; dup

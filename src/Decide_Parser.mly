@@ -15,6 +15,7 @@ open Decide_Ast.Formula
 
 %nonassoc EQ LE /* lowest precedence */
 %left PLUS
+%left INTER
 %left TIMES VAR ZERO ONE DUP LPAREN
 %nonassoc NOT STAR /* highest precedence */
 
