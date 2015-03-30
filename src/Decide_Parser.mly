@@ -10,7 +10,7 @@ open Decide_Ast.Formula
 %token PLUS TIMES STAR INTER
 %token NOT
 %token LPAREN RPAREN
-%token EQ NEQ EQUIV LE ASSG
+%token EQ NEQ EQUIV NEQUIV LE ASSG
 %token EOL
 
 %nonassoc EQ LE /* lowest precedence */
@@ -53,4 +53,5 @@ term:
 formula:
   | term EQUIV term { make_eq $1 $3 }
   | term LE term    { make_le $1 $3 }
+  | term NEQUIV term { make_neq $1 $3 }  
 ;

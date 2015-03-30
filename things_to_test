@@ -9,7 +9,7 @@
 (x := 3; x:=4 ) == (x := 4)
 (x = 3; x = 4) == drop
 (x = 3 + x != 3) == pass
-(x != 3) <= x != 4
+(x != 3) <> x != 4
 (x := 3; x :=4; x := 5) == x:=5
 (x := 3; x :=4; x := 2; x := 5) == x:=5
 (x := 3; x :=4; x := 2; x := 1; x := 5) == x:=5
@@ -19,20 +19,20 @@
 (x := 3; y :=4; x := 2; y := 1; x := 0; y := 6; x := 7; x := 5) == x:=5; y := 6
 (y := 1; x := 0; y := 6; x := 5) == x:=5; y := 6
 x := 0; y := 6; x := 5 == x := 5; y := 6
-z := 3; y := 6; x := 5 <= z := 4; x := 5 y := 6
+z := 3; y := 6; x := 5 <> z := 4; x := 5 y := 6
 (x = 3 + z = 4) + drop == (x = 3 + z = 4)
 (x = 3 + z = 4) + (x = 3 + z = 4) == (x = 3 + z = 4)
 pass; (x = 3 + z = 4) == (x = 3 + z = 4)
 (x = 3 + z = 4); pass == (x = 3 + z = 4)
 (y = 2);(x = 3 + z = 4) == (y = 2);(x = 3) + (y = 2);(z = 4)
 (x = 3 + z = 4);(y = 2) == (x = 3);(y = 2) + (z = 4);(y = 2)
-x = 3 <= x = 4
+x = 3 <> x = 4
 drop; (x = 3 + z = 4) == drop
 (x = 3 + z = 4); drop == drop
 pass + (x = 3 + z = 4); (x = 3 + z = 4)* == (x = 3 + z = 4)*
 # this is a trolltastic test.  it's true because both sides are equivalent
 # to the sum of all tests.
-(z = 5) + ((x = 3 + z = 4); (x = 3 + z = 4)*) <= z = 5 + (x = 3 + z = 4)*
+(z = 5) + ((x = 3 + z = 4); (x = 3 + z = 4)*) <> z = 5 + (x = 3 + z = 4)*
 #BOOLEAN ALGEBRA TIME!
 (x = 4) + ~(x = 4) == pass
 (x = 4); ~(x = 4) == drop
@@ -45,11 +45,11 @@ x = 4; x := 4 == x = 4
 x = 3; x = 5 == drop
 
 #from the other project
-( switch = 0; (switch := 1))* <= drop
+( switch = 0; (switch := 1))* <> drop
 
 (x := 4; x:= 3; x = 3)* == pass + x := 3
 
-(x := 4; x:= 3; x = 3) <= pass + x := 3
+(x := 4; x:= 3; x = 3) <> pass + x := 3
 
 (x := 4; x:= 3; x = 3) ==  x := 3
 
@@ -62,13 +62,13 @@ sw = 0; sw := 1; dup; sw = 1 == sw = 0; sw := 1; dup
 
 (y = 3 + z = 4;z := 4)*;(y = 4 + z = 5)*== (y = 3 + z = 4; z := 4)*;(y = 4 + z = 5)*
 
-(a=3);(b=4);(c=2;c:=3 + c=3;c:=2)*;(d=1);(e=4);(f=0) <= a = 0
+(a=3);(b=4);(c=2;c:=3 + c=3;c:=2)*;(d=1);(e=4);(f=0) <> a = 0
 
-pass + (a=1;b:=2);(c=3;drop) + (c=3;drop) <= c=3;drop
+pass + (a=1;b:=2);(c=3;drop) + (c=3;drop) <> c=3;drop
 
-pass <= drop
+pass <> drop
 
-x = 1; dup <= dup
+x = 1; dup <> dup
 
 #This exploits non-canonicity of FDDs, naive implementation gets it wrong
 f:=1;g := 2 == f:=1;g:=2 + g=2;f := 1

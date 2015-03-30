@@ -31,6 +31,7 @@ rule token = parse
   | "=="   { EQUIV }
   | '='    { EQ }
   | "!="   { NEQ }
+  | "<>"   { NEQUIV }
   | "<="   { LE }
   | '<'    { LE }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":"

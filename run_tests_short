@@ -7,10 +7,11 @@ do
     then echo -n ""
     else continue
     fi
-    if echo $line | grep -q '<='
-    then desired_result="false"
-    else desired_result="true"
-    fi
+    # if echo $line | grep -q '!='
+    # then desired_result="false"
+    # else desired_result="true"
+    desired_result="true"
+    # fi
     if [[ `echo "$line""
 process
 quit" | ./Decide_Repl.native | grep 'Bisimulation result' | rev | cut -d\  -f1 | rev` = $desired_result ]]

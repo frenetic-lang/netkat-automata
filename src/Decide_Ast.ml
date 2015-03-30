@@ -192,6 +192,7 @@ module Term (* : sig *)
     | Plus ts -> TermSetBase.fold ts ~f:(fun acc t -> PacketSet.union (eval t pkt) acc) ~init:PacketSet.empty
     | Times ts -> List.fold ts ~init:(PacketSet.singleton pkt) ~f:(fun accum t ->
         PacketSet.fold accum ~init:PacketSet.empty ~f:(fun acc pkt -> PacketSet.union acc (eval t pkt)))
+    | Intersection ts -> TermSetBase.fold ts ~f:(fun acc t -> PacketSet.inter (eval t pkt) acc) ~init:(eval (TermSetBase.choose_exn ts) pkt)
     | Not t -> let ret = eval t pkt in
       begin
         match PacketSet.length ret with
@@ -317,44 +318,112 @@ module TermSet = struct
   let to_string ts = Printf.sprintf "{%s}" (String.concat ~sep:", " (List.map (elements ts) Term.to_string))
 end
 
+module Path = struct
+
+  type regex =
+      Const of Value.t
+    | Any
+    | Sequence of regex * regex
+    | Union of regex * regex
+    | Intersection of regex * regex
+    | Comp of regex
+    | Star of regex
+    | Empty
+    | EmptySet with sexp, compare
+
+  type t =
+      RegPol of (Field.t * Value.t) * regex * int
+    | RegUnion of t * t
+    | RegInter of t * t with sexp, compare
+
+  let (<+>) a b = RegUnion(a,b)
+  let (<*>) a b = RegInter(a,b)
+
+  let (&&) a b = Intersection(a,b)
+  let (||) a b = Union(a,b)
+  let (<.>) a b = Sequence(a,b)
+
+  let rec regex_to_string reg = match reg with
+    | Const(h) -> Printf.sprintf "%s" (Value.to_string h)
+    | Any -> "Any"
+    | Empty -> "Empty"
+    | EmptySet -> "{}"
+    | Comp r -> Printf.sprintf "not (%s)" (regex_to_string r)
+    | Sequence(r1, r2) -> Printf.sprintf "( %s <.> %s )" (regex_to_string r1) (regex_to_string r2)
+    | Union(r1, r2) -> Printf.sprintf "( %s <||> %s )" (regex_to_string r1) (regex_to_string r2)
+    | Intersection(r1, r2) -> Printf.sprintf "( %s <&&> %s )" (regex_to_string r1) (regex_to_string r2)
+    | Star r -> Printf.sprintf "(%s)*" (regex_to_string r)
+
+  let rec t_to_string regPol = match regPol with
+  | RegPol((f,v), r, k) -> Printf.sprintf "RegPol(%s=%s, %s, %d)"
+          (Field.to_string f) (Value.to_string v) (regex_to_string r) k
+  | RegUnion(t1, t2) -> Printf.sprintf "(%s <+> %s)" (t_to_string t1) (t_to_string t2)
+  | RegInter(t1, t2) -> Printf.sprintf "(%s <*> %s)" (t_to_string t1) (t_to_string t2)
+
+  let compare = compare_t
+end
+
 module Formula = struct
   type t =
+    | Neq of Term.t * Term.t
     | Eq of Term.t * Term.t
     | Le of Term.t * Term.t
+    | Sat of Term.t * Path.t
         
   let make_eq (t1:Term.t) (t2:Term.t) : t =
     Eq (t1,t2)
 
+  let make_neq (t1:Term.t) (t2:Term.t) : t =
+    Neq (t1,t2)
+
   let make_le (t1:Term.t) (t2:Term.t) : t =
     Le (t1,t2)
+
+  let make_sat (t:Term.t) (p:Path.t) : t =
+    Sat (t,p)
 
   let to_string (f:t) : string =
     match f with
       | Eq (s,t) ->
         Printf.sprintf "%s == %s"
           (Term.to_string s) (Term.to_string t)
+      | Neq (s,t) ->
+        Printf.sprintf "%s != %s"
+          (Term.to_string s) (Term.to_string t)
       | Le (s,t) ->
         Printf.sprintf "%s <= %s"
           (Term.to_string s) (Term.to_string t)
+      | Sat (t,p) ->
+        Printf.sprintf "%s |= %s"
+          (Term.to_string t) (Path.t_to_string p)
 
   let compare (f1:t) (f2:t) : int =
     match f1,f2 with
-      | Eq(s1,t1), Eq(s2,t2) ->
-        let cmp = Term.compare s1 s2 in
-        if cmp <> 0 then cmp
-        else Term.compare t1 t2
-      | Le(s1,t1), Le(s2,t2) ->
-        let cmp = Term.compare s1 s2 in
-        if cmp <> 0 then cmp
-        else Term.compare t1 t2
-      | Eq _, _ -> -1
-      | _ -> 1
+    | Neq(s1,t1), Neq(s2,t2) ->
+      let cmp = Term.compare s1 s2 in
+      if cmp <> 0 then cmp
+      else Term.compare t1 t2
+    | Eq(s1,t1), Eq(s2,t2) ->
+      let cmp = Term.compare s1 s2 in
+      if cmp <> 0 then cmp
+      else Term.compare t1 t2
+    | Le(s1,t1), Le(s2,t2) ->
+      let cmp = Term.compare s1 s2 in
+      if cmp <> 0 then cmp
+      else Term.compare t1 t2
+    | Sat(t1,p1), Sat(t2,p2) ->
+      let cmp = Term.compare t1 t2 in
+      if cmp <> 0 then cmp
+      else Path.compare p1 p2
+    | Eq _, _ -> -1
+    | _ -> 1
 
   let equal (f1:t) (f2:t) : bool =
     compare f1 f2 = 0
 
   let terms (f:t) =
     match f with
-      | Eq (s,t) -> (s,t)
-      | Le (s,t) -> (s,t)
+    | Neq (s,t) -> (s,t)
+    | Eq (s,t) -> (s,t)
+    | Le (s,t) -> (s,t)
 end

@@ -4,12 +4,23 @@ module Ast = Decide_Ast
 type state = int
 let init_state = 0
     
-let run_bisimulation t1 t2 = 
-  let t1vals = Decide_Ast.Term.values t1 in 
-  let t2vals = Decide_Ast.Term.values t2 in 
-  if set_univ [t1vals; t2vals]
-  then Decide_Bisimulation.check_equivalent t1 t2
-  else Decide_Bisimulation.check_equivalent t1 t2
+let run_bisimulation = let open Ast.Formula in
+  function
+  | Neq (t1,t2) ->
+    let t1vals = Ast.Term.values t1 in 
+    let t2vals = Ast.Term.values t2 in 
+    ignore (set_univ [t1vals; t2vals]);
+    not (Decide_Bisimulation.check_equivalent t1 t2)
+  | Eq (t1,t2) ->
+    let t1vals = Ast.Term.values t1 in 
+    let t2vals = Ast.Term.values t2 in 
+    ignore (set_univ [t1vals; t2vals]);
+    Decide_Bisimulation.check_equivalent t1 t2
+  | Le (t1,t2) ->
+    let t1vals = Ast.Term.values t1 in 
+    let t2vals = Ast.Term.values t2 in 
+    ignore (set_univ [t1vals; t2vals]);
+    Decide_Bisimulation.check_equivalent t1 (Ast.Term.plus (Ast.TermSet.of_list [t1;t2]))
 
 exception ParseError of int * int * string
                               
@@ -28,12 +39,10 @@ let parse (s : string) =
 let process (input : string) : unit =
   try
     let parsed = parse input in
-    let l,r = Ast.Formula.terms parsed in 
     Printf.printf "unfolded\n%!";
-    Printf.printf "LHS term:%s\n" (Ast.Term.to_string l);
-    Printf.printf "RHS term:%s\n" (Ast.Term.to_string r);
+    Printf.printf "Formula:%s\n" (Ast.Formula.to_string parsed);
     Printf.printf "Bisimulation result: %b\n"
-      (run_bisimulation l r )
+      (run_bisimulation parsed)
   with
   | Decide_Deriv.Empty -> 
     ()

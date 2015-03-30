@@ -75,12 +75,44 @@ end and TermSet : sig
   val to_string : t -> string
 end
 
+module Path : sig
+  type regex =
+      Const of Value.t
+    | Any
+    | Sequence of regex * regex
+    | Union of regex * regex
+    | Intersection of regex * regex
+    | Comp of regex
+    | Star of regex
+    | Empty
+    | EmptySet with sexp, compare
+
+  type t =
+      RegPol of (Field.t * Value.t) * regex * int
+    | RegUnion of t * t
+    | RegInter of t * t with sexp, compare
+
+  val ( <+> ) : t -> t -> t
+  val ( <*> ) : t -> t -> t
+  val ( && ) : regex -> regex -> regex
+  val ( || ) : regex -> regex -> regex
+  val ( <.> ) : regex -> regex -> regex
+
+  val regex_to_string : regex -> string
+  val t_to_string : t -> string
+end
+
 module Formula : sig
-  type t 
+  type t =
+    | Neq of Term.t * Term.t
+    | Eq of Term.t * Term.t
+    | Le of Term.t * Term.t
+    | Sat of Term.t * Path.t
   val make_eq : Term.t -> Term.t -> t
+  val make_neq : Term.t -> Term.t -> t
   val make_le : Term.t -> Term.t -> t
+  val make_sat : Term.t -> Path.t -> t
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string
-  val terms : t -> Term.t * Term.t
 end
