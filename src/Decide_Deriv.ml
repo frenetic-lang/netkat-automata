@@ -26,7 +26,7 @@ module type DerivTerm = sig
     val intersection_empty : t -> t -> bool
     val intersection : t -> t -> t
     val union : t -> t -> t
-    val negate : t -> t
+    val complement : t -> t
   end
 
   module DMatrix : sig
@@ -42,6 +42,7 @@ module type DerivTerm = sig
   (* val to_term : t -> Decide_Ast.Term.t *)
   val get_e : t -> EMatrix.t
   val get_d : t -> DMatrix.t
+  val run_exact : t -> point -> TermSet.t
   val sexp_of_t : t -> Sexplib.Sexp.t
   val compare : t -> t -> int
   val to_string : t -> string
@@ -89,10 +90,6 @@ module rec BDDDeriv : DerivTerm = struct
     let zero = PacketSet.empty
     let one = PacketSet.singleton FieldMap.empty
     let union = sum
-    let complement t = if equal t zero then one
-      else if equal t one then zero
-      else PacketSet.complement t
-
     let to_string t = Printf.sprintf "{%s}" (String.concat ~sep:", " (PacketSet.fold t ~f:(fun lst pkt -> packet_to_string pkt :: lst) ~init:[]))
   end
 
@@ -210,12 +207,6 @@ module rec BDDDeriv : DerivTerm = struct
                                   && fold t2 ~init:true ~f:(fun acc pt -> acc && run t1 pt = run t2 pt)) in
       if eq then 0 else -1
     
-    let negate t = if compare t one = 0
-      then zero
-      else if compare t zero = 0
-      then one
-      else PacketDD.map_r PartialPacketSet.complement t
-
     let set_intersection e s = PacketDD.map_r (PartialPacketSet.inter s) e
 
     let restrict (h,v) e = PacketDD.fold (fun x -> PacketDD.const x)
@@ -241,6 +232,8 @@ module rec BDDDeriv : DerivTerm = struct
 
     let to_string = PacketDD.to_string
 
+    let complement = PacketDD.map_r PartialPacketSet.complement
+
     let rec matrix_of_term t =
       let result = match t.node with
         | Zero -> zero
@@ -252,7 +245,10 @@ module rec BDDDeriv : DerivTerm = struct
         | Assg (f,v) -> PacketDD.const (PartialPacketSet.singleton (FieldMap.add FieldMap.empty ~key:f ~data:v))
         | Test (f,v) -> PacketDD.atom (f, v) PartialPacketSet.one PartialPacketSet.zero
         (* Because t should *always* be a predicate, the leaves should only contain either an empty set, or {*} *)
-        | Not t -> negate (matrix_of_term t)
+        | Not t -> PacketDD.map_r (fun p -> match PartialPacketSet.equal PartialPacketSet.one p with
+            | true -> PartialPacketSet.zero
+            | false -> assert (PartialPacketSet.is_empty p); PartialPacketSet.one) (matrix_of_term t)
+        | Complement t -> complement (matrix_of_term t)
         (* Don't have a unit for intersection, so must have non-empty set *)
         | Intersection ts -> Printf.printf "Folding over intersection: %s\n" (Term.to_string t);
           TermSet.fold ts ~init:(matrix_of_term (TermSet.choose_exn ts)) ~f:(fun acc x ->
@@ -343,9 +339,10 @@ module rec BDDDeriv : DerivTerm = struct
             (* Can't have an empty intersection *)
             TermSet.fold ts ~f:(fun acc t -> intersect acc (matrix_of_term' t))
               ~init:(matrix_of_term' (TermSet.choose_exn ts))
-          | Not t           -> let d_ts = matrix_of_term' t in
-            CompactDerivSet.map d_ts ~f:(fun d -> {left_hand = EMatrix.(negate d.left_hand);
-                                                   right_hand = Term.not d.right_hand})
+          | Complement t          -> let d_ts = matrix_of_term' t in
+            CompactDerivSet.map d_ts ~f:(fun d -> {left_hand = EMatrix.(complement d.left_hand);
+                                                   right_hand = Term.complement d.right_hand})
+          | Not _
           | Times []
           | Assg _
           | Test _
@@ -427,6 +424,64 @@ module rec BDDDeriv : DerivTerm = struct
       e_matrix = None;
       d_matrix = None
     }
+
+  open HashCons
+  open Term
+  let rec run_e_exact t pkt = match t.node with
+    | Assg (h,v) -> PacketSet.singleton (FieldMap.add pkt ~key:h ~data:v)
+    | Test (h,v) -> begin match FieldMap.find pkt h with
+        | Some v' -> if v' = v then PacketSet.singleton pkt else PacketSet.empty
+        | None -> PacketSet.empty
+      end
+    | Dup -> PacketSet.empty
+    | Plus ts -> TermSet.fold ts ~f:(fun acc t -> PacketSet.union acc (run_e_exact t pkt))
+                   ~init:PacketSet.empty
+    | Times (t::ts) -> PacketSet.fold (run_e_exact t pkt) ~f:(fun acc pkt' ->
+        PacketSet.union acc (run_e_exact (times ts) pkt')) ~init:PacketSet.empty
+    | Times [] -> PacketSet.singleton pkt
+    | Star t -> let rec loop pkts gamma =
+      let iter = run_e_exact t gamma in
+      let pkts' = PacketSet.union pkts (PacketSet.singleton gamma) in
+      if PacketSet.subset iter pkts' then
+        pkts'
+      else PacketSet.fold (PacketSet.diff iter pkts')
+          ~f:loop ~init:pkts' in
+      loop PacketSet.empty pkt
+    | Intersection ts -> TermSet.fold ts ~f:(fun acc t -> PacketSet.inter acc (run_e_exact t pkt)) ~init:(run_e_exact (TermSet.choose_exn ts) pkt)
+    | Complement t -> PacketSet.complement (run_e_exact t pkt)
+    | Zero -> PacketSet.empty
+    | One -> PacketSet.singleton pkt
+
+  let packet_to_term pkt = times (FieldMap.fold pkt ~init:[]
+                                    ~f:(fun ~key ~data t -> (assg key data) :: t))
+
+  let rec run_exact' t pt = match t.node with
+    | Assg _
+    | Test _ -> TermSet.empty
+    | Dup -> if (fst pt) = (snd pt) then TermSet.singleton (packet_to_term (fst pt)) else TermSet.empty
+    | Plus ts -> TermSet.fold ts ~f:(fun acc t -> TermSet.union acc (run_exact' t pt)) ~init:TermSet.empty
+    (* TODO: Smart way to do this is to "extract" the gammas that make the product non-zero instead of iterating over all possible ones *)
+    | Times (t::ts) -> TermSet.union (TermSet.singleton (times (plus (run_exact' t pt) :: ts)))
+                         (PacketSet.fold (run_e_exact t (fst pt))
+                            ~f:(fun acc pkt -> TermSet.union acc (run_exact' (times ts) (pkt, snd pt))) ~init:TermSet.empty)
+    | Times [] -> TermSet.empty
+    | Intersection ts -> TermSet.singleton (intersection (TermSet.fold ts ~f:(fun acc t -> TermSet.union acc (run_exact' t pt)) ~init:TermSet.empty))
+    | Not t -> TermSet.empty
+    | Complement t -> TermSet.singleton (complement (plus (run_exact' t pt)))
+    | Star t -> let rec loop ts gamma =
+      let iter = TermSet.map (run_exact' t (gamma, snd pt)) ~f:(fun e -> times [e; star t]) in
+      if TermSet.subset iter ts
+      then
+        ts
+      else
+        PacketSet.fold (run_e_exact t gamma) ~f:loop ~init:(TermSet.union ts iter) in
+      (loop TermSet.empty (fst pt))
+    | Zero -> TermSet.empty
+    | One -> TermSet.empty
+
+  let run_exact t pt = match t.d_matrix with
+    | Some d -> DMatrix.run d pt
+    | None -> run_exact' (plus t.desc) pt
 
   let compare t t' = TermSet.compare t.desc t'.desc
   let to_string t = Printf.sprintf "[desc: %s; e_matrix: %s; d_matrix: %s]"

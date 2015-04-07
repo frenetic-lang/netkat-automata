@@ -16,6 +16,8 @@ rule token = parse
   | "drop" { ZERO }
   | "pass" { ONE }
   | "dup"  { DUP }
+  | "{}"   { EMPTYSET }
+  | 'E'    { EMPTY }
   | id as id { VAR id }
   | "\""   { STRING (String.concat "" (string lexbuf)) }
   | num as num { STRING (string_of_int (int_of_string num)) }
@@ -24,7 +26,7 @@ rule token = parse
   | '+'    { PLUS }
   | ';'    { TIMES }
   | '*'    { STAR }
-  | '^'   { INTER }
+  | '^'    { INTER }
   | '~'    { NOT }
   | '('    { LPAREN }
   | ')'    { RPAREN }
@@ -34,6 +36,8 @@ rule token = parse
   | "<>"   { NEQUIV }
   | "<="   { LE }
   | '<'    { LE }
+  | "=>"   { IMPLIES }
+  | "|="   { SAT }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":"
       (byte as n2) ":" (byte as n1)
       { let open Int64 in

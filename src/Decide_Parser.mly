@@ -1,16 +1,17 @@
 %{
 open Decide_Ast
 open Decide_Ast.Term
+open Decide_Ast.Path
 open Decide_Ast.Formula
 %}
 
 %token <string> VAR
 %token <string> STRING
-%token ZERO ONE DUP
-%token PLUS TIMES STAR INTER
+%token ZERO ONE DUP ANY EMPTY EMPTYSET
+%token PLUS TIMES STAR INTER IMPLIES
 %token NOT
 %token LPAREN RPAREN
-%token EQ NEQ EQUIV NEQUIV LE ASSG
+%token EQ NEQ EQUIV NEQUIV LE ASSG SAT
 %token EOL
 
 %nonassoc EQ LE /* lowest precedence */
@@ -22,7 +23,7 @@ open Decide_Ast.Formula
 %start formula_main term_main  /* entry points */
 %type <Decide_Ast.Formula.t> formula_main
 %type <Decide_Ast.Term.t> term_main
-
+%type <Decide_Ast.Path.t> path_main
 %%
 
 formula_main:
@@ -32,6 +33,10 @@ formula_main:
 
 term_main:
   | term EOL { $1 }
+;
+
+path_main:
+  | path EOL { $1 }
 ;
 
 term:
@@ -50,8 +55,27 @@ term:
   | term term %prec TIMES { times [$1; $2] }
 ;
 
+regex:
+  | STRING { Const (Decide_Util.Value.of_string $1) }
+  | ANY             { Any } 
+  | LPAREN regex RPAREN { $2 }
+  | regex PLUS regex  { $1 || $3 }
+  | regex TIMES regex { $1 <.> $3 }
+  | regex INTER regex { $1 && $3 }
+  | regex STAR       { Star $1 }
+  | NOT regex        { Comp $2 }
+  | EMPTY               { Empty }
+  | EMPTYSET            { EmptySet }
+;
+
+path:
+  | VAR EQ STRING IMPLIES regex   { RegPol ((Decide_Util.Field.of_string $1,
+                                             Decide_Util.Value.of_string $3),
+                                            $5) }
+
 formula:
   | term EQUIV term { make_eq $1 $3 }
   | term LE term    { make_le $1 $3 }
-  | term NEQUIV term { make_neq $1 $3 }  
+  | term NEQUIV term { make_neq $1 $3 }
+  | term SAT path   { make_sat $1 $3 }
 ;

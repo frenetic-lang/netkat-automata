@@ -24,6 +24,7 @@ module PacketSet : sig
   val mem : t -> elt -> bool
   val add : t -> elt -> t
   val remove : t -> elt -> t
+  val subset : t -> t -> bool
   val union : t -> t -> t
   val union_list : t list -> t
   val inter : t -> t -> t
@@ -51,6 +52,7 @@ module rec Term : sig
     | Times of t list
     | Intersection of TermSet.t
     | Not of t
+    | Complement of t
     | Star of t
     | Zero 
     | One with compare, sexp
@@ -62,6 +64,7 @@ module rec Term : sig
   val times : t list -> t
   val intersection : TermSet.t -> t
   val not : t -> t
+  val complement : t -> t
   val star : t -> t
   val zero : t
   val one : t
@@ -88,7 +91,7 @@ module Path : sig
     | EmptySet with sexp, compare
 
   type t =
-      RegPol of (Field.t * Value.t) * regex * int
+      RegPol of (Field.t * Value.t) * regex
     | RegUnion of t * t
     | RegInter of t * t with sexp, compare
 
@@ -100,6 +103,8 @@ module Path : sig
 
   val regex_to_string : regex -> string
   val t_to_string : t -> string
+  val translate : t -> Term.t
+  val values : t -> UnivMap.t
 end
 
 module Formula : sig

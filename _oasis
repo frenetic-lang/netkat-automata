@@ -30,7 +30,8 @@ Library netkat_decide
     Decide_Util,
     Decide_Bisimulation,
     Decide_Ast,
-    Decide_Loopfree
+    Decide_Loopfree,
+    Decide_Sat
 
 Executable netkat
   Path: src

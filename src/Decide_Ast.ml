@@ -34,6 +34,11 @@ module PacketSet = struct
 
   let empty = Positive S.empty
   let all = Negative S.empty
+
+  let universe () = let fields = !all_fields () in
+    let values = !all_values () in
+    FieldSet.fold (fun f acc -> S.fold acc ~f:(fun acc pkt -> S.union acc (ValueSet.fold (fun v pkts -> S.add pkts (FieldMap.add pkt ~key:f ~data:v)) (values f) S.empty)) ~init:S.empty) fields (S.singleton (FieldMap.empty))
+      
   let singleton a = Positive (S.singleton a)
 
   let complement t = match t with
@@ -67,6 +72,11 @@ module PacketSet = struct
     | Negative s, Positive s' -> Negative (S.diff s s')
 
   let union_list ts = List.fold ts ~f:union ~init:empty
+
+  let subset t t' = match t, t' with
+    | Positive s, Positive s' -> S.subset s s'
+    | Negative s, Negative s' -> S.subset s' s
+    | _,_ -> failwith "NYI: PacketSet.subset (mixed Negative/Positive)"
 
   let inter t t' = match t,t' with
     | Positive s, Positive s' -> Positive (S.inter s s')
@@ -118,7 +128,7 @@ module PacketSet = struct
 
   let fold t ~init ~f = match t with
     | Positive s -> S.fold s ~f ~init
-    | Negative s -> failwith "NYI: PacketSet.fold (Negative)"
+    | Negative s -> S.fold (S.diff (universe ()) s) ~f ~init
 
   let elements t = match t with
     | Positive s -> S.elements s
@@ -139,6 +149,7 @@ module rec TermBase : sig
     | Times of t list
     | Intersection of TermSetBase.t
     | Not of t
+    | Complement of t
     | Star of t
     | Zero 
     | One with compare, sexp
@@ -152,6 +163,7 @@ end = struct
     | Times of t list
     | Intersection of TermSetBase.t
     | Not of t
+    | Complement of t
     | Star of t
     | Zero 
     | One with compare, sexp
@@ -200,6 +212,7 @@ module Term (* : sig *)
         | 1 -> PacketSet.empty
         | _ -> raise (Failure "Negation of a non-predicate")
       end
+    | Complement t -> PacketSet.complement (eval t pkt)
     (* TODO: Copy fixpoint code from Frenetic *)
     | Star t -> raise (Failure "NYI")
     | Zero -> PacketSet.empty
@@ -247,6 +260,8 @@ module Term (* : sig *)
         "~" ^ (protect t)
       | Star (t) -> 
         (protect t) ^ "*"
+      | Complement (t) ->
+        "!" ^ (protect t)
       | Zero -> 
         "drop"
       | One -> 
@@ -268,6 +283,7 @@ module Term (* : sig *)
       | Times ts' -> ts' @ acc
       | _ -> x :: acc)))
   let intersection ts = H.hashcons hashtbl (Intersection ts)
+  let complement t = H.hashcons hashtbl (Complement t)
   let not t = H.hashcons hashtbl (Not t)
   let star t = H.hashcons hashtbl (Star t)
   let zero = H.hashcons hashtbl Zero
@@ -282,7 +298,7 @@ module Term (* : sig *)
         | Plus s -> TermSetBase.fold s ~init:m ~f:collect
         | Intersection s -> TermSetBase.fold s ~init:m ~f:collect
 	| Times s -> List.fold_right s ~init:m ~f:(fun a b -> collect b a)
-	| (Not x | Star x) -> collect m x
+	| (Not x | Star x | Complement x) -> collect m x
 	| (Dup  | Zero  | One ) -> m in
     collect UnivMap.empty t
 
@@ -307,8 +323,7 @@ module Term (* : sig *)
         TermSetBase.fold ts
           ~f:(fun n ti -> (size ti) + n)
           ~init:1
-      | Not t -> 1 + size t
-      | Star t -> 1 + size t
+      | (Not t | Star t | Complement t) -> 1 + size t
       | Zero -> 1
       | One -> 1                    
 end
@@ -332,7 +347,7 @@ module Path = struct
     | EmptySet with sexp, compare
 
   type t =
-      RegPol of (Field.t * Value.t) * regex * int
+      RegPol of (Field.t * Value.t) * regex
     | RegUnion of t * t
     | RegInter of t * t with sexp, compare
 
@@ -355,12 +370,45 @@ module Path = struct
     | Star r -> Printf.sprintf "(%s)*" (regex_to_string r)
 
   let rec t_to_string regPol = match regPol with
-  | RegPol((f,v), r, k) -> Printf.sprintf "RegPol(%s=%s, %s, %d)"
-          (Field.to_string f) (Value.to_string v) (regex_to_string r) k
+  | RegPol((f,v), r) -> Printf.sprintf "%s=%s => %s"
+          (Field.to_string f) (Value.to_string v) (regex_to_string r)
   | RegUnion(t1, t2) -> Printf.sprintf "(%s <+> %s)" (t_to_string t1) (t_to_string t2)
   | RegInter(t1, t2) -> Printf.sprintf "(%s <*> %s)" (t_to_string t1) (t_to_string t2)
 
   let compare = compare_t
+
+  let sw_hdr = Field.of_string "sw"
+
+  let rec translate_regex r = match r with
+    | Const(h) -> Term.(times [test sw_hdr h;
+                               plus (ValueSet.fold (fun x acc -> TermSet.add acc (assg sw_hdr x)) (!all_values () sw_hdr) TermSet.empty);
+                               dup])
+    | Any -> Term.(times [plus (ValueSet.fold (fun x acc -> TermSet.add acc (assg sw_hdr x)) (!all_values () sw_hdr) TermSet.empty);
+                          dup])
+    | Empty -> Term.one
+    | EmptySet -> Term.zero
+    | Sequence(r1,r2) -> Term.times [translate_regex r1; translate_regex r2]
+    | Union(r1,r2) -> Term.plus (TermSet.of_list [translate_regex r1; translate_regex r2])
+    | Intersection(r1,r2) -> Term.intersection (TermSet.of_list [translate_regex r1; translate_regex r2])
+    | Comp r -> Term.complement (translate_regex r)
+    | Star r -> Term.star (translate_regex r)
+      
+  let rec translate t = match t with
+    | RegPol((f,v), r) -> Term.(times [assg f v; translate_regex r])
+
+  module UnivMap = SetMapF(Field)(Value)
+  (* Collect the possible values of each variable *)
+  let rec values (t : t) : UnivMap.t =
+    let rec collect (m : UnivMap.t) (r : regex) : UnivMap.t =
+      match r with
+	| Const h -> UnivMap.add sw_hdr h m
+        | (Union(r1,r2) | Intersection(r1,r2) | Sequence(r1,r2))-> collect (collect m r1) r2
+	| (Comp x | Star x) -> collect m x
+        | (Any  | EmptySet  | Empty ) -> m in
+    match t with
+    | RegPol((h,v), r) -> collect (UnivMap.add h v UnivMap.empty) r
+    | (RegInter(r1,r2) | RegUnion(r1,r2)) -> UnivMap.union (values r1) (values r2)
+  
 end
 
 module Formula = struct

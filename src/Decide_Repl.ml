@@ -21,6 +21,11 @@ let run_bisimulation = let open Ast.Formula in
     let t2vals = Ast.Term.values t2 in 
     ignore (set_univ [t1vals; t2vals]);
     Decide_Bisimulation.check_equivalent t1 (Ast.Term.plus (Ast.TermSet.of_list [t1;t2]))
+  | Sat (t,p) ->
+    let tvals = Ast.Term.values t in
+    let pvals = Ast.Path.values p in
+    ignore (set_univ [tvals; pvals]);
+    Decide_Sat.check_sat t p
 
 exception ParseError of int * int * string
                               

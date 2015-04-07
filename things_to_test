@@ -70,6 +70,8 @@ pass <> drop
 
 x = 1; dup <> dup
 
+sw = 0; sw := 1; dup; sw = 1; drop == drop
+
 #This exploits non-canonicity of FDDs, naive implementation gets it wrong
 f:=1;g := 2 == f:=1;g:=2 + g=2;f := 1
 
@@ -79,3 +81,6 @@ f=0;g:=0 + f=1;g:=1 + f!=1;g:=0 == f=1;g:=1 + f!=1;g:=0
 (x := 1; x:= 1) ^ (x := 1) == x := 1
 (x = 1 + x := 2) ^ (x = 1) == x = 1
 (sw = 0; sw := 1; dup; sw = 1) ^ (sw = 0; sw := 1; dup) == sw = 0; sw := 1; dup
+
+#regex
+(x = 1; dup) |= x=1 => 1

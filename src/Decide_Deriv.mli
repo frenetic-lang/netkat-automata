@@ -17,7 +17,7 @@ module type DerivTerm = sig
     val intersection_empty : t -> t -> bool
     val intersection : t -> t -> t
     val union : t -> t -> t
-    val negate : t -> t
+    val complement : t -> t
   end
 
   module DMatrix : sig
@@ -32,6 +32,7 @@ module type DerivTerm = sig
   val get_termset : t -> TermSet.t
   val get_e : t -> EMatrix.t
   val get_d : t -> DMatrix.t
+  val run_exact : t -> point -> TermSet.t
   val sexp_of_t : t -> Sexplib.Sexp.t
   val compare : t -> t -> int
   val to_string : t -> string
