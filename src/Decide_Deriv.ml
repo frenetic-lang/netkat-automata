@@ -178,7 +178,7 @@ module rec BDDDeriv : DerivTerm = struct
         PacketDD.fold
           (fun r -> PartialPacketSet.fold r ~f:(fun acc pkt -> PointSet.add acc (FieldMap.empty, pkt)) ~init:PointSet.empty)
           (fun (h,v) t f ->
-             let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in
+             (* let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in *)
              PointSet.union (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2))
                f)
           t
@@ -238,6 +238,7 @@ module rec BDDDeriv : DerivTerm = struct
       let result = match t.node with
         | Zero -> zero
         | One -> one
+        | All -> PacketDD.const PartialPacketSet.all
         | Plus ts -> TermSet.fold ts ~init:zero ~f:(fun acc v -> plus acc (matrix_of_term v))
         | Dup -> empty
         | Times ts -> List.fold ts ~init:one ~f:(fun acc x -> times acc (matrix_of_term x))
@@ -338,10 +339,16 @@ module rec BDDDeriv : DerivTerm = struct
               ~init:CompactDerivSet.empty in
             (* Can't have an empty intersection *)
             TermSet.fold ts ~f:(fun acc t -> intersect acc (matrix_of_term' t))
-              ~init:(matrix_of_term' (TermSet.choose_exn ts))
-          | Complement t          -> let d_ts = matrix_of_term' t in
-            CompactDerivSet.map d_ts ~f:(fun d -> {left_hand = EMatrix.(complement d.left_hand);
-                                                   right_hand = Term.complement d.right_hand})
+              ~init:(CompactDerivSet.singleton ({left_hand = EMatrix.matrix_of_term all; right_hand = Term.all}))
+          | Complement t          -> let intersect d1 d2 = CompactDerivSet.fold d1
+              ~f:(fun acc x -> CompactDerivSet.add acc {left_hand = EMatrix.intersection (EMatrix.complement d2.left_hand) x.left_hand;
+                                                        right_hand = Term.intersection (TermSet.of_list [(complement d2.right_hand);
+                                                                                                         x.right_hand])})
+              ~init:CompactDerivSet.empty
+            in
+            CompactDerivSet.fold (matrix_of_term' t) ~f:intersect
+              ~init:(CompactDerivSet.singleton ({left_hand = EMatrix.matrix_of_term all; right_hand = Term.all}))
+          | All -> CompactDerivSet.singleton ({left_hand = EMatrix.matrix_of_term all; right_hand = Term.all})
           | Not _
           | Times []
           | Assg _
@@ -451,6 +458,11 @@ module rec BDDDeriv : DerivTerm = struct
     | Complement t -> PacketSet.complement (run_e_exact t pkt)
     | Zero -> PacketSet.empty
     | One -> PacketSet.singleton pkt
+    | All -> PacketSet.all
+    | Not t -> match PacketSet.length (run_e_exact t pkt) with
+      | 0 -> PacketSet.singleton pkt
+      | 1 -> PacketSet.empty
+      | _ -> failwith "called run_e_exact (Not t) where t was not a predicate!"
 
   let packet_to_term pkt = times (FieldMap.fold pkt ~init:[]
                                     ~f:(fun ~key ~data t -> (assg key data) :: t))
@@ -478,6 +490,7 @@ module rec BDDDeriv : DerivTerm = struct
       (loop TermSet.empty (fst pt))
     | Zero -> TermSet.empty
     | One -> TermSet.empty
+    | All -> TermSet.singleton all
 
   let run_exact t pt = match t.d_matrix with
     | Some d -> DMatrix.run d pt

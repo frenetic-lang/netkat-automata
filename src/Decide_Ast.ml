@@ -116,11 +116,11 @@ module PacketSet = struct
 
   let map t ~f = match t with
     | Positive s -> Positive (S.map s ~f)
-    | Negative s -> failwith "NYI: PacketSet.map (Negative)"
+    | Negative s -> Positive (S.map (S.diff (universe ()) s) ~f)
 
   let filter_map t ~f = match t with
     | Positive s -> Positive (S.filter_map s ~f)
-    | Negative s -> failwith "NYI: PacketSet.filter_map (Negative)"
+    | Negative s -> Positive (S.filter_map (S.diff (universe ()) s) ~f)
 
   let filter t ~f = match t with
     | Positive s -> Positive (S.filter s ~f)
@@ -151,6 +151,7 @@ module rec TermBase : sig
     | Not of t
     | Complement of t
     | Star of t
+    | All
     | Zero 
     | One with compare, sexp
 end = struct
@@ -165,6 +166,7 @@ end = struct
     | Not of t
     | Complement of t
     | Star of t
+    | All
     | Zero 
     | One with compare, sexp
 
@@ -215,6 +217,7 @@ module Term (* : sig *)
     | Complement t -> PacketSet.complement (eval t pkt)
     (* TODO: Copy fixpoint code from Frenetic *)
     | Star t -> raise (Failure "NYI")
+    | All -> PacketSet.all
     | Zero -> PacketSet.empty
     | One -> PacketSet.singleton pkt
 
@@ -262,6 +265,8 @@ module Term (* : sig *)
         (protect t) ^ "*"
       | Complement (t) ->
         "!" ^ (protect t)
+      | All ->
+        "All"
       | Zero -> 
         "drop"
       | One -> 
@@ -273,6 +278,15 @@ module Term (* : sig *)
       let hash = Hashtbl.hash
     end)
 
+  let simplify_intersection ts =
+    match TermSetBase.fold ts ~f:(fun ts' t -> match t.node,ts' with
+        | All, Some ts' -> Some ts'
+        | Zero, Some ts' -> None
+        | t', Some ts' -> Some (TermSetBase.add ts' t)
+        | _, None -> None) ~init:(Some TermSetBase.empty) with
+    | Some ts' -> Intersection ts'
+    | None -> Zero
+      
   let hashtbl = H.create 100
   let assg f v = H.hashcons hashtbl (Assg (f,v))
   let test f v = H.hashcons hashtbl (Test (f,v))
@@ -282,11 +296,17 @@ module Term (* : sig *)
       | One -> acc
       | Times ts' -> ts' @ acc
       | _ -> x :: acc)))
-  let intersection ts = H.hashcons hashtbl (Intersection ts)
-  let complement t = H.hashcons hashtbl (Complement t)
+  let intersection ts = H.hashcons hashtbl (simplify_intersection ts)
   let not t = H.hashcons hashtbl (Not t)
-  let star t = H.hashcons hashtbl (Star t)
+  let all = H.hashcons hashtbl All
+  let star t = match t.node with
+    | All -> all
+    | _ -> H.hashcons hashtbl (Star t)
   let zero = H.hashcons hashtbl Zero
+  let complement t = match t.node with
+      | Zero -> all
+      | All -> zero
+      | _ -> H.hashcons hashtbl (Complement t)
   let one = H.hashcons hashtbl One
 
   module UnivMap = SetMapF(Field)(Value)
@@ -294,12 +314,12 @@ module Term (* : sig *)
   let values (t : TermBase.t) : UnivMap.t =
     let rec collect (m : UnivMap.t) (t : TermBase.t) : UnivMap.t =
       match t.node with
-	| (Assg (x,v) | Test (x,v)) -> UnivMap.add x v m
+        | (Assg (x,v) | Test (x,v)) -> UnivMap.add x v m
         | Plus s -> TermSetBase.fold s ~init:m ~f:collect
         | Intersection s -> TermSetBase.fold s ~init:m ~f:collect
-	| Times s -> List.fold_right s ~init:m ~f:(fun a b -> collect b a)
-	| (Not x | Star x | Complement x) -> collect m x
-	| (Dup  | Zero  | One ) -> m in
+        | Times s -> List.fold_right s ~init:m ~f:(fun a b -> collect b a)
+        | (Not x | Star x | Complement x) -> collect m x
+        | (All | Dup  | Zero  | One ) -> m in
     collect UnivMap.empty t
 
   let equal t1 t2 = compare t1 t2 = 0
@@ -324,8 +344,7 @@ module Term (* : sig *)
           ~f:(fun n ti -> (size ti) + n)
           ~init:1
       | (Not t | Star t | Complement t) -> 1 + size t
-      | Zero -> 1
-      | One -> 1                    
+      | (All | Zero | One) -> 1                    
 end
 
 module TermSet = struct
@@ -360,8 +379,8 @@ module Path = struct
 
   let rec regex_to_string reg = match reg with
     | Const(h) -> Printf.sprintf "%s" (Value.to_string h)
-    | Any -> "Any"
-    | Empty -> "Empty"
+    | Any -> "?"
+    | Empty -> "E"
     | EmptySet -> "{}"
     | Comp r -> Printf.sprintf "not (%s)" (regex_to_string r)
     | Sequence(r1, r2) -> Printf.sprintf "( %s <.> %s )" (regex_to_string r1) (regex_to_string r2)
@@ -394,16 +413,19 @@ module Path = struct
     | Star r -> Term.star (translate_regex r)
       
   let rec translate t = match t with
-    | RegPol((f,v), r) -> Term.(times [assg f v; translate_regex r])
+    | RegPol((f,v), r) -> Term.(times [test f v; translate_regex r])
+    | RegUnion(t1,t2) -> Term.(plus (TermSet.of_list [translate t1; translate t2]))
+    (* TODO: I'm not 100% convinced this is the correct semantics for policy intersection *)
+    | RegInter(t1,t2) -> Term.(intersection (TermSet.of_list [translate t1; translate t2]))
 
   module UnivMap = SetMapF(Field)(Value)
   (* Collect the possible values of each variable *)
   let rec values (t : t) : UnivMap.t =
     let rec collect (m : UnivMap.t) (r : regex) : UnivMap.t =
       match r with
-	| Const h -> UnivMap.add sw_hdr h m
+        | Const h -> UnivMap.add sw_hdr h m
         | (Union(r1,r2) | Intersection(r1,r2) | Sequence(r1,r2))-> collect (collect m r1) r2
-	| (Comp x | Star x) -> collect m x
+        | (Comp x | Star x) -> collect m x
         | (Any  | EmptySet  | Empty ) -> m in
     match t with
     | RegPol((h,v), r) -> collect (UnivMap.add h v UnivMap.empty) r

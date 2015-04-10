@@ -30,6 +30,7 @@ rule token = parse
   | '~'    { NOT }
   | '('    { LPAREN }
   | ')'    { RPAREN }
+  | '?'    { ANY }
   | "=="   { EQUIV }
   | '='    { EQ }
   | "!="   { NEQ }
@@ -38,6 +39,8 @@ rule token = parse
   | '<'    { LE }
   | "=>"   { IMPLIES }
   | "|="   { SAT }
+  | "<+>"  { UNION }
+  | "<*>"  { INTERSECTION }
   | (byte as n6) ":" (byte as n5) ":" (byte as n4) ":" (byte as n3) ":"
       (byte as n2) ":" (byte as n1)
       { let open Int64 in

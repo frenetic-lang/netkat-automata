@@ -8,7 +8,7 @@ open Decide_Ast.Formula
 %token <string> VAR
 %token <string> STRING
 %token ZERO ONE DUP ANY EMPTY EMPTYSET
-%token PLUS TIMES STAR INTER IMPLIES
+%token PLUS TIMES STAR INTER IMPLIES UNION INTERSECTION
 %token NOT
 %token LPAREN RPAREN
 %token EQ NEQ EQUIV NEQUIV LE ASSG SAT
@@ -72,6 +72,8 @@ path:
   | VAR EQ STRING IMPLIES regex   { RegPol ((Decide_Util.Field.of_string $1,
                                              Decide_Util.Value.of_string $3),
                                             $5) }
+  | path UNION path   { RegUnion ($1, $3) }
+  | path INTERSECTION path   { RegInter ($1, $3) }
 
 formula:
   | term EQUIV term { make_eq $1 $3 }

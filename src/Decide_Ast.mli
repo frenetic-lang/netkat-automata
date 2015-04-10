@@ -54,7 +54,8 @@ module rec Term : sig
     | Not of t
     | Complement of t
     | Star of t
-    | Zero 
+    | All
+    | Zero
     | One with compare, sexp
   val equal : t -> t -> bool
   val assg : Field.t -> Value.t -> t
@@ -64,6 +65,7 @@ module rec Term : sig
   val times : t list -> t
   val intersection : TermSet.t -> t
   val not : t -> t
+  val all : t
   val complement : t -> t
   val star : t -> t
   val zero : t
