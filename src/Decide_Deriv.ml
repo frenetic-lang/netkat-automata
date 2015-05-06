@@ -183,7 +183,16 @@ module TermMatrix = functor () -> struct
         (fun (h,v) t f ->
            (* let extra_pkt = FieldMap.add FieldMap.empty ~key:h ~data:Value.extra_val in *)
            PointSet.union (PointSet.map t (fun (pkt1,pkt2) -> FieldMap.add pkt1 ~key:h ~data:v, pkt2))
-             f)
+             (* Expensive solution. Should be cheaper way to express negative constrains *)
+             (PointSet.fold f ~f:(fun acc (pkt1,pkt2) -> PointSet.union acc (Decide_Util.ValueSet.fold
+                                 (fun v' acc -> if v <> v'
+                                   then
+                                     (* Need to be careful and not overwrite fields chosen later down in the tree *)
+                                     match FieldMap.find pkt1 h with
+                                     | Some _ -> PointSet.add acc (pkt1, pkt2)
+                                     | None -> PointSet.add acc (FieldMap.add pkt1 ~key:h ~data:v', pkt2)
+                                   else acc) (!Decide_Util.all_values () h) PointSet.empty))
+             ~init:PointSet.empty))
         t
     in
     Printf.printf "Base points: %s\n" (PointSet.to_string base_points);
