@@ -4,7 +4,7 @@ module Ast = Decide_Ast
 type state = int
 let init_state = 0
 
-module Deriv' = Decide_Deriv.BDDDeriv
+module Deriv' = Decide_Deriv.BDDMixed
 
 let run_bisimulation = let open Ast.Formula in
   function

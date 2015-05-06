@@ -21,7 +21,7 @@ module PacketSet = FiniteSet (struct
         type t = packet with sexp, compare
       end)
 
-    let size () = Printf.printf "Size!\n"; let fields = !all_fields () in
+    let size () = let fields = !all_fields () in
       let values = !all_values () in
       FieldSet.fold (fun f acc -> acc * ValueSet.cardinal (values f)) fields 1
 

@@ -28,7 +28,7 @@ module EquivChecker (DerivTerm : Decide_Deriv.DerivTerm) = struct
         true
       else
         let q1,q2 = WorkList.hd work_list in
-        Printf.printf "q1: %s\nq2: %s\n" (DerivTerm.to_string q1) (DerivTerm.to_string q2);
+        (* Printf.printf "q1: %s\nq2: %s\n" (DerivTerm.to_string q1) (DerivTerm.to_string q2); *)
         let rest_work_list = WorkList.tl work_list in
         let q1_E = DerivTerm.get_e q1 in 
         let q2_E = DerivTerm.get_e q2 in 
@@ -88,7 +88,7 @@ module EquivChecker (DerivTerm : Decide_Deriv.DerivTerm) = struct
       else
         let t = TermList.hd work_list in
         let rest_work_list = TermList.tl work_list in
-        Printf.printf "t: %s\n" (DerivTerm.to_string t);
+        (* Printf.printf "t: %s\n" (DerivTerm.to_string t); *)
         let t_D = DerivTerm.get_d t in
         let work_list,seen = DerivTerm.EMatrix.fold
             (DerivTerm.DMatrix.points t_D)

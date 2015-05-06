@@ -195,7 +195,7 @@ module TermMatrix = functor () -> struct
              ~init:PointSet.empty))
         t
     in
-    Printf.printf "Base points: %s\n" (PointSet.to_string base_points);
+    (* Printf.printf "Base points: %s\n" (PointSet.to_string base_points); *)
     PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Decide_Util.FieldSet.fold (fun field pts ->
         PointSet.fold pts ~f:(fun acc (a,b) -> PointSet.union acc
                                  begin
@@ -209,7 +209,7 @@ module TermMatrix = functor () -> struct
 
   let fold t ~init:init ~f:f =
     let pts = get_points t in
-    Printf.printf "get_points: %s\n" (PointSet.to_string pts);
+    (* Printf.printf "get_points: %s\n" (PointSet.to_string pts); *)
     PointSet.fold pts ~f:f ~init:init
 
   (* Since PacketDD is not guaranteed to be canonical, we have to semantically compare *)
@@ -218,6 +218,8 @@ module TermMatrix = functor () -> struct
                                                                      run t1 pt = run t2 pt)
                                 && fold t2 ~init:true ~f:(fun acc pt -> acc && run t1 pt = run t2 pt)) in
     if eq then 0 else -1
+
+  let compare_cheap t1 t2 = if PacketDD.equal t1 t2 then 0 else -1
 
   let set_intersection e s = PacketDD.map_r (PartialPacketSet.inter s) e
 
@@ -270,12 +272,12 @@ module TermMatrix = functor () -> struct
       | Test (f,v) -> test f v
       | Not t -> not (matrix_of_term t)
       | Complement t -> complement (matrix_of_term t)
-      | Intersection ts -> Printf.printf "Folding over intersection: %s\n" (Term.to_string t);
+      | Intersection ts -> (* Printf.printf "Folding over intersection: %s\n" (Term.to_string t); *)
         TermSet.fold ts ~init:(matrix_of_term Term.all) ~f:(fun acc x ->
             let mat = matrix_of_term x in
             let res = intersection acc mat in
-            Printf.printf "acc:          %s\nx:            %s\nintersection: %s\n"
-              (to_string acc) (to_string mat) (to_string res);
+            (* Printf.printf "acc:          %s\nx:            %s\nintersection: %s\n" *)
+            (*   (to_string acc) (to_string mat) (to_string res); *)
             res)
     in
     reduce result
@@ -327,7 +329,7 @@ module rec BDDDeriv : functor () -> DerivTerm = functor () -> struct
       CompactDerivSet.fold t ~init:TermSet.empty
         ~f:(fun acc deriv ->
             let result = EMatrix.run deriv.left_hand point in
-            Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result;
+            (* Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result; *)
                if result
              then TermSet.add acc (Term.times [pkt_to_beta (snd point); deriv.right_hand])
              else acc)
@@ -678,11 +680,11 @@ end
     let empty = zero
 
     let lift_constants t = match t with
-      | FDD f -> if TermMatrix.compare f TermMatrix.zero = 0
+      | FDD f -> if TermMatrix.compare_cheap f TermMatrix.zero = 0
         then zero
-        else if TermMatrix.compare f TermMatrix.one = 0
+        else if TermMatrix.compare_cheap f TermMatrix.one = 0
         then one
-        else if TermMatrix.compare f TermMatrix.all = 0
+        else if TermMatrix.compare_cheap f TermMatrix.all = 0
         then all
         else FDD f
       | _ -> t
@@ -838,11 +840,8 @@ end
       |One, All
       | All, Zero
       | Zero, All -> -1
-      | _, _ -> let p1 = get_points t1 in
-        let p2 = get_points t2 in
-        Printf.printf "Points for %s: %s\n" (to_string t1) (PointSet.to_string p1);
-        Printf.printf "Points for %s: %s\n" (to_string t2) (PointSet.to_string p2);
-        PointSet.compare (get_points t1) (get_points t2)
+      | FDD f1, FDD f2 -> TermMatrix.compare f1 f2
+      | _, _ -> PointSet.compare (get_points t1) (get_points t2)
   end
 
   module EMatrix = MixedTerm
@@ -874,7 +873,7 @@ end
       CompactDerivSet.fold t ~init:TermSet.empty
         ~f:(fun acc deriv ->
             let result = EMatrix.run deriv.left_hand point in
-            Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result;
+            (* Printf.printf "Running %s on %s: %b\n" (compact_derivative_to_string deriv) (point_to_string point) result; *)
                if result
              then TermSet.add acc (Term.times [pkt_to_beta (snd point); deriv.right_hand])
              else acc)

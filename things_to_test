@@ -84,3 +84,6 @@ f=0;g:=0 + f=1;g:=1 + f!=1;g:=0 == f=1;g:=1 + f!=1;g:=0
 
 #regex
 (x = 1; sw=1; dup) |= x=1 => 2
+
+#complement
+~(x=1) ^ x=1 == drop
