@@ -139,3 +139,42 @@ module HashCons : sig
     val hashcons : t -> H.t -> H.t hash_consed
   end
 end
+
+module type Universe = sig
+  type t with sexp, compare
+  module S : Set.S with type Elt.t = t
+  val universe : unit -> S.t
+  val size : unit -> int
+end
+
+module type FiniteSet = sig
+  type t with sexp
+  type elt with sexp, compare
+
+  val empty : t
+  val all : t
+  val singleton : elt -> t
+  val complement : t -> t
+  val length : t -> int
+  val is_empty : t -> bool
+  val mem : t -> elt -> bool
+  val add : t -> elt -> t
+  val remove : t -> elt -> t
+  val subset : t -> t -> bool
+  val union : t -> t -> t
+  val union_list : t list -> t
+  val inter : t -> t -> t
+  val diff : t -> t -> t
+  val equal : t -> t -> bool
+  val exists : t -> f:(elt -> bool) -> bool
+  val for_all : t -> f:(elt -> bool) -> bool
+  val count : t -> f:(elt -> bool) -> int
+  val map : t -> f:(elt -> elt) -> t
+  val filter_map : t -> f:(elt -> elt option) -> t
+  val filter : t -> f:(elt -> bool) -> t
+  val fold : t -> init:'a -> f:('a -> elt -> 'a) -> 'a
+  val elements : t -> elt list
+  val compare : t -> t -> int
+end  
+
+module FiniteSet : functor (U : Universe) -> FiniteSet with type elt = U.t

@@ -39,4 +39,5 @@ module type DerivTerm = sig
 end
 
 (* module KostasDeriv : DerivTerm *)
-module BDDDeriv : DerivTerm
+module BDDDeriv : functor () -> DerivTerm
+module BDDMixed : functor () -> DerivTerm

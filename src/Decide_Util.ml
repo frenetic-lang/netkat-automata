@@ -585,3 +585,170 @@ module HashCons = struct
         Hashtbl.add_exn t ~key:h ~data:h'; h'
   end
 end
+
+open Core.Std
+
+module type Universe = sig
+  type t with sexp, compare
+  module S : Set.S with type Elt.t = t
+  val universe : unit -> S.t
+  val size : unit -> int
+end
+
+module type FiniteSet = sig
+  type t with sexp
+  type elt with sexp, compare
+
+  val empty : t
+  val all : t
+  val singleton : elt -> t
+  val complement : t -> t
+  val length : t -> int
+  val is_empty : t -> bool
+  val mem : t -> elt -> bool
+  val add : t -> elt -> t
+  val remove : t -> elt -> t
+  val subset : t -> t -> bool
+  val union : t -> t -> t
+  val union_list : t list -> t
+  val inter : t -> t -> t
+  val diff : t -> t -> t
+  val equal : t -> t -> bool
+  val exists : t -> f:(elt -> bool) -> bool
+  val for_all : t -> f:(elt -> bool) -> bool
+  val count : t -> f:(elt -> bool) -> int
+  val map : t -> f:(elt -> elt) -> t
+  val filter_map : t -> f:(elt -> elt option) -> t
+  val filter : t -> f:(elt -> bool) -> t
+  val fold : t -> init:'a -> f:('a -> elt -> 'a) -> 'a
+  val elements : t -> elt list
+  val compare : t -> t -> int
+end  
+
+
+module FiniteSet (U : Universe) = struct
+  module S = U.S
+
+  let universe_size_ref = ref None
+  let universe_size () = match !universe_size_ref with
+    | Some n -> n
+    | None -> let size = U.size () in
+      universe_size_ref := Some size;
+      size
+
+  type t =
+    | Positive of S.t
+    | Negative of S.t with sexp
+
+  type elt = U.t with sexp, compare
+
+  let empty = Positive S.empty
+  let all = Negative S.empty
+
+  let universe () = U.universe ()
+      
+  let singleton a = Positive (S.singleton a)
+
+  let complement t = match t with
+    | Positive s -> Negative s
+    | Negative s -> Positive s
+
+  let length t = match t with
+    | Positive s -> S.length s
+    | Negative s -> universe_size () - S.length s
+
+  let is_empty t = match t with
+    | Positive s -> S.is_empty s
+    | Negative s -> universe_size () = S.length s
+
+  let mem t a = match t with
+    | Positive s -> S.mem s a
+    | Negative s -> not (S.mem s a)
+
+  let add t a = match t with
+    | Positive s -> Positive (S.add s a)
+    | Negative s -> Negative (S.remove s a)
+
+  let remove t a = match t with
+    | Positive s -> Positive (S.remove s a)
+    | Negative s -> Negative (S.add s a)
+
+  let union t t' = match t,t' with
+    | Positive s, Positive s' -> Positive (S.union s s')
+    | Negative s, Negative s' -> Negative (S.inter s s')
+    | Positive s, Negative s' -> Negative (S.diff s' s)
+    | Negative s, Positive s' -> Negative (S.diff s s')
+
+  let union_list ts = List.fold ts ~f:union ~init:empty
+
+  let subset t t' = match t, t' with
+    | Positive s, Positive s' -> S.subset s s'
+    | Negative s, Negative s' -> S.subset s' s
+    | _,_ -> failwith "NYI: PacketSet.subset (mixed Negative/Positive)"
+
+  let inter t t' = match t,t' with
+    | Positive s, Positive s' -> Positive (S.inter s s')
+    | Negative s, Negative s' -> Negative (S.union s s')
+    | Positive s, Negative s' -> Positive (S.diff s s')
+    | Negative s, Positive s' -> Positive (S.diff s' s)
+
+  let diff t t' = match t,t' with
+    | Positive s, Positive s' -> Positive (S.diff s s')
+    | t, Negative s' -> inter t (Positive s')
+    | Negative s, Positive s' -> Negative (S.union s s')
+
+  let equal t t' =
+    (* This is awkward, but the TDK library compares const sets against zero, which results in an evaluation of the universe *before* the universe has been constructed (see all_fields/all_values above) when length is called. To avoid this, we have to short-circuit the length call if we're comparing to zero with a negative set *)
+    (* Printf.printf "Equal\n"; *)
+    (* match t,t' with *)
+    (* | Negative s, Positive s' when S.is_empty s' && S.is_empty s -> false *)
+    (* | Positive s, Negative s' when S.is_empty s' && S.is_empty s -> false *)
+    (* | _ -> begin *)
+        if length t <> length t'
+        then false
+        else match t, t' with
+          | Positive s, Positive s' -> S.equal s s'
+          | Negative s, Negative s' -> S.equal s s'
+          (* 
+            Thm: if |A| = |B|, then A = B iff A-B = {} or B-A = {} To avoid
+            constructing a bigger set, we always subtract the negative set
+            from the positive one 
+          *)
+          | Negative s, Positive s' -> is_empty (diff t' t)
+          | Positive s, Negative s' -> is_empty (diff t t')
+      (* end *)
+
+  let exists t ~f = match t with
+    | Positive s -> S.exists s ~f
+    | Negative s -> failwith "NYI: PacketSet.exists (Negative)"
+
+  let for_all t ~f = match t with
+    | Positive s -> S.for_all s ~f
+    | Negative s -> failwith "NYI: PacketSet.for_all (Negative)"
+
+  let count t ~f = match t with
+    | Positive s -> S.count s ~f
+    | Negative s -> failwith "NYI: PacketSet.count (Negative)"
+
+  let map t ~f = match t with
+    | Positive s -> Positive (S.map s ~f)
+    | Negative s -> Positive (S.map (S.diff (universe ()) s) ~f)
+
+  let filter_map t ~f = match t with
+    | Positive s -> Positive (S.filter_map s ~f)
+    | Negative s -> Positive (S.filter_map (S.diff (universe ()) s) ~f)
+
+  let filter t ~f = match t with
+    | Positive s -> Positive (S.filter s ~f)
+    | Negative s -> failwith "NYI: PacketSet.filter (Negative)"
+
+  let fold t ~init ~f = match t with
+    | Positive s -> S.fold s ~f ~init
+    | Negative s -> S.fold (S.diff (universe ()) s) ~f ~init
+
+  let elements t = match t with
+    | Positive s -> S.elements s
+    | Negative s -> failwith "NYI: PacketSet.elements (Negative)"
+
+  let compare t t' = if equal t t' then 0 else -1
+end

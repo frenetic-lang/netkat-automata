@@ -9,7 +9,7 @@ open Decide_Ast.Formula
 %token <string> STRING
 %token ZERO ONE DUP ANY EMPTY EMPTYSET
 %token PLUS TIMES STAR INTER IMPLIES UNION INTERSECTION
-%token NOT
+%token NOT COMP
 %token LPAREN RPAREN
 %token EQ NEQ EQUIV NEQUIV LE ASSG SAT
 %token EOL
@@ -52,6 +52,7 @@ term:
   | term INTER term { intersection (TermSet.of_list [$1; $3]) }
   | term STAR       { star $1 }
   | NOT term        { not $2 }
+  | COMP term        { complement $2 }
   | term term %prec TIMES { times [$1; $2] }
 ;
 
@@ -63,7 +64,7 @@ regex:
   | regex TIMES regex { $1 <.> $3 }
   | regex INTER regex { $1 && $3 }
   | regex STAR       { Star $1 }
-  | NOT regex        { Comp $2 }
+  | COMP regex        { Comp $2 }
   | EMPTY               { Empty }
   | EMPTYSET            { EmptySet }
 ;
@@ -80,4 +81,5 @@ formula:
   | term LE term    { make_le $1 $3 }
   | term NEQUIV term { make_neq $1 $3 }
   | term SAT path   { make_sat $1 $3 }
+  | term            { make_eval $1 }
 ;

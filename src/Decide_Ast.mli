@@ -11,36 +11,7 @@ type point = packet * packet with sexp, compare
 val packet_to_string : packet -> string
 val point_to_string : point -> string
 
-module PacketSet : sig
-  type t with sexp
-  type elt = packet
-
-  val empty : t
-  val all : t
-  val singleton : elt -> t
-  val complement : t -> t
-  val length : t -> int
-  val is_empty : t -> bool
-  val mem : t -> elt -> bool
-  val add : t -> elt -> t
-  val remove : t -> elt -> t
-  val subset : t -> t -> bool
-  val union : t -> t -> t
-  val union_list : t list -> t
-  val inter : t -> t -> t
-  val diff : t -> t -> t
-  val equal : t -> t -> bool
-  val exists : t -> f:(elt -> bool) -> bool
-  val for_all : t -> f:(elt -> bool) -> bool
-  val count : t -> f:(elt -> bool) -> int
-  val map : t -> f:(elt -> elt) -> t
-  val filter_map : t -> f:(elt -> elt option) -> t
-  val filter : t -> f:(elt -> bool) -> t
-  val fold : t -> init:'a -> f:('a -> elt -> 'a) -> 'a
-  val elements : t -> elt list
-  val compare : t -> t -> int
-end
-
+module PacketSet : FiniteSet with type elt = packet
  
 module rec Term : sig
   type t = term HashCons.hash_consed and
@@ -115,10 +86,12 @@ module Formula : sig
     | Eq of Term.t * Term.t
     | Le of Term.t * Term.t
     | Sat of Term.t * Path.t
+    | Eval of Term.t
   val make_eq : Term.t -> Term.t -> t
   val make_neq : Term.t -> Term.t -> t
   val make_le : Term.t -> Term.t -> t
   val make_sat : Term.t -> Path.t -> t
+  val make_eval : Term.t -> t
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val to_string : t -> string

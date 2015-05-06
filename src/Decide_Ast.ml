@@ -12,132 +12,24 @@ let packet_to_string pkt = Printf.sprintf "[%s]"
        (FieldMap.fold pkt ~init:[]
           ~f:(fun ~key ~data acc -> (Printf.sprintf "%s := %s" (Field.to_string key) (Value.to_string data) :: acc))))
 
-module PacketSet = struct
-  module S = Set.Make (struct
-      type t = packet with sexp, compare
-    end)
-
-  let max_pkts_num = ref None
-  let max_pkts () : int = match !max_pkts_num with
-    | Some n -> n
-    | None -> let fields = !all_fields () in
-      let values = !all_values () in
-      let max = FieldSet.fold (fun f acc -> acc * ValueSet.cardinal (values f)) fields 1 in
-      max_pkts_num := Some max;
-      max
-
-  type t =
-    | Positive of S.t
-    | Negative of S.t with sexp
-
-  type elt = packet with sexp, compare
-
-  let empty = Positive S.empty
-  let all = Negative S.empty
-
-  let universe () = let fields = !all_fields () in
-    let values = !all_values () in
-    FieldSet.fold (fun f acc -> S.fold acc ~f:(fun acc pkt -> S.union acc (ValueSet.fold (fun v pkts -> S.add pkts (FieldMap.add pkt ~key:f ~data:v)) (values f) S.empty)) ~init:S.empty) fields (S.singleton (FieldMap.empty))
-      
-  let singleton a = Positive (S.singleton a)
-
-  let complement t = match t with
-    | Positive s -> Negative s
-    | Negative s -> Positive s
-
-  let length t = match t with
-    | Positive s -> S.length s
-    | Negative s -> max_pkts () - S.length s
-
-  let is_empty t = match t with
-    | Positive s -> S.is_empty s
-    | Negative s -> max_pkts () = S.length s
-
-  let mem t a = match t with
-    | Positive s -> S.mem s a
-    | Negative s -> not (S.mem s a)
-
-  let add t a = match t with
-    | Positive s -> Positive (S.add s a)
-    | Negative s -> Negative (S.remove s a)
-
-  let remove t a = match t with
-    | Positive s -> Positive (S.remove s a)
-    | Negative s -> Negative (S.add s a)
-
-  let union t t' = match t,t' with
-    | Positive s, Positive s' -> Positive (S.union s s')
-    | Negative s, Negative s' -> Negative (S.inter s s')
-    | Positive s, Negative s' -> Negative (S.diff s' s)
-    | Negative s, Positive s' -> Negative (S.diff s s')
-
-  let union_list ts = List.fold ts ~f:union ~init:empty
-
-  let subset t t' = match t, t' with
-    | Positive s, Positive s' -> S.subset s s'
-    | Negative s, Negative s' -> S.subset s' s
-    | _,_ -> failwith "NYI: PacketSet.subset (mixed Negative/Positive)"
-
-  let inter t t' = match t,t' with
-    | Positive s, Positive s' -> Positive (S.inter s s')
-    | Negative s, Negative s' -> Negative (S.union s s')
-    | Positive s, Negative s' -> Positive (S.diff s s')
-    | Negative s, Positive s' -> Positive (S.diff s' s)
-
-  let diff t t' = match t,t' with
-    | Positive s, Positive s' -> Positive (S.diff s s')
-    | t, Negative s' -> inter t (Positive s')
-    | Negative s, Positive s' -> Negative (S.union s s')
-
-  let equal t t' = if length t <> length t'
-    then false
-    else match t, t' with
-      | Positive s, Positive s' -> S.equal s s'
-      | Negative s, Negative s' -> S.equal s s'
-      (* 
-       Thm: if |A| = |B|, then A = B iff A-B = {} or B-A = {} To avoid
-       constructing a bigger set, we always subtract the negative set
-       from the positive one 
-      *)
-      | Negative s, Positive s' -> is_empty (diff t' t)
-      | Positive s, Negative s' -> is_empty (diff t t')
-
-  let exists t ~f = match t with
-    | Positive s -> S.exists s ~f
-    | Negative s -> failwith "NYI: PacketSet.exists (Negative)"
-
-  let for_all t ~f = match t with
-    | Positive s -> S.for_all s ~f
-    | Negative s -> failwith "NYI: PacketSet.for_all (Negative)"
-
-  let count t ~f = match t with
-    | Positive s -> S.count s ~f
-    | Negative s -> failwith "NYI: PacketSet.count (Negative)"
-
-  let map t ~f = match t with
-    | Positive s -> Positive (S.map s ~f)
-    | Negative s -> Positive (S.map (S.diff (universe ()) s) ~f)
-
-  let filter_map t ~f = match t with
-    | Positive s -> Positive (S.filter_map s ~f)
-    | Negative s -> Positive (S.filter_map (S.diff (universe ()) s) ~f)
-
-  let filter t ~f = match t with
-    | Positive s -> Positive (S.filter s ~f)
-    | Negative s -> failwith "NYI: PacketSet.filter (Negative)"
-
-  let fold t ~init ~f = match t with
-    | Positive s -> S.fold s ~f ~init
-    | Negative s -> S.fold (S.diff (universe ()) s) ~f ~init
-
-  let elements t = match t with
-    | Positive s -> S.elements s
-    | Negative s -> failwith "NYI: PacketSet.elements (Negative)"
-
-  let compare t t' = if equal t t' then 0 else -1
-end
-
 let point_to_string (pkt1, pkt2) = Printf.sprintf "(%s,%s)" (packet_to_string pkt1) (packet_to_string pkt2)
+
+module PacketSet = FiniteSet (struct
+    type t = packet with sexp, compare
+
+    module S = Set.Make (struct
+        type t = packet with sexp, compare
+      end)
+
+    let size () = Printf.printf "Size!\n"; let fields = !all_fields () in
+      let values = !all_values () in
+      FieldSet.fold (fun f acc -> acc * ValueSet.cardinal (values f)) fields 1
+
+    let universe () = let fields = !all_fields () in
+      let values = !all_values () in
+      FieldSet.fold (fun f acc -> S.fold acc ~f:(fun acc pkt -> S.union acc (ValueSet.fold (fun v pkts -> S.add pkts (FieldMap.add pkt ~key:f ~data:v)) (values f) S.empty)) ~init:S.empty) fields (S.singleton (FieldMap.empty))
+  end)
+
 
 module rec TermBase : sig
   type t = term HashCons.hash_consed and
@@ -255,7 +147,7 @@ module Term (* : sig *)
         assoc_to_string " + " "drop" 
           (List.map ~f:protect (TermSetBase.elements ts))
       | Intersection (ts) ->
-        assoc_to_string " ^ " "WRONG_EMPTY_INTERSECTION" 
+        assoc_to_string " ^ " "All"
           (List.map ~f:protect (TermSetBase.elements ts))
       | Times (ts) -> 
         assoc_to_string ";" "id" (List.map ~f:protect ts)
@@ -270,7 +162,7 @@ module Term (* : sig *)
       | Zero -> 
         "drop"
       | One -> 
-        "id"
+        "pass"
 
   module H = Make(struct
       type t = TermBase.term with sexp, compare
@@ -284,7 +176,12 @@ module Term (* : sig *)
         | Zero, Some ts' -> None
         | t', Some ts' -> Some (TermSetBase.add ts' t)
         | _, None -> None) ~init:(Some TermSetBase.empty) with
-    | Some ts' -> Intersection ts'
+    | Some ts' -> begin
+        match TermSetBase.length ts' with
+            | 0 -> All
+            | 1 -> (TermSetBase.choose_exn ts').node
+            | _ -> Intersection ts'
+      end
     | None -> Zero
       
   let hashtbl = H.create 100
@@ -382,7 +279,7 @@ module Path = struct
     | Any -> "?"
     | Empty -> "E"
     | EmptySet -> "{}"
-    | Comp r -> Printf.sprintf "not (%s)" (regex_to_string r)
+    | Comp r -> Printf.sprintf "~ (%s)" (regex_to_string r)
     | Sequence(r1, r2) -> Printf.sprintf "( %s <.> %s )" (regex_to_string r1) (regex_to_string r2)
     | Union(r1, r2) -> Printf.sprintf "( %s <||> %s )" (regex_to_string r1) (regex_to_string r2)
     | Intersection(r1, r2) -> Printf.sprintf "( %s <&&> %s )" (regex_to_string r1) (regex_to_string r2)
@@ -439,6 +336,7 @@ module Formula = struct
     | Eq of Term.t * Term.t
     | Le of Term.t * Term.t
     | Sat of Term.t * Path.t
+    | Eval of Term.t
         
   let make_eq (t1:Term.t) (t2:Term.t) : t =
     Eq (t1,t2)
@@ -451,6 +349,9 @@ module Formula = struct
 
   let make_sat (t:Term.t) (p:Path.t) : t =
     Sat (t,p)
+
+  let make_eval (t:Term.t) : t =
+    Eval t
 
   let to_string (f:t) : string =
     match f with
@@ -466,6 +367,9 @@ module Formula = struct
       | Sat (t,p) ->
         Printf.sprintf "%s |= %s"
           (Term.to_string t) (Path.t_to_string p)
+      | Eval t ->
+        Printf.sprintf "%s"
+          (Term.to_string t)
 
   let compare (f1:t) (f2:t) : int =
     match f1,f2 with

@@ -3,29 +3,41 @@ module Ast = Decide_Ast
 
 type state = int
 let init_state = 0
-    
+
+module Deriv' = Decide_Deriv.BDDMixed
+
 let run_bisimulation = let open Ast.Formula in
   function
   | Neq (t1,t2) ->
     let t1vals = Ast.Term.values t1 in 
     let t2vals = Ast.Term.values t2 in 
     ignore (set_univ [t1vals; t2vals]);
-    not (Decide_Bisimulation.check_equivalent t1 t2)
+    let module Checker = Decide_Bisimulation.EquivChecker (Deriv' ()) in
+    not (Checker.check_equivalent t1 t2)
   | Eq (t1,t2) ->
     let t1vals = Ast.Term.values t1 in 
     let t2vals = Ast.Term.values t2 in 
     ignore (set_univ [t1vals; t2vals]);
-    Decide_Bisimulation.check_equivalent t1 t2
+    let module Checker = Decide_Bisimulation.EquivChecker (Deriv' ()) in
+    Checker.check_equivalent t1 t2
   | Le (t1,t2) ->
     let t1vals = Ast.Term.values t1 in 
     let t2vals = Ast.Term.values t2 in 
     ignore (set_univ [t1vals; t2vals]);
-    Decide_Bisimulation.check_equivalent t1 (Ast.Term.plus (Ast.TermSet.of_list [t1;t2]))
+    let module Checker = Decide_Bisimulation.EquivChecker (Deriv' ()) in
+    Checker.check_equivalent t1 (Ast.Term.plus (Ast.TermSet.of_list [t1;t2]))
   | Sat (t,p) ->
     let tvals = Ast.Term.values t in
     let pvals = Ast.Path.values p in
     ignore (set_univ [tvals; pvals]);
-    Decide_Sat.check_sat t p
+    let module Checker = Decide_Sat.SatChecker (Deriv' ()) in
+    Checker.check_sat t p
+  | Eval t ->
+    let tvals = Ast.Term.values t in
+    ignore (set_univ [tvals]);
+    let module Checker = Decide_Bisimulation.EquivChecker (Deriv' ()) in
+    Checker.check_eval t;
+    true
 
 exception ParseError of int * int * string
                               
@@ -143,7 +155,8 @@ let rec repl (state : state) : unit =
       print_string "where: ";
       (* let file = read_line () in  *)
       let file = "netkat.cert" in
-      Decide_Bisimulation.check_certificate file
+      let module Checker = Decide_Bisimulation.EquivChecker (Deriv' ()) in
+      Checker.check_certificate file
     | _ -> repl state);
   repl state
 

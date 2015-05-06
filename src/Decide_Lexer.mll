@@ -21,13 +21,14 @@ rule token = parse
   | id as id { VAR id }
   | "\""   { STRING (String.concat "" (string lexbuf)) }
   | num as num { STRING (string_of_int (int_of_string num)) }
-	| "(*"   { comment lexbuf }
+  | "(*"   { comment lexbuf }
   | ":="   { ASSG }
   | '+'    { PLUS }
   | ';'    { TIMES }
   | '*'    { STAR }
   | '^'    { INTER }
   | '~'    { NOT }
+  | '!'    { COMP }
   | '('    { LPAREN }
   | ')'    { RPAREN }
   | '?'    { ANY }
