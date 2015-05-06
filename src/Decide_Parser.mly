@@ -18,7 +18,7 @@ open Decide_Ast.Formula
 %left PLUS
 %left INTER
 %left TIMES VAR ZERO ONE DUP LPAREN
-%nonassoc NOT STAR /* highest precedence */
+%nonassoc NOT STAR COMP /* highest precedence */
 
 %start formula_main term_main  /* entry points */
 %type <Decide_Ast.Formula.t> formula_main

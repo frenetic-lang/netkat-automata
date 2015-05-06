@@ -83,7 +83,7 @@ f=0;g:=0 + f=1;g:=1 + f!=1;g:=0 == f=1;g:=1 + f!=1;g:=0
 (sw = 0; sw := 1; dup; sw = 1) ^ (sw = 0; sw := 1; dup) == sw = 0; sw := 1; dup
 
 #regex
-(x = 1; sw=1; dup) |= x=1 => 2
+(x = 1; sw=1; dup) |= x=1 => 1
 
 #complement
-~(x=1) ^ x=1 == drop
+!(x=1) ^ x=1 == drop
