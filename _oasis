@@ -5,13 +5,14 @@ Version:     0.0.1
 Synopsis:    The NetKAT Coalgebraic Decision Procedure
 Authors:     https://github.com/cornell-pl/netkat/contributors
 License:     PROP
-Plugins:     META (0.3)
+Plugins:     META (0.3), DevFiles (0.3)
 BuildTools:
   ocamlbuild,
   camlp4
 
 Library netkat_decide
   Path: src
+  Install: true
   BuildDepends:
     sexplib,
     sexplib.syntax,
