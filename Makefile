@@ -29,3 +29,7 @@ clean:
 distclean:
 	ocaml setup.ml -distclean
 	rm -f setup.data setup.log
+
+uninstall: setup.ml
+	ocamlfind remove $(NAME)
+	ocaml setup.ml -uninstall

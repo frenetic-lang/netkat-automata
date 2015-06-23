@@ -22,17 +22,17 @@ Library netkat_decide
     threads,
     tdk
   InternalModules: 
-    Decide_PCC,
     Decide_Lexer,
+    Decide_PCC,
     Decide_Parser,
-    Decide_Repl,
-    Decide_Deriv
+    Decide_Repl
   Modules:
-    Decide_Util,
-    Decide_Bisimulation,
     Decide_Ast,
+    Decide_Bisimulation,
+    Decide_Deriv,
     Decide_Loopfree,
-    Decide_Sat
+    Decide_Sat,
+    Decide_Util
 
 Executable netkat
   Path: src
