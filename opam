@@ -1,0 +1,15 @@
+opam-version: "1.2"
+name: "netkat-decide"
+version: "0.1"
+maintainer: "Mark Reitblatt <reitblatt@cs.cornell.edu>"
+authors: "Mark Reitblatt <reitblatt@cs.cornell.edu>"
+homepage: ""
+bug-reports: ""
+license: ""
+build: [
+  ["./configure" "--prefix=%{prefix}%"]
+  [make]
+]
+install: [make "install"]
+remove: ["ocamlfind" "remove" "netkat-decide"]
+depends: "ocamlfind" {build}
