@@ -41,5 +41,7 @@ Executable netkat
     threads,
     core,
     sexplib,
+    sexplib.syntax,
     comparelib,
+    comparelib.syntax,
     tdk
