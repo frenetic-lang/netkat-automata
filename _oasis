@@ -46,3 +46,14 @@ Executable netkat
     comparelib,
     tdk
 
+Executable measure
+  Path: src
+  CompiledObject: best
+  MainIs: Measure.ml
+  Install: false
+  BuildDepends:
+    threads,
+    core,
+    sexplib,
+    comparelib,
+    tdk
