@@ -16,6 +16,7 @@ rule token = parse
   | "drop" { ZERO }
   | "pass" { ONE }
   | "dup"  { DUP }
+  | "all"  { ALL }
   | "{}"   { EMPTYSET }
   | 'E'    { EMPTY }
   | id as id { VAR id }

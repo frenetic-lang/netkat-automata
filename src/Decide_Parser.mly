@@ -7,7 +7,7 @@ open Decide_Ast.Formula
 
 %token <string> VAR
 %token <string> STRING
-%token ZERO ONE DUP ANY EMPTY EMPTYSET
+%token ZERO ONE DUP ALL ANY EMPTY EMPTYSET
 %token PLUS TIMES STAR INTER IMPLIES UNION INTERSECTION
 %token NOT COMP
 %token LPAREN RPAREN
@@ -46,6 +46,7 @@ term:
   | ZERO            { zero }
   | ONE             { one }
   | DUP             { dup } 
+  | ALL             { all }
   | LPAREN term RPAREN { $2 }
   | term PLUS term  { plus (TermSet.of_list [$1; $3]) }
   | term TIMES term { times [$1; $3] }
