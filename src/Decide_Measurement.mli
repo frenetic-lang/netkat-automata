@@ -16,7 +16,7 @@ end
 
 module Query: sig
   type t =
-    | Pred of Predicate.t
+    | Pred of Predicate.t * Predicate.t
     | Plus of t * t
     | Times of t * t
     | Star of t

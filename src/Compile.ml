@@ -7,9 +7,9 @@ module DerivTerm = Deriv.BDDDeriv
 module Measurement = Decide_Measurement
 module Util = Decide_Util
 
-exception ParseError of int * int * string
+exception ParseError of string * int * int * string
 
-let parse parser_function (s: string) =
+let parse parser_function (filename: string) (s: string) =
   let lexbuf = Lexing.from_string s in
   try
     parser_function Decide_Lexer.token lexbuf
@@ -19,20 +19,20 @@ let parse parser_function (s: string) =
       let line = curr.Lexing.pos_lnum in
       let char = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
       let token = Lexing.lexeme lexbuf in
-      raise (ParseError (line, char, token))
+      raise (ParseError (filename, line, char, token))
     end
 
-let parse_term (s: string) : Ast.Term.t =
-  parse Decide_Parser.term_main s
+let parse_term (filename: string) (s: string) : Ast.Term.t =
+  parse Decide_Parser.term_main filename s
 
-let parse_query (s: string) : Measurement.Query.t =
-  parse Decide_Parser.query_main s
+let parse_query (filename: string) (s: string) : Measurement.Query.t =
+  parse Decide_Parser.query_main filename s
 
 let term_of_file (filename: string) : Ast.Term.t Deferred.t =
-  Reader.file_contents filename >>| parse_term
+  Reader.file_contents filename >>| parse_term filename
 
 let query_of_file (filename: string) : Measurement.Query.t Deferred.t =
-  Reader.file_contents filename >>| parse_query
+  Reader.file_contents filename >>| parse_query filename
 
 let print_Ematrix (t: Ast.Term.t) : unit =
   let print_point p =

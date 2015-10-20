@@ -11,7 +11,7 @@ module Measurement = Decide_Measurement
 %token AND OR
 %token PLUS TIMES STAR
 %token NOT
-%token LPAREN RPAREN
+%token LPAREN RPAREN COMMA
 %token EQ NEQ EQUIV LE ASSG
 %token EOL
 
@@ -63,16 +63,18 @@ formula:
 predicate:
   | ONE                     { Measurement.Predicate.One }
   | ZERO                    { Measurement.Predicate.Zero }
-  | VAR EQ STRING           { Measurement.Predicate.Test (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3) }
+  | VAR EQ STRING           { Measurement.Predicate.Test
+                              (Decide_Util.Field.of_string $1,
+                               Decide_Util.Value.of_string $3) }
   | predicate OR  predicate { Measurement.Predicate.Or ($1, $3) }
   | predicate AND predicate { Measurement.Predicate.And ($1, $3) }
   | LPAREN predicate RPAREN { $2 }
 ;
 
 query:
-  | predicate           { Measurement.Query.Pred   $1      }
-  | query PLUS  query   { Measurement.Query.Plus  ($1, $3) }
-  | query TIMES query   { Measurement.Query.Times ($1, $3) }
-  | query STAR          { Measurement.Query.Star   $1      }
+  | LPAREN predicate COMMA predicate RPAREN  { Measurement.Query.Pred  ($2, $4) }
+  | query PLUS  query                        { Measurement.Query.Plus  ($1, $3) }
+  | query TIMES query                        { Measurement.Query.Times ($1, $3) }
+  | query STAR                               { Measurement.Query.Star   $1      }
   | LPAREN query RPAREN { $2 }
 ;

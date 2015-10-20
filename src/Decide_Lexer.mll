@@ -29,6 +29,7 @@ rule token = parse
   | '~'    { NOT }
   | '('    { LPAREN }
   | ')'    { RPAREN }
+  | ','    { COMMA }
   | "=="   { EQUIV }
   | '='    { EQ }
   | "!="   { NEQ }
