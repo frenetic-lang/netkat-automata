@@ -1,20 +1,39 @@
 module Ast = Decide_Ast
 module Util = Decide_Util
 
-module Term = struct
-  type predicate =
+module Predicate = struct
+  type t =
     | One
     | Zero
     | Test of Util.Field.t * Util.Value.t
-    | Or of predicate * predicate
-    | And of predicate * predicate
-    | Not of predicate
+    | Or of t * t
+    | And of t * t
+    | Not of t
 
+  let rec compile (pred: t) : Ast.Term.t =
+    match pred with
+    | One         -> Ast.Term.one
+    | Zero        -> Ast.Term.zero
+    | Test (f, v) -> Ast.Term.test f v
+    | Or   (a, b) -> Ast.Term.plus (Ast.TermSet.of_list [compile a; compile b])
+    | And  (a, b) -> Ast.Term.times [compile a; compile b]
+    | Not   a     -> Ast.Term.not (compile a)
+end
+
+module Query = struct
   type t =
-    | Pred of predicate
+    | Pred of Predicate.t
     | Plus of t * t
     | Times of t * t
     | Star of t
+
+  let rec compile (p: Ast.Term.t) (t: Ast.Term.t) (query: t) : Ast.Term.t =
+    let c = compile p t in
+    match query with
+    | Pred   a      -> Ast.Term.times [t; Predicate.compile a; p]
+    | Plus  (q, q') -> Ast.Term.plus (Ast.TermSet.of_list [c q; c q'])
+    | Times (q, q') -> Ast.Term.times [c q; c q']
+    | Star   q      -> Ast.Term.star (c q)
 end
 
 type network = {
@@ -25,6 +44,4 @@ type network = {
 }
 
 let compile {ingress; outgress; p; t} q =
-  List.map Ast.Term.to_string [ingress; outgress; p; t]
-  |> List.iter print_endline;
-  failwith "TODO"
+  Ast.Term.times [ingress; p; (Query.compile p t q); outgress]

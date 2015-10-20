@@ -36,10 +36,15 @@ let print_Ematrix (t: Ast.Term.t) : unit =
 let term_of_file (filename: string) : Ast.Term.t Deferred.t =
   Reader.file_contents filename >>| parse
 
-let query () : Measurement.Term.t =
+let query () : Measurement.Query.t =
   (* In the future, we should parse queries from files. For now, we write them
    * up by hand. *)
-  Measurement.Term.(Pred One)
+  let open Measurement.Predicate in
+  let s = Util.Field.of_string "s" in
+  let p = Util.Field.of_string "p" in
+  let one = Util.Value.of_string "1" in
+  let two = Util.Value.of_string "2" in
+  Measurement.Query.Pred (And (Test (s, two), Test (p, one)))
 
 let main ingress_file outgress p_file t_file _q_file () : unit Deferred.t =
   term_of_file ingress_file >>= fun ingress ->

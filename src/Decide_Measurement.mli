@@ -2,17 +2,19 @@ module Ast = Decide_Ast
 module Util = Decide_Util
 
 (** The abstract syntax of our path query language. *)
-module Term : sig
-  type predicate =
+module Predicate : sig
+  type t =
     | One
     | Zero
     | Test of Util.Field.t * Util.Value.t
-    | Or of predicate * predicate
-    | And of predicate * predicate
-    | Not of predicate
+    | Or of t * t
+    | And of t * t
+    | Not of t
+end
 
+module Query: sig
   type t =
-    | Pred of predicate
+    | Pred of Predicate.t
     | Plus of t * t
     | Times of t * t
     | Star of t
@@ -28,4 +30,4 @@ type network = {
 
 (** [compile n q] compiles a network [n] and query [q] into a NetKAT term [t]
  *  of which we take the E-matrix *)
-val compile: network -> Term.t -> Ast.Term.t
+val compile: network -> Query.t -> Ast.Term.t
