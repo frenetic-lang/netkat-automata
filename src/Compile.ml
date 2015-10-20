@@ -36,7 +36,7 @@ let query_of_file (filename: string) : Measurement.Query.t Deferred.t =
 
 let print_Ematrix (t: Ast.Term.t) : unit =
   let print_point p =
-    Printf.printf "%s\n" (Ast.point_to_string p) in
+    Core.Std.Printf.printf "%s\n" (Ast.point_to_string p) in
   let tvals = Ast.Term.values t in
   ignore (Util.set_univ [tvals]);
   let t' = DerivTerm.make_term (Ast.TermSet.singleton t) in
