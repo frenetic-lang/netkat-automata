@@ -10,6 +10,18 @@ module Predicate = struct
     | And of t * t
     | Not of t
 
+  let rec to_string pred =
+    match pred with
+    | One         -> "1"
+    | Zero        -> "0"
+    | Test (f, v) ->
+        let fs = Util.Field.to_string f in
+        let vs = Util.Value.to_string v in
+        Printf.sprintf "(%s = %s)" fs vs
+    | Or   (a, b) -> Printf.sprintf "(%s ∨ %s)" (to_string a) (to_string b)
+    | And  (a, b) -> Printf.sprintf "(%s ∧ %s)" (to_string a) (to_string b)
+    | Not   a     -> Printf.sprintf "¬(%s)" (to_string a)
+
   let rec compile (pred: t) : Ast.Term.t =
     match pred with
     | One         -> Ast.Term.one
@@ -26,6 +38,13 @@ module Query = struct
     | Plus of t * t
     | Times of t * t
     | Star of t
+
+  let rec to_string query =
+    match query with
+    | Pred   a      -> Predicate.to_string a
+    | Plus  (q, q') -> Printf.sprintf "(%s + %s)" (to_string q) (to_string q')
+    | Times (q, q') -> Printf.sprintf "(%s * %s)" (to_string q) (to_string q')
+    | Star   q      -> Printf.sprintf "(%s)*" (to_string q)
 
   let rec compile (p: Ast.Term.t) (t: Ast.Term.t) (query: t) : Ast.Term.t =
     let c = compile p t in

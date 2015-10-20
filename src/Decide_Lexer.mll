@@ -8,14 +8,16 @@ let id = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '_' '0'-'9']*
 let num = ['0'-'9']+
 let whitespace = ['\t' '\r' ' ' '\n']
 let byte = ['0'-'9' 'a'-'f' 'A'-'F'] ['0'-'9' 'a'-'f' 'A'-'F']
-  
 
-  
+
+
 rule token = parse
   | whitespace { token lexbuf }
   | "drop" { ZERO }
   | "pass" { ONE }
   | "dup"  { DUP }
+  | "and"  { AND }
+  | "or"   { OR }
   | id as id { VAR id }
   | "\""   { STRING (String.concat "" (string lexbuf)) }
   | num as num { STRING (string_of_int (int_of_string num)) }

@@ -9,10 +9,10 @@ module Util = Decide_Util
 
 exception ParseError of int * int * string
 
-let parse (s: string) : Ast.Term.t =
+let parse parser_function (s: string) =
   let lexbuf = Lexing.from_string s in
   try
-    Decide_Parser.term_main Decide_Lexer.token lexbuf
+    parser_function Decide_Lexer.token lexbuf
   with
     | Parsing.Parse_error -> begin
       let curr = lexbuf.Lexing.lex_curr_p in
@@ -21,6 +21,18 @@ let parse (s: string) : Ast.Term.t =
       let token = Lexing.lexeme lexbuf in
       raise (ParseError (line, char, token))
     end
+
+let parse_term (s: string) : Ast.Term.t =
+  parse Decide_Parser.term_main s
+
+let parse_query (s: string) : Measurement.Query.t =
+  parse Decide_Parser.query_main s
+
+let term_of_file (filename: string) : Ast.Term.t Deferred.t =
+  Reader.file_contents filename >>| parse_term
+
+let query_of_file (filename: string) : Measurement.Query.t Deferred.t =
+  Reader.file_contents filename >>| parse_query
 
 let print_Ematrix (t: Ast.Term.t) : unit =
   let print_point p =
@@ -33,27 +45,15 @@ let print_Ematrix (t: Ast.Term.t) : unit =
   print_endline "\nPoints:";
   List.iter points ~f:print_point
 
-let term_of_file (filename: string) : Ast.Term.t Deferred.t =
-  Reader.file_contents filename >>| parse
-
-let query () : Measurement.Query.t =
-  (* In the future, we should parse queries from files. For now, we write them
-   * up by hand. *)
-  let open Measurement.Predicate in
-  let s = Util.Field.of_string "s" in
-  let p = Util.Field.of_string "p" in
-  let one = Util.Value.of_string "1" in
-  let two = Util.Value.of_string "2" in
-  Measurement.Query.Pred (And (Test (s, two), Test (p, one)))
-
-let main ingress_file outgress p_file t_file _q_file () : unit Deferred.t =
+let main ingress_file outgress p_file t_file q_file () : unit Deferred.t =
   term_of_file ingress_file >>= fun ingress ->
   term_of_file outgress >>= fun outgress ->
   term_of_file p_file >>= fun p ->
   term_of_file t_file >>= fun t ->
-  let q = query () in
+  query_of_file q_file >>= fun q ->
   let network: Measurement.network = {ingress; outgress; p; t} in
   let compiled = Measurement.compile network q in
+  print_endline (Measurement.Query.to_string q);
   print_endline (Ast.Term.to_string compiled);
   print_Ematrix compiled;
   return ()

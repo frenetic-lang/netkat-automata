@@ -10,6 +10,8 @@ module Predicate : sig
     | Or of t * t
     | And of t * t
     | Not of t
+
+  val to_string: t -> string
 end
 
 module Query: sig
@@ -18,6 +20,8 @@ module Query: sig
     | Plus of t * t
     | Times of t * t
     | Star of t
+
+  val to_string: t -> string
 end
 
 (** A network is described by [in; (p; t)*; p; out]. *)

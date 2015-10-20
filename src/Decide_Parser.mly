@@ -2,11 +2,13 @@
 open Decide_Ast
 open Decide_Ast.Term
 open Decide_Ast.Formula
+module Measurement = Decide_Measurement
 %}
 
 %token <string> VAR
 %token <string> STRING
 %token ZERO ONE DUP
+%token AND OR
 %token PLUS TIMES STAR
 %token NOT
 %token LPAREN RPAREN
@@ -18,19 +20,24 @@ open Decide_Ast.Formula
 %left TIMES VAR ZERO ONE DUP LPAREN
 %nonassoc NOT STAR /* highest precedence */
 
-%start formula_main term_main  /* entry points */
+%start formula_main term_main query_main  /* entry points */
 %type <Decide_Ast.Formula.t> formula_main
 %type <Decide_Ast.Term.t> term_main
+%type <Decide_Measurement.Query.t> query_main
 
 %%
 
 formula_main:
   | formula EOL { $1 }
-  | EOL { raise Decide_Deriv.Empty } 
+  | EOL { raise Decide_Deriv.Empty }
 ;
 
 term_main:
   | term EOL { $1 }
+;
+
+query_main:
+  | query EOL { $1 }
 ;
 
 term:
@@ -39,7 +46,7 @@ term:
   | VAR NEQ STRING  { not (test (Decide_Util.Field.of_string $1) (Decide_Util.Value.of_string $3)) }
   | ZERO            { zero }
   | ONE             { one }
-  | DUP             { dup } 
+  | DUP             { dup }
   | LPAREN term RPAREN { $2 }
   | term PLUS term  { plus (TermSet.of_list [$1; $3]) }
   | term TIMES term { times [$1; $3] }
@@ -51,4 +58,21 @@ term:
 formula:
   | term EQUIV term { make_eq $1 $3 }
   | term LE term    { make_le $1 $3 }
+;
+
+predicate:
+  | ONE                     { Measurement.Predicate.One }
+  | ZERO                    { Measurement.Predicate.Zero }
+  | VAR EQ STRING           { Measurement.Predicate.Test (Decide_Util.Field.of_string $1, Decide_Util.Value.of_string $3) }
+  | predicate OR  predicate { Measurement.Predicate.Or ($1, $3) }
+  | predicate AND predicate { Measurement.Predicate.And ($1, $3) }
+  | LPAREN predicate RPAREN { $2 }
+;
+
+query:
+  | predicate           { Measurement.Query.Pred   $1      }
+  | query PLUS  query   { Measurement.Query.Plus  ($1, $3) }
+  | query TIMES query   { Measurement.Query.Times ($1, $3) }
+  | query STAR          { Measurement.Query.Star   $1      }
+  | LPAREN query RPAREN { $2 }
 ;
