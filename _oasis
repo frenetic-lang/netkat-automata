@@ -30,7 +30,8 @@ Library netkat_decide
     Decide_Util,
     Decide_Bisimulation,
     Decide_Ast,
-    Decide_Loopfree
+    Decide_Loopfree,
+    Decide_Measurement
 
 Executable netkat
   Path: src
@@ -54,6 +55,21 @@ Executable measure
   BuildDepends:
     threads,
     core,
+    sexplib,
+    sexplib.syntax,
+    comparelib,
+    comparelib.syntax,
+    tdk
+
+Executable compile
+  Path: src
+  CompiledObject: best
+  MainIs: Compile.ml
+  Install: false
+  BuildDepends:
+    threads,
+    core,
+    async,
     sexplib,
     sexplib.syntax,
     comparelib,

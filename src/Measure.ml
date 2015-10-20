@@ -15,8 +15,8 @@ let print_Ematrix t =
   List.iter print_point points
 
 exception ParseError of int * int * string
-                              
-let parse (s : string) = 
+
+let parse (s : string) =
   let lexbuf = Lexing.from_string s in
   (try
      Decide_Parser.formula_main Decide_Lexer.token lexbuf
@@ -31,16 +31,16 @@ let parse (s : string) =
 let process (input : string) : unit =
   try
     let parsed = parse input in
-    let t,_ = Ast.Formula.terms parsed in 
+    let t,_ = Ast.Formula.terms parsed in
       (print_Ematrix t)
   with
-  | Decide_Deriv.Empty -> 
+  | Decide_Deriv.Empty ->
     ()
-  | Decide_Lexer.LexError s -> 
+  | Decide_Lexer.LexError s ->
     Printf.printf "Lex Error: %s\n" s
   | ParseError (l, ch, t) ->
     Printf.printf "Syntax error at line %d, char %d, token \'%s\'\n" l ch t
-  
+
 (* read from a file *)
 let load (filename : string) : string option =
   let rec get_contents contents file =
@@ -57,7 +57,7 @@ let load (filename : string) : string option =
     Some (String.concat " " (List.rev ("== pass" :: result)))
   with Sys_error msg ->
     print_endline msg; None
-			
+
 let process_file (filename : string) : unit =
   match (load filename) with
   | Some s -> process s
