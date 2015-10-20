@@ -7,6 +7,13 @@ module DerivTerm = Deriv.BDDDeriv
 module Measurement = Decide_Measurement
 module Util = Decide_Util
 
+type network_files = {
+  ingress  : string;
+  outgress : string;
+  p        : string;
+  t        : string;
+}
+
 exception ParseError of string * int * int * string
 
 let parse parser_function (filename: string) (s: string) =
@@ -34,9 +41,16 @@ let term_of_file (filename: string) : Ast.Term.t Deferred.t =
 let query_of_file (filename: string) : Measurement.Query.t Deferred.t =
   Reader.file_contents filename >>| parse_query filename
 
+let network_of_files (files: network_files) : Measurement.network Deferred.t =
+  term_of_file files.ingress >>= fun ingress ->
+  term_of_file files.outgress >>= fun outgress ->
+  term_of_file files.p >>= fun p ->
+  term_of_file files.t >>= fun t ->
+  return ({ingress; outgress; p; t}: Measurement.network)
+
 let print_Ematrix (t: Ast.Term.t) : unit =
   let print_point p =
-    Core.Std.Printf.printf "%s\n" (Ast.point_to_string p) in
+    printf "%s\n" (Ast.point_to_string p) in
   let tvals = Ast.Term.values t in
   ignore (Util.set_univ [tvals]);
   let t' = DerivTerm.make_term (Ast.TermSet.singleton t) in
@@ -45,18 +59,29 @@ let print_Ematrix (t: Ast.Term.t) : unit =
   print_endline "\nPoints:";
   List.iter points ~f:print_point
 
-let main ingress_file outgress p_file t_file q_file () : unit Deferred.t =
-  term_of_file ingress_file >>= fun ingress ->
-  term_of_file outgress >>= fun outgress ->
-  term_of_file p_file >>= fun p ->
-  term_of_file t_file >>= fun t ->
-  query_of_file q_file >>= fun q ->
-  let network: Measurement.network = {ingress; outgress; p; t} in
+let build_and_print (network: Measurement.network) (q: Measurement.Query.t) : unit Deferred.t =
   let compiled = Measurement.compile network q in
   print_endline (Measurement.Query.to_string q);
   print_endline (Ast.Term.to_string compiled);
   print_Ematrix compiled;
   return ()
+
+let run_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
+  query_of_file q_file >>= build_and_print network
+
+let run_repl (network: Measurement.network) : unit Deferred.t =
+  let stdin = Lazy.force Reader.stdin in
+  print_string "> ";
+  Pipe.iter (Reader.lines stdin) ~f:(fun line ->
+    build_and_print network (parse_query "stdin" line) >>| fun () ->
+    print_string "> ";
+  )
+
+let main (files: network_files) (q_file: string option) : unit Deferred.t =
+  network_of_files files >>= fun network ->
+  match q_file with
+  | Some q_file -> run_files network q_file
+  | None        -> run_repl network
 
 let spec =
   let open Command.Spec in
@@ -65,11 +90,11 @@ let spec =
   +> anon ("outgress" %: file)
   +> anon ("p" %: file)
   +> anon ("t" %: file)
-  +> anon ("q" %: file)
+  +> anon (maybe ("q" %: file))
 
 let () =
   Command.async
     ~summary:"Compile path queries to NetKAT terms"
     spec
-    main
+    (fun ingress outgress p t q () -> main {ingress; outgress; p; t} q)
   |> Command.run
