@@ -200,7 +200,6 @@ module rec BDDDeriv : DerivTerm = struct
                f)
           t
       in
-      Printf.printf "Base points: %s\n" (PointSet.to_string base_points);
       PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Decide_Util.FieldSet.fold (fun field pts ->
           PointSet.fold pts ~f:(fun acc (a,b) -> PointSet.union acc
           begin
@@ -214,7 +213,6 @@ module rec BDDDeriv : DerivTerm = struct
 
     let fold t ~init:init ~f:f =
       let pts = get_points t in
-      Printf.printf "get_points: %s\n" (PointSet.to_string pts);
       PointSet.fold pts ~f:f ~init:init
         
     (* Since PacketDD is not guaranteed to be canonical, we have to semantically compare *)
