@@ -70,7 +70,7 @@ numbers, not letters.
 
 ```
 $ make
-$ ./Compile.native measurement_examples/line/{in,out,p ,t}.kat
+$ ./Compile.native measurement_examples/line/{in,out,p,t}.kat
 > (s = 1 and p = 2, s = 2 and p = 1)
 (((s = 1) ∧ (p = 2)), ((s = 2) ∧ (p = 1)))
 (s=1;p=1 + s=2;p=2);(t=1;p:=1 + t=2;p:=2);s=1;p=2;(s=1;p=2;s:=2;p:=1 + s=2;p=1;s:=1;p:=2);s=2;p=1;(t=1;p:=1 + t=2;p:=2);(s=1;p=1 + s=2;p=2)
