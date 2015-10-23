@@ -60,7 +60,8 @@ The query language compiler logic is found in
 REPL. `Compile` takes five command line arguments. The first four (`in`, `out`,
 `p`, and `t`) are files which contain the NetKAT encodings of a network. The
 last argument (`q`) is an optional file which contains a query. If a query is
-provided, the compiler compiles the query into a NetKAT.
+provided, the compiler compiles the query into a NetKAT. Otherwise, the
+compiler acts as a REPL reading queries from the command line.
 
 Here is an example of how to query the line topology found in
 [`measurement_examples/line`](measurement_examples/line). Notice that `s` and
