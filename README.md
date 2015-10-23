@@ -52,3 +52,28 @@ though this abbreviation is not part of the actual query language.
   edge `(a:2, b:1)`.
 - `(sw = a, sw = z) + ((sw = a, pass); (pass; pass)*; (pass, sw = z))` matches
   all paths from switch `a` to switch `z`.
+
+## Compiler and REPL ##
+The query language compiler logic is found in
+[`src/Decide_Measurement.ml`](src/Decide_Measurement.ml).
+[`src/Compile.ml`](src/Compile.ml) is an executable that acts as a compiler and
+REPL. `Compile` takes five command line arguments. The first four (`in`, `out,
+`p`, and `t`) are files which contain the NetKAT encodings of a network. The
+last argument (`q`) is an optional file which contains a query. If a query is
+provided, the compiler compiles the query into a NetKAT.
+
+Here is an example of how to query the line topology found in
+[`measurement_examples/line`](measurement_examples/line). Notice that `s` and
+`p` are used for the switch and packet fields. Also, all switch names are
+numbers, not letters.
+
+```
+$ make
+$ ./Compile.native measurement_examples/line/{in,out,p ,t}.kat
+> (s = 1 and p = 2, s = 2 and p = 1)
+(((s = 1) ∧ (p = 2)), ((s = 2) ∧ (p = 1)))
+(s=1;p=1 + s=2;p=2);(t=1;p:=1 + t=2;p:=2);s=1;p=2;(s=1;p=2;s:=2;p:=1 + s=2;p=1;s:=1;p:=2);s=2;p=1;(t=1;p:=1 + t=2;p:=2);(s=1;p=1 + s=2;p=2)
+
+Points:
+([t := 2;p := 1;s := 1],[t := 2;p := 2;s := 2])
+```
