@@ -57,7 +57,7 @@ though this abbreviation is not part of the actual query language.
 The query language compiler logic is found in
 [`src/Decide_Measurement.ml`](src/Decide_Measurement.ml).
 [`src/Compile.ml`](src/Compile.ml) is an executable that acts as a compiler and
-REPL. `Compile` takes five command line arguments. The first four (`in`, `out,
+REPL. `Compile` takes five command line arguments. The first four (`in`, `out`,
 `p`, and `t`) are files which contain the NetKAT encodings of a network. The
 last argument (`q`) is an optional file which contains a query. If a query is
 provided, the compiler compiles the query into a NetKAT.
