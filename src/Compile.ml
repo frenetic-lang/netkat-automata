@@ -1,6 +1,8 @@
 open Core.Std
 open Async.Std
 
+
+
 module Ast = Decide_Ast
 module Deriv = Decide_Deriv
 module DerivTerm = Deriv.BDDDeriv
@@ -15,6 +17,21 @@ type network_files = {
 }
 
 exception ParseError of string * int * int * string
+
+
+let packet_to_json (pkt : packet) : json=
+  let assoc_pkt = FieldMap.to_alist pkt in
+  let pkt_string_lst = List.map assoc_pkt -f:(fun (x, y) -> 
+    (Value.to_string x, Field.to_string)) in
+  let pkt_json = `Assoc (List.map assoc_pkt -f:(fun (x, y) ->
+   (x, (`String (y))))) in
+   pkt_json
+
+
+let points_to_jsons (points : point list) : json list=
+  let fst_packets = List.map points -f:fst in
+  let json_mapped_packets = List.map fst_packets packet_to_json in
+  json_mapped_packets
 
 let parse parser_function (filename: string) (s: string) =
   let lexbuf = Lexing.from_string s in
