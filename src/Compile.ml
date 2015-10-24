@@ -1,8 +1,6 @@
 open Core.Std
 open Async.Std
 
-
-
 module Ast = Decide_Ast
 module Deriv = Decide_Deriv
 module DerivTerm = Deriv.BDDDeriv
@@ -17,21 +15,6 @@ type network_files = {
 }
 
 exception ParseError of string * int * int * string
-
-
-let packet_to_json (pkt : packet) : json=
-  let assoc_pkt = FieldMap.to_alist pkt in
-  let pkt_string_lst = List.map assoc_pkt -f:(fun (x, y) -> 
-    (Value.to_string x, Field.to_string)) in
-  let pkt_json = `Assoc (List.map assoc_pkt -f:(fun (x, y) ->
-   (x, (`String (y))))) in
-   pkt_json
-
-
-let points_to_jsons (points : point list) : json list=
-  let fst_packets = List.map points -f:fst in
-  let json_mapped_packets = List.map fst_packets packet_to_json in
-  json_mapped_packets
 
 let parse parser_function (filename: string) (s: string) =
   let lexbuf = Lexing.from_string s in
@@ -65,22 +48,46 @@ let network_of_files (files: network_files) : Measurement.network Deferred.t =
   term_of_file files.t >>= fun t ->
   return ({ingress; outgress; p; t}: Measurement.network)
 
-let print_Ematrix (t: Ast.Term.t) : unit =
-  let print_point p =
-    printf "%s\n" (Ast.point_to_string p) in
+let term_to_points (t: Ast.Term.t) : Ast.point list = 
   let tvals = Ast.Term.values t in
   ignore (Util.set_univ [tvals]);
   let t' = DerivTerm.make_term (Ast.TermSet.singleton t) in
   let q_E = DerivTerm.get_e t' in
   let points = DerivTerm.EMatrix.fold q_E ~init:[] ~f:(fun a p -> p :: a) in
+  points
+
+let print_Ematrix (t: Ast.Term.t) : unit =
+  let print_point p =
+    printf "%s\n" (Ast.point_to_string p) in
+  let points = term_to_points t in
   print_endline "\nPoints:";
   List.iter points ~f:print_point
+
+let packet_to_json (pkt: Ast.packet) : Yojson.json =
+  let assoc_pkt = Ast.FieldMap.to_alist pkt in
+  let pkt_string_lst = List.map assoc_pkt ~f:(fun (x, y) -> 
+    (Util.Field.to_string x, Util.Value.to_string y)) in
+  let pkt_json = `Assoc (List.map pkt_string_lst ~f:(fun (x, y) ->
+    (x, (`String (y))))) in
+    pkt_json
+
+let points_to_jsons (points: Ast.point list) : Yojson.json list =
+  let fst_packets = List.map points ~f:fst in
+  let json_mapped_packets = List.map fst_packets packet_to_json in
+  json_mapped_packets
+
+let print_json_packets (t: Ast.Term.t) : unit =
+  let points = term_to_points t in
+  let json_pkts = points_to_jsons points in
+  print_endline "\nJSON Packets for Measurement:";
+  List.iter json_pkts ~f:(fun json_pkt -> print_endline (Yojson.to_string json_pkt))
 
 let build_and_print (network: Measurement.network) (q: Measurement.Query.t) : unit Deferred.t =
   let compiled = Measurement.compile network q in
   print_endline (Measurement.Query.to_string q);
   print_endline (Ast.Term.to_string compiled);
   print_Ematrix compiled;
+  print_json_packets compiled;
   return ()
 
 let run_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
