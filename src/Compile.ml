@@ -48,7 +48,7 @@ let network_of_files (files: network_files) : Measurement.network Deferred.t =
   term_of_file files.t >>= fun t ->
   return ({ingress; outgress; p; t}: Measurement.network)
 
-let term_to_points (t: Ast.Term.t) : Ast.point list = 
+let term_to_points (t: Ast.Term.t) : Ast.point list =
   let tvals = Ast.Term.values t in
   ignore (Util.set_univ [tvals]);
   let t' = DerivTerm.make_term (Ast.TermSet.singleton t) in
@@ -65,7 +65,7 @@ let print_Ematrix (t: Ast.Term.t) : unit =
 
 let packet_to_json (pkt: Ast.packet) : Yojson.json =
   let assoc_pkt = Ast.FieldMap.to_alist pkt in
-  let pkt_string_lst = List.map assoc_pkt ~f:(fun (x, y) -> 
+  let pkt_string_lst = List.map assoc_pkt ~f:(fun (x, y) ->
     (Util.Field.to_string x, Util.Value.to_string y)) in
   let pkt_json = `Assoc (List.map pkt_string_lst ~f:(fun (x, y) ->
     (x, (`String (y))))) in
@@ -76,15 +76,18 @@ let points_to_jsons (points: Ast.point list) : Yojson.json list =
   let json_mapped_packets = List.map fst_packets packet_to_json in
   json_mapped_packets
 
-let print_json_packets (t: Ast.Term.t) : unit =
+let jsons_of_term (t: Ast.Term.t) : Yojson.json list =
   let points = term_to_points t in
-  let json_pkts = points_to_jsons points in
+  points_to_jsons points
+
+let print_json_packets (t: Ast.Term.t) : unit =
+  let json_pkts = jsons_of_term t in
   print_endline "\nJSON Packets for Measurement:";
   List.iter json_pkts ~f:(fun json_pkt -> print_endline (Yojson.to_string json_pkt))
 
 let packet_to_request (pkt: Ast.packet) : (string * string list) list =
   let assoc_pkt = Ast.FieldMap.to_alist pkt in
-  let pkt_string_lst = List.map assoc_pkt ~f:(fun (x, y) -> 
+  let pkt_string_lst = List.map assoc_pkt ~f:(fun (x, y) ->
     (Util.Field.to_string x, Util.Value.to_string y)) in
   let pkt_and_config_string_lst =
     ("type", "config_sketch")::("interface", "OUTPUT")::pkt_string_lst in
@@ -102,6 +105,8 @@ let build_and_print (network: Measurement.network) (q: Measurement.Query.t) : un
   print_endline (Ast.Term.to_string compiled);
   print_Ematrix compiled;
   print_json_packets compiled;
+  let jsons = jsons_of_term compiled in
+  Writer.save "query.txt" (Yojson.to_string (`List jsons)) >>= fun () ->
   return ()
 
 let run_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
