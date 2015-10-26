@@ -82,6 +82,20 @@ let print_json_packets (t: Ast.Term.t) : unit =
   print_endline "\nJSON Packets for Measurement:";
   List.iter json_pkts ~f:(fun json_pkt -> print_endline (Yojson.to_string json_pkt))
 
+let packet_to_request (pkt: Ast.packet) : (string * string list) list =
+  let assoc_pkt = Ast.FieldMap.to_alist pkt in
+  let pkt_string_lst = List.map assoc_pkt ~f:(fun (x, y) -> 
+    (Util.Field.to_string x, Util.Value.to_string y)) in
+  let pkt_and_config_string_lst =
+    ("type", "config_sketch")::("interface", "OUTPUT")::pkt_string_lst in
+  let request = List.map pkt_and_config_string_lst ~f:(fun (x, y) -> (x, y::[])) in
+  request
+
+let points_to_requests (points: Ast.point list) : ((string * string list) list) list =
+  let fst_packets = List.map points ~f:fst in
+  let requests = List.map fst_packets packet_to_request in
+  requests
+
 let build_and_print (network: Measurement.network) (q: Measurement.Query.t) : unit Deferred.t =
   let compiled = Measurement.compile network q in
   print_endline (Measurement.Query.to_string q);
