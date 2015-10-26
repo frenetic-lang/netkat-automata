@@ -74,4 +74,5 @@ Executable compile
     sexplib.syntax,
     comparelib,
     comparelib.syntax,
-    tdk
+    tdk,
+    yojson
