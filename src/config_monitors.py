@@ -1,9 +1,10 @@
 import requests, json, sys
 
-def configure_monitors(hosts, configs):
+def configure_monitors(hosts, configs, mappings):
     for host in hosts:
         for config in configs:
-            requests.post(host, config)
+            for modified_config in configsp_to_configip(config, mappings):
+                requests.post("http://" + host, modified_config)
 '''
 config is dict of a single config file with possible switch and port field
 mappings_dict is dict of tuple (switch, port) to IP
@@ -15,26 +16,26 @@ Returns list containing all possible configs
 def configsp_to_configip(config, mappings_dict):
   new_configs_lst = []
   if ("port" in config and "switch" in config):
-      for k, v in mappings_dict:
+      for k, v in mappings_dict.iteritems():
         if(k == (config['switch'], config['port'])):
             config.pop('switch')
             config.pop('port')
             config['IP'] = v
             new_configs_lst.append(config)
             return new_configs_lst
-       raise Exception("Mapping not found for port " + str(config['port']) + ' switch ' + str(config['switch']))
+        raise Exception("Mapping not found for port " + str(config['port']) + ' switch ' + str(config['switch']))
   elif("port" in config):
-      for k, v in mappings_dict:
+      for k, v in mappings_dict.iteritems():
           if(k[1] == config['port']):
              n_config = config.copy()
              n_config.pop('port')
              n_config['IP'] = v
              new_configs_lst.append(n_config)
-       if(len(new_configs_lst) == 0):
+      if(len(new_configs_lst) == 0):
           raise Exception("No mappings found for port: " + str(config['port']))
-       return new_configs_lst
-   elif("switch" in config):
-      for k, v in mappings_dict:
+      return new_configs_lst
+  elif("switch" in config):
+      for k, v in mappings_dict.iteritems():
           if(k[0] == config['switch']):
               n_config = config.copy()
               n_config.pop('switch')
@@ -42,7 +43,8 @@ def configsp_to_configip(config, mappings_dict):
               new_configs_lst.append(n_config)
       if(len(new_configs_lst) == 0):
           raise Exception("No mappings found for switch: " + str(config['switch']))
-    else:
+      return new_configs_lst
+  else:
         new_configs_lst.append(config)
         return new_configs_lst
           
@@ -50,13 +52,19 @@ def configsp_to_configip(config, mappings_dict):
 def main():
     hosts = []
     configs = []
-    for (i, arg) in sys.argv:
-        if arg == "--hosts" or "-h":
+    mappings = {}
+    for (i, arg) in enumerate(sys.argv):
+        if arg == '--hosts' or arg == '-h':
             with open(sys.argv[i + 1], 'r') as hosts_file:
                 for host in hosts_file:
                     hosts.append(host)
-        if arg == "--config" or "-c":
+        if arg == '--config' or arg == '-c':
             with open(sys.argv[i + 1], 'r') as config_file:
                 configs = json.loads(config_file.read())
-    configure_monitors(hosts, configs)
-
+        if arg == '--mappings' or arg == '-m':
+            with open(sys.argv[i + 1], 'r') as mappings_file:
+                mappings_lst = json.loads(mappings_file.read())
+                for mapping in mappings_lst:
+                    mappings[(mapping['switch'], mapping['port'])] = mapping['host']
+    configure_monitors(hosts, configs, mappings)
+main()
