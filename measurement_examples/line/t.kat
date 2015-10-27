@@ -1,2 +1,2 @@
-(s = 1; p = 2; s := 2; p := 1) +
-(s = 2; p = 1; s := 1; p := 2)
+(switch = 1; port = 2; switch := 2; port := 1) +
+(switch = 2; port = 1; switch := 1; port := 2)
