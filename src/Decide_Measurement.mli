@@ -24,6 +24,10 @@ module Query: sig
   val to_string: t -> string
 end
 
+(** [term_of_policy p] converts a NetKAT policy `p from the core frenetic
+ * library into an Ast term: our representation of NetKAT policies. *)
+val term_of_policy: Frenetic_NetKAT.policy -> Ast.Term.t
+
 (** A network is described by [in; (p; t)*; p; out]. *)
 type network = {
   ingress:  Ast.Term.t; (* in  *)

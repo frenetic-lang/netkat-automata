@@ -13,6 +13,7 @@ BuildTools:
 Library netkat_decide
   Path: src
   BuildDepends:
+    frenetic,
     sexplib,
     sexplib.syntax,
     comparelib,
@@ -39,6 +40,7 @@ Executable netkat
   MainIs: Decide_Repl.ml
   Install: false
   BuildDepends:
+    frenetic,
     threads,
     core,
     sexplib,
@@ -53,6 +55,7 @@ Executable measure
   MainIs: Measure.ml
   Install: false
   BuildDepends:
+    frenetic,
     threads,
     core,
     sexplib,
@@ -67,6 +70,7 @@ Executable compile
   MainIs: Compile.ml
   Install: false
   BuildDepends:
+    frenetic,
     threads,
     core,
     async,
@@ -81,6 +85,17 @@ Executable printpolicy
   Path: src
   CompiledObject: best
   MainIs: PrintPolicy.ml
+  Install: false
+  BuildDepends:
+    frenetic,
+    threads,
+    core,
+    async
+
+Executable natetomark
+  Path: src
+  CompiledObject: best
+  MainIs: NateToMark.ml
   Install: false
   BuildDepends:
     frenetic,

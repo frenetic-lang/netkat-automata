@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: d23ff2aeef498b448aa0d83c887e22ae)
+# DO NOT EDIT (digest: 64e3d6e96f8b483d3bc59e2719cafbad)
 version = "0.0.1"
 description = "The NetKAT Coalgebraic Decision Procedure"
 requires =
-"sexplib sexplib.syntax comparelib comparelib.syntax core threads tdk"
+"frenetic sexplib sexplib.syntax comparelib comparelib.syntax core threads tdk"
 archive(byte) = "netkat_decide.cma"
 archive(byte, plugin) = "netkat_decide.cma"
 archive(native) = "netkat_decide.cmxa"
