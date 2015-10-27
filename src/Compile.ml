@@ -41,12 +41,26 @@ let term_of_file (filename: string) : Ast.Term.t Deferred.t =
 let query_of_file (filename: string) : Measurement.Query.t Deferred.t =
   Reader.file_contents filename >>| parse_query filename
 
+let term_of_policy_file (filename: string) : Ast.Term.t Deferred.t =
+  Reader.file_contents filename >>| fun policy_string ->
+  Frenetic_NetKAT_Json.policy_from_json_string policy_string
+  |> Decide_Measurement.term_of_policy
+
+(* returns [in, out, p] *)
+let terms_of_topo_file (filename: string) : (Ast.Term.t * Ast.Term.t * Ast.Term.t) Deferred.t =
+  let topo = Frenetic_Network.Net.Parse.from_dotfile filename in
+  return (
+    Measurement.in_of_topology topo,
+    Measurement.out_of_topology topo,
+    Measurement.term_of_topology topo
+  )
+
 let network_of_files (files: network_files) : Measurement.network Deferred.t =
   term_of_file files.ingress >>= fun ingress ->
   term_of_file files.outgress >>= fun outgress ->
   term_of_file files.p >>= fun p ->
   term_of_file files.t >>= fun t ->
-  return ({ingress; outgress; p; t}: Measurement.network)
+  return Measurement.({ingress; outgress; p; t})
 
 let term_to_points (t: Ast.Term.t) : Ast.point list =
   let tvals = Ast.Term.values t in
@@ -120,24 +134,49 @@ let run_repl (network: Measurement.network) : unit Deferred.t =
     print_string "> ";
   )
 
-let main (files: network_files) (q_file: string option) : unit Deferred.t =
+let inptout_main (files: network_files) (q_file: string option) : unit Deferred.t =
   network_of_files files >>= fun network ->
   match q_file with
   | Some q_file -> run_files network q_file
   | None        -> run_repl network
 
-let spec =
-  let open Command.Spec in
-  empty
-  +> anon ("ingress" %: file)
-  +> anon ("outgress" %: file)
-  +> anon ("p" %: file)
-  +> anon ("t" %: file)
-  +> anon (maybe ("q" %: file))
+let zoo_main (policy_file: string) (topo_file: string) (q_file: string option) : unit Deferred.t =
+  term_of_policy_file policy_file >>= fun p ->
+  terms_of_topo_file topo_file >>= fun (ingress, outgress, t) ->
+  let network = Measurement.({ingress; outgress; p; t}) in
+  match q_file with
+  | Some q_file -> run_files network q_file
+  | None        -> run_repl network
+
+let inptout =
+  Command.async
+    ~summary:"Compiles a network described by in, out, p and t NetKAT files."
+    Command.Spec.(
+      empty
+      +> anon ("ingress" %: file)
+      +> anon ("outgress" %: file)
+      +> anon ("p" %: file)
+      +> anon ("t" %: file)
+      +> anon (maybe ("q" %: file))
+    )
+    (fun ingress outgress p t q () -> inptout_main {ingress; outgress; p; t} q)
+
+let zoo =
+  Command.async
+    ~summary:"Compiles a network described by a DOT file and a JSON file."
+    Command.Spec.(
+      empty
+      +> anon ("policy" %: file)
+      +> anon ("topology" %: file)
+      +> anon (maybe ("q" %: file))
+    )
+    (fun policy_file topo_file q () -> zoo_main policy_file topo_file q)
 
 let () =
-  Command.async
-    ~summary:"Compile path queries to NetKAT terms"
-    spec
-    (fun ingress outgress p t q () -> main {ingress; outgress; p; t} q)
+  Command.group
+    ~summary:"Felix Compiler"
+    [
+      ("inptout", inptout);
+      ("zoo",     zoo);
+    ]
   |> Command.run
