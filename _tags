@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6195bbb9ef14b9df041c018c33acdfbb)
+# DO NOT EDIT (digest: e6c6301a9b3680cc59ce9ad67f8b2c02)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -42,14 +42,20 @@ true: annot, bin_annot
 <src/Compile.{native,byte}>: package(tdk)
 <src/Compile.{native,byte}>: package(threads)
 <src/Compile.{native,byte}>: package(yojson)
-<src/*.ml{,i,y}>: package(async)
 <src/*.ml{,i,y}>: package(comparelib)
 <src/*.ml{,i,y}>: package(comparelib.syntax)
-<src/*.ml{,i,y}>: package(core)
 <src/*.ml{,i,y}>: package(sexplib)
 <src/*.ml{,i,y}>: package(sexplib.syntax)
 <src/*.ml{,i,y}>: package(tdk)
-<src/*.ml{,i,y}>: package(threads)
 <src/*.ml{,i,y}>: package(yojson)
+# Executable printpolicy
+<src/PrintPolicy.{native,byte}>: package(async)
+<src/PrintPolicy.{native,byte}>: package(core)
+<src/PrintPolicy.{native,byte}>: package(frenetic)
+<src/PrintPolicy.{native,byte}>: package(threads)
+<src/*.ml{,i,y}>: package(async)
+<src/*.ml{,i,y}>: package(core)
+<src/*.ml{,i,y}>: package(frenetic)
+<src/*.ml{,i,y}>: package(threads)
 # OASIS_STOP
 <src/*.ml{,i}>: syntax_camlp4o

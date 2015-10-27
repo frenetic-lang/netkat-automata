@@ -76,3 +76,14 @@ Executable compile
     comparelib.syntax,
     tdk,
     yojson
+
+Executable printpolicy
+  Path: src
+  CompiledObject: best
+  MainIs: PrintPolicy.ml
+  Install: false
+  BuildDepends:
+    frenetic,
+    threads,
+    core,
+    async
