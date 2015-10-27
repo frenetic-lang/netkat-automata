@@ -92,6 +92,17 @@ Executable printpolicy
     core,
     async
 
+Executable printtopo
+  Path: src
+  CompiledObject: best
+  MainIs: PrintTopo.ml
+  Install: false
+  BuildDepends:
+    frenetic,
+    threads,
+    core,
+    async
+
 Executable natetomark
   Path: src
   CompiledObject: best

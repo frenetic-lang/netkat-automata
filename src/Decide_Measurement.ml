@@ -1,4 +1,7 @@
 module Ast = Decide_Ast
+module Net = Frenetic_Network.Net
+module NetKAT = Frenetic_NetKAT
+module Network = Frenetic_Network
 module Util = Decide_Util
 
 module Predicate = struct
@@ -112,6 +115,43 @@ let rec term_of_policy p =
   | Star p       -> Term.star (term_of_policy p)
   | Link  (_s1, _p1, _s2, _p2) -> failwith "Link not yet implemented"
   | VLink (_s1, _p1, _s2, _p2) -> failwith "VLink not yet implemented"
+
+let term_of_topology t =
+  let open Net in
+  let open NetKAT in
+  let open Network in
+
+  let is_switch topo v =
+    match Node.device (Topology.vertex_to_label topo v) with
+    | Node.Switch -> true
+    | _ -> false
+  in
+
+  let filter header_val =
+    NetKAT.(Filter (Test header_val))
+  in
+
+  let f term edge =
+    let vsrc, psrc = Topology.edge_src edge in
+    let vdst, pdst = Topology.edge_dst edge in
+    let lsrc = Topology.vertex_to_label t vsrc in
+    let ldst = Topology.vertex_to_label t vdst in
+    if is_switch t vsrc && is_switch t vdst then
+      let s1 = filter @@ Switch (Node.id lsrc) in
+      let p1 = filter @@ Location (Physical psrc) in
+      let s2 = Mod (Switch (Node.id ldst)) in
+      let p2 = Mod (Location (Physical pdst)) in
+      let link = Ast.Term.times [
+        term_of_policy s1;
+        term_of_policy p1;
+        term_of_policy s2;
+        term_of_policy p2;
+      ] in
+      Ast.Term.plus (Ast.TermSet.of_list [term; link])
+    else
+      term
+  in
+  Topology.EdgeSet.fold (Topology.edges t) ~init:Ast.Term.zero ~f
 
 type network = {
   ingress:  Ast.Term.t;

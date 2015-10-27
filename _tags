@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7e823d62f675567336d198fb2ea81a2e)
+# DO NOT EDIT (digest: dd7ec27037daf50e144bc2e6f396372b)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -56,6 +56,11 @@ true: annot, bin_annot
 <src/PrintPolicy.{native,byte}>: package(core)
 <src/PrintPolicy.{native,byte}>: package(frenetic)
 <src/PrintPolicy.{native,byte}>: package(threads)
+# Executable printtopo
+<src/PrintTopo.{native,byte}>: package(async)
+<src/PrintTopo.{native,byte}>: package(core)
+<src/PrintTopo.{native,byte}>: package(frenetic)
+<src/PrintTopo.{native,byte}>: package(threads)
 # Executable natetomark
 <src/NateToMark.{native,byte}>: package(async)
 <src/NateToMark.{native,byte}>: package(core)
