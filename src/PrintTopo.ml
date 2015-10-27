@@ -10,6 +10,10 @@ let main (topo_file: string) : unit Deferred.t =
   print_endline (Net.Pretty.to_string topo);
   print_endline "";
   print_endline (Ast.Term.to_string (Measurement.term_of_topology topo));
+  print_endline "";
+  print_endline (Ast.Term.to_string (Measurement.in_of_topology topo));
+  print_endline "";
+  print_endline (Ast.Term.to_string (Measurement.out_of_topology topo));
   return ()
 
 let () =

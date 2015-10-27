@@ -31,6 +31,12 @@ val term_of_policy: Frenetic_NetKAT.policy -> Ast.Term.t
 (** [term_of_topology t] converts a NetKAT topology [t] into an AST term. *)
 val term_of_topology: Frenetic_Network.Net.Topology.t -> Ast.Term.t
 
+(** [in_of_topology t] gathers the [in] term of a NetKAT topology [t]. *)
+val in_of_topology: Frenetic_Network.Net.Topology.t -> Ast.Term.t
+
+(** [out_of_topology t] gathers the [out] term of a NetKAT topology [t]. *)
+val out_of_topology: Frenetic_Network.Net.Topology.t -> Ast.Term.t
+
 (** A network is described by [in; (p; t)*; p; out]. *)
 type network = {
   ingress:  Ast.Term.t; (* in  *)
