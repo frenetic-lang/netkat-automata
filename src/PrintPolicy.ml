@@ -9,7 +9,7 @@ let main (policy_file: string) : unit Deferred.t =
 
 let () =
   Command.(async
-    ~summary:"Compile path queries to NetKAT terms"
+    ~summary:"Compile JSON policies into NetKAT terms"
     Spec.(empty +> anon ("policy_json_file" %: file))
     (fun policy_file () -> main policy_file)
   ) |> Command.run
