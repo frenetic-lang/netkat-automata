@@ -14,6 +14,18 @@ type network_files = {
   t        : string;
 }
 
+let timed (thunk: unit -> 'a Deferred.t) : ('a * Time.Span.t) Deferred.t =
+  let start = Time.now () in
+  thunk () >>= fun x ->
+  let stop = Time.now () in
+  return (x, Time.diff stop start)
+
+(* [base f] returns the basename of [f] without any file extensions. *)
+let base (filename: string) : string =
+  Filename.basename filename
+  |> Filename.split_extension
+  |> fst
+
 exception ParseError of string * int * int * string
 
 let parse parser_function (filename: string) (s: string) =
@@ -135,8 +147,15 @@ let run_files (network: Measurement.network) (q_file: string) f : unit Deferred.
 let print_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
   run_files network q_file build_and_print
 
-let time_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
-  run_files network q_file build_and_time
+let time_files (topo_name: string) (network: Measurement.network) (q_file: string) : unit Deferred.t =
+  query_of_file q_file >>= fun q ->
+  timed (fun () ->
+    let compiled = Measurement.compile network q in
+    let points = term_to_points compiled in
+    return (List.length points)
+  ) >>= fun (num_points, time) ->
+  printf "%s, %s, %f, %d\n" topo_name (base q_file) (Time.Span.to_ms time) num_points;
+  return ()
 
 let run_repl (network: Measurement.network) f : unit Deferred.t =
   let stdin = Lazy.force Reader.stdin in
@@ -158,13 +177,13 @@ let inptout_main (files: network_files) (q_file: string option) : unit Deferred.
   | Some q_file -> print_files network q_file
   | None        -> print_repl network
 
-let zoo_main (policy_file: string) (topo_file: string) (q_file: string option) : unit Deferred.t =
+let zoo_main (policy_file: string) (topo_file: string) (q_files: string list) : unit Deferred.t =
   term_of_policy_file policy_file >>= fun p ->
   terms_of_topo_file topo_file >>= fun (ingress, outgress, t) ->
   let network = Measurement.({ingress; outgress; p; t}) in
-  match q_file with
-  | Some q_file -> time_files network q_file
-  | None        -> time_repl network
+  match q_files with
+  | _::_ -> Deferred.List.iter q_files ~f:(time_files (base policy_file) network)
+  | []   -> time_repl network
 
 let inptout =
   Command.async
@@ -186,7 +205,7 @@ let zoo =
       empty
       +> anon ("policy" %: file)
       +> anon ("topology" %: file)
-      +> anon (maybe ("q" %: file))
+      +> anon (sequence ("q" %: file))
     )
     (fun policy_file topo_file q () -> zoo_main policy_file topo_file q)
 
