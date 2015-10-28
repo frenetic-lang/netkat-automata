@@ -1,0 +1,7 @@
+((switch = 1, pass);
+(pass, pass)*;
+(pass, switch = 10))
+
++
+
+(switch = 1, switch = 10)
