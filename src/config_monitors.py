@@ -4,13 +4,15 @@ def configure_monitors(host, configs, mappings):
     for config in configs:
         modified_configs = configsp_to_configip(config, mappings)
         # Adding all of the leaf agents to host
+        added_leaf_agents = []
         for modified_config in modified_configs:    
-            if modified_config['src'] == host:
+            if modified_config['src'] == host or modified_config['src'] in added_leaf_agents:
                 continue
             data = {}
             data['type'] = 'add_leaf_agent'
             data['agent_addr'] = modified_config['src']
             requests.post('http://' + host + ':8000', data=data)
+            added_leaf_agents.append(data['agent_addr'])
         # Configure all of the monitors       
         for modified_config in modified_configs:    
             print modified_config
