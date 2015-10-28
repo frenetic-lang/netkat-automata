@@ -19,8 +19,9 @@ def configure_monitors(host, configs, mappings):
             requests.post('http://' + host + ':8000', data=modified_config)
 
 def configure_counter(host, counter):
-    counter['type'] = 'config sketch counter'
+    counter['type'] = 'config_sketch_counter'
     counter['sketch_id'] = '0'
+    print counter
     requests.post('http://' + host + ':8000', data=counter)
 '''
 config is dict of a single config file with possible switch and port field
