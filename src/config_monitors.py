@@ -2,19 +2,23 @@ import requests, json, sys
 
 def configure_monitors(host, configs, mappings):
     for config in configs:
-        if config['src'] == host:
-            continue
-        data = {}
-        data['type'] = 'add_leaf_agent'
-        data['agent_addr'] = config['src']
-        requests.post('http://' + host + ':8000', data=data)
-    for config in configs:
-        for modified_config in configsp_to_configip(config, mappings):
+        modified_configs = configsp_to_configip(config, mappings)
+        # Adding all of the leaf agents to host
+        for modified_config in modified_configs:    
+            if modified_config['src'] == host:
+                continue
+            data = {}
+            data['type'] = 'add_leaf_agent'
+            data['agent_addr'] = modified_config['src']
+            requests.post('http://' + host + ':8000', data=data)
+        # Configure all of the monitors       
+        for modified_config in modified_configs:    
             print modified_config
             requests.post('http://' + host + ':8000', data=modified_config)
 
 def configure_counter(host, counter):
     counter['type'] = 'config sketch counter'
+    counter['sketch_id'] = '0'
     requests.post('http://' + host + ':8000', data=counter)
 '''
 config is dict of a single config file with possible switch and port field
@@ -79,8 +83,7 @@ def main():
         if arg == '--counter' or arg == '-n':
             with open(sys.argv[i + 1], 'r') as counter_file:
                 counter = json.loads(counter_file.read())
-    if(len(host) == 0 or len(counter) == 0 or len(configs == 0) or
-        len(mappings == 0)):
+    if len(host) == 0 or len(counter) == 0 or len(configs) == 0 or len(mappings) == 0:
         raise Exception ("Improperly specified input")
     configure_monitors(host, configs, mappings)
     configure_counter(host, counter)
