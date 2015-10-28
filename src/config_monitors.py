@@ -1,18 +1,21 @@
 import requests, json, sys
 
-def configure_monitors(hosts, configs, mappings):
-    for host in hosts:
-        for config in configs:
-            for modified_config in configsp_to_configip(config, mappings):
-                print modified_config
-                requests.post("http://" + host + ":8000", modified_config)
+def configure_monitors(host, configs, mappings):
+    for config in configs:
+        for modified_config in configsp_to_configip(config, mappings):
+            print modified_config
+            requests.post('http://' + host + ':8000', data=modified_config)
+
+def configure_counter(host, counter):
+    counter['type'] = 'config sketch counter'
+    requests.post('http://' + host + ':8000', data=counter)
 '''
 config is dict of a single config file with possible switch and port field
-mappings_dict is dict of tuple (switch, port) to IP
+mappings_dict is dict of tuple (switch, port) to ip
 
-Removes switch and port fields from config and replaces with IPs.
-One valid IP per config dict (rest of fields remain unchanged)
-Returns list containing all possible configs
+removes switch and port fields from config and replaces with ips.
+one valid ip per config dict (rest of fields remain unchanged)
+returns list containing all possible configs
 '''
 def configsp_to_configip(config, mappings_dict):
   new_configs_lst = []
@@ -51,15 +54,13 @@ def configsp_to_configip(config, mappings_dict):
           
 
 def main():
-    hosts = []
+    host = ''
+    counter = {}
     configs = []
     mappings = {}
     for (i, arg) in enumerate(sys.argv):
-        if arg == '--hosts' or arg == '-h':
-            with open(sys.argv[i + 1], 'r') as hosts_file:
-                for host in hosts_file.read().splitlines():
-                    print host
-                    hosts.append(host)
+        if arg == '--host' or arg == '-h':
+            host = sys.argv[i + 1]
         if arg == '--config' or arg == '-c':
             with open(sys.argv[i + 1], 'r') as config_file:
                 configs = json.loads(config_file.read())
@@ -68,5 +69,13 @@ def main():
                 mappings_lst = json.loads(mappings_file.read())
                 for mapping in mappings_lst:
                     mappings[(mapping['switch'], mapping['port'])] = mapping['host']
-    configure_monitors(hosts, configs, mappings)
+        if arg == '--counter' or arg == '-n':
+            with open(sys.argv[i + 1], 'r') as counter_file:
+                counter = json.loads(counter_file.read())
+    if(len(host) == 0 or len(counter) == 0 or len(configs == 0) or
+        len(mappings == 0)):
+        raise Exception ("Improperly specified input")
+    configure_monitors(host, configs, mappings)
+    configure_counter(host, counter)
+
 main()
