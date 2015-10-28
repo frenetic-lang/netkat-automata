@@ -2,6 +2,8 @@ import requests, json, sys
 
 def configure_monitors(host, configs, mappings):
     for config in configs:
+        if config['src'] == host:
+            continue
         data = {}
         data['type'] = 'add_leaf_agent'
         data['agent_addr'] = config['src']
