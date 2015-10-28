@@ -123,30 +123,48 @@ let build_and_print (network: Measurement.network) (q: Measurement.Query.t) : un
   Writer.save "query.txt" (Yojson.to_string (`List jsons)) >>= fun () ->
   return ()
 
-let run_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
-  query_of_file q_file >>= build_and_print network
+let build_and_time (network: Measurement.network) (q: Measurement.Query.t) : unit Deferred.t =
+  let compiled = Measurement.compile network q in
+  let points = term_to_points compiled in
+  printf "%d points\n" (List.length points);
+  return ()
 
-let run_repl (network: Measurement.network) : unit Deferred.t =
+let run_files (network: Measurement.network) (q_file: string) f : unit Deferred.t =
+  query_of_file q_file >>= f network
+
+let print_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
+  run_files network q_file build_and_print
+
+let time_files (network: Measurement.network) (q_file: string) : unit Deferred.t =
+  run_files network q_file build_and_time
+
+let run_repl (network: Measurement.network) f : unit Deferred.t =
   let stdin = Lazy.force Reader.stdin in
   print_string "> ";
   Pipe.iter (Reader.lines stdin) ~f:(fun line ->
-    build_and_print network (parse_query "stdin" line) >>| fun () ->
+    f network (parse_query "stdin" line) >>| fun () ->
     print_string "> ";
   )
+
+let print_repl (network: Measurement.network) : unit Deferred.t =
+  run_repl network build_and_print
+
+let time_repl (network: Measurement.network) : unit Deferred.t =
+  run_repl network build_and_time
 
 let inptout_main (files: network_files) (q_file: string option) : unit Deferred.t =
   network_of_files files >>= fun network ->
   match q_file with
-  | Some q_file -> run_files network q_file
-  | None        -> run_repl network
+  | Some q_file -> print_files network q_file
+  | None        -> print_repl network
 
 let zoo_main (policy_file: string) (topo_file: string) (q_file: string option) : unit Deferred.t =
   term_of_policy_file policy_file >>= fun p ->
   terms_of_topo_file topo_file >>= fun (ingress, outgress, t) ->
   let network = Measurement.({ingress; outgress; p; t}) in
   match q_file with
-  | Some q_file -> run_files network q_file
-  | None        -> run_repl network
+  | Some q_file -> time_files network q_file
+  | None        -> time_repl network
 
 let inptout =
   Command.async
