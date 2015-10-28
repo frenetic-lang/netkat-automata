@@ -2,6 +2,11 @@ import requests, json, sys
 
 def configure_monitors(host, configs, mappings):
     for config in configs:
+        data = {}
+        data['type'] = 'add_leaf_agent'
+        data['agent_addr'] = config['src']
+        requests.post('http://' + host + ':8000', data=data)
+    for config in configs:
         for modified_config in configsp_to_configip(config, mappings):
             print modified_config
             requests.post('http://' + host + ':8000', data=modified_config)
