@@ -1,0 +1,7 @@
+(pass, pass)*;
+(
+    (switch=1 or switch=2 or switch=3, switch=4  or switch=5  or swith=6);
+    (switch=4 or switch=5 or switch=6, switch=7  or switch=8  or swith=9);
+    (switch=7 or switch=8 or switch=9, switch=10 or switch=11 or swith=12)
+)
+(pass, pass)*
