@@ -1,0 +1,2 @@
+[{"type":"config_sketch", "switch":1,"port":1},
+{"type":"config_sketch", "switch":2}]

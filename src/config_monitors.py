@@ -4,7 +4,8 @@ def configure_monitors(hosts, configs, mappings):
     for host in hosts:
         for config in configs:
             for modified_config in configsp_to_configip(config, mappings):
-                requests.post("http://" + host, modified_config)
+                print modified_config
+                requests.post("http://" + host + ":8000", modified_config)
 '''
 config is dict of a single config file with possible switch and port field
 mappings_dict is dict of tuple (switch, port) to IP
@@ -20,7 +21,7 @@ def configsp_to_configip(config, mappings_dict):
         if(k == (config['switch'], config['port'])):
             config.pop('switch')
             config.pop('port')
-            config['IP'] = v
+            config['src'] = v
             new_configs_lst.append(config)
             return new_configs_lst
         raise Exception("Mapping not found for port " + str(config['port']) + ' switch ' + str(config['switch']))
@@ -29,7 +30,7 @@ def configsp_to_configip(config, mappings_dict):
           if(k[1] == config['port']):
              n_config = config.copy()
              n_config.pop('port')
-             n_config['IP'] = v
+             n_config['src'] = v
              new_configs_lst.append(n_config)
       if(len(new_configs_lst) == 0):
           raise Exception("No mappings found for port: " + str(config['port']))
@@ -39,7 +40,7 @@ def configsp_to_configip(config, mappings_dict):
           if(k[0] == config['switch']):
               n_config = config.copy()
               n_config.pop('switch')
-              n_config['IP'] = v
+              n_config['src'] = v
               new_configs_lst.append(n_config)
       if(len(new_configs_lst) == 0):
           raise Exception("No mappings found for switch: " + str(config['switch']))
@@ -56,7 +57,8 @@ def main():
     for (i, arg) in enumerate(sys.argv):
         if arg == '--hosts' or arg == '-h':
             with open(sys.argv[i + 1], 'r') as hosts_file:
-                for host in hosts_file:
+                for host in hosts_file.read().splitlines():
+                    print host
                     hosts.append(host)
         if arg == '--config' or arg == '-c':
             with open(sys.argv[i + 1], 'r') as config_file:
