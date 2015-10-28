@@ -1,0 +1,8 @@
+(pass, pass)*;
+
+(
+  (switch = 2, switch = 3) +
+  (switch = 4, switch = 5)
+);
+
+(pass, pass)*
