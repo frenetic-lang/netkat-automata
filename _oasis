@@ -113,3 +113,15 @@ Executable natetomark
     threads,
     core,
     async
+
+Executable termsize
+  Path: src
+  CompiledObject: best
+  MainIs: TermSize.ml
+  Install: false
+  BuildDepends:
+    frenetic,
+    tdk,
+    threads,
+    core,
+    async
