@@ -2,7 +2,7 @@
 Script to generate table for the evaluation section of the measurement paper.
 The table has the following format:
 
-    Topology | Term Size | # Switches | Query1 | Query2 | Query3 | ...
+    Topology | Term Size | ## Switches | Query1 | Query2 | Query3 | ...
 """
 
 import csv
@@ -18,6 +18,18 @@ def usage():
 def setlist(iterator):
     return sorted(set(x for x in iterator))
 
+def bolden(xs):
+    if not BIG_TABLE:
+        return [r"\textbf{" + x + "}" for x in xs]
+    else:
+        return xs
+
+def center(x):
+    if not BIG_TABLE:
+        return r"\multicolumn{1}{|c|}{" + str(x) + "}"
+    else:
+        return x
+
 def topos(bench):
     if BIG_TABLE:
         return setlist(k[0] for k in bench)
@@ -32,11 +44,10 @@ def topos(bench):
             "Oteglobe",
         ]
 
-
 def queries(bench):
     if BIG_TABLE:
         # return setlist(k[1] for k in bench)
-        return [
+        qs = [
             "no_paths",
             "1edge",
             "2edge",
@@ -61,17 +72,19 @@ def queries(bench):
             "path_123_456_789_101112",
             "1to10",
         ]
+        return [translate_query(q) for q in qs]
     else:
-        return [
+        qs = [
             "no_paths",
-            "1edge",
+            # "1edge",
             "5edge",
             "1allstar",
-            "5allstar",
-            "nestedstar",
+            # "5allstar",
+            # "nestedstar",
             "node4or5",
             "path_123_456_789_101112",
         ]
+        return [translate_query(q) for q in qs]
 
 def prune_bench(bench):
     good_topos = {t for t in topos(bench)
@@ -80,7 +93,9 @@ def prune_bench(bench):
                  if k[0] in good_topos}
 
 def translate_query(query):
-    return query
+    if query == "path_123_456_789_101112":
+        return r"long\_path"
+    return query.replace("_", "\_")
 
 def format_bench(time, num_terms):
     return "{:.2f} / {}".format(time, num_terms)
@@ -103,16 +118,22 @@ def parse_bench_file(filename):
     with open(filename, "r") as f:
         reader = csv.reader(f)
         return {(row[0].strip(), translate_query(row[1].strip())):
-                    (float(row[2]), int(row[3]))
+                    (float(row[2]) / 1000, int(row[3]))
                     for row in reader}
 
 def make_table(term_size, num_switches, bench):
-    header = ["Topology", "Term Size", "# Switches"] + queries(bench)
+    header = ["Topology", "Term Size", "\# Switches"] + queries(bench)
+    header = bolden(header)
+    header = [center(x) for x in header]
     body = [
-        [t, term_size[t], num_switches[t]] +
+        [center(t), term_size[t], num_switches[t]] +
         [format_bench(bench[t, q][0], bench[t, q][1]) for q in queries(bench)]
         for t in topos(bench)
     ]
+    if not BIG_TABLE:
+        header[-1] += r"\\\hline"
+        for row in body:
+            row[-1] += r"\\\hline"
     return [header] + body
 
 def main(args):
@@ -128,9 +149,17 @@ def main(args):
     num_switches = parse_num_switches(num_switches_file)
     bench = prune_bench(parse_bench_file(bench_file))
 
-    writer = csv.writer(sys.stdout)
-    for row in make_table(term_size, num_switches, bench):
+    table = make_table(term_size, num_switches, bench)
+    if not BIG_TABLE:
+        writer = csv.writer(sys.stdout, delimiter="&", lineterminator="\n")
+        print r"\begin{tabular}{|" + "|".join(["c"] * len(table[0])) + "|}"
+        print r"\hline"
+    else:
+        writer = csv.writer(sys.stdout, lineterminator="\n")
+    for row in table:
         writer.writerow(row)
+    if not BIG_TABLE:
+        print r"\end{tabular}"
 
 if __name__ == "__main__":
     main(sys.argv[1:])
