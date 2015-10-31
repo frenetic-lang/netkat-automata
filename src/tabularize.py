@@ -93,9 +93,25 @@ def prune_bench(bench):
                  if k[0] in good_topos}
 
 def translate_query(query):
-    if query == "path_123_456_789_101112":
-        return r"long\_path"
-    return query.replace("_", "\_")
+    d = {
+        "path_123_456_789_101112": r"\textsc{long-path}",
+        "no_paths": r"\textsc{drop}",
+        "1edge": r"\textsc{1-hop}",
+        "2edge": r"\textsc{2-hop}",
+        "3edge": r"\textsc{3-hop}",
+        "4edge": r"\textsc{4-hop}",
+        "5edge": r"\textsc{5-hop}",
+        "1allstar": r"\textsc{1-all}",
+        "2allstar": r"\textsc{2-all}",
+        "3allstar": r"\textsc{3-all}",
+        "4allstar": r"\textsc{4-all}",
+        "5allstar": r"\textsc{5-all}",
+        "node4or5": r"\textsc{sw4or5}",
+    }
+    if query in d:
+        return d[query]
+    else:
+        return query.replace("_", "\_")
 
 def format_bench(time, num_terms):
     return "{:.2f} / {}".format(time, num_terms)
@@ -122,8 +138,7 @@ def parse_bench_file(filename):
                     for row in reader}
 
 def make_table(term_size, num_switches, bench):
-    header = ["Topology", "Term Size", "\# Switches"] + queries(bench)
-    header = bolden(header)
+    header = bolden(["Topology", "Term Size", "\# Switches"]) + queries(bench)
     header = [center(x) for x in header]
     body = [
         [center(t), term_size[t], num_switches[t]] +
