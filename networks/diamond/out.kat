@@ -1,0 +1,4 @@
+(switch = 1; port = 1) +
+(switch = 2; port = 2) +
+(switch = 3; port = 3) +
+(switch = 4; port = 4)
