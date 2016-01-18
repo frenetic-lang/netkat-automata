@@ -31,3 +31,6 @@ _build/
 # oasis generated files
 setup.data
 setup.log
+
+# https://github.com/the-lambda-church/merlin
+.merlin
