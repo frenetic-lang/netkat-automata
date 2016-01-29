@@ -93,28 +93,61 @@ let term_of_header_val (h: Frenetic_NetKAT.header_val) : (string * string) =
   | VPort i          -> ("vport",      Int64.to_string i)
   | VFabric i        -> ("vfabric",    Int64.to_string i)
 
-let rec term_of_pred (p: Frenetic_NetKAT.pred) : Ast.Term.t =
+let term_of_pred (p: Frenetic_NetKAT.pred) : Ast.Term.t =
   let open Ast in
   let open Frenetic_NetKAT in
-  match p with
-  | True       -> Term.one
-  | False      -> Term.zero
-  | Test h     -> uncurry Term.test (term_of_field_value (term_of_header_val h))
-  | And (a, b) -> Term.times [term_of_pred a; term_of_pred b]
-  | Or (a, b)  -> Term.plus (TermSet.of_list [term_of_pred a; term_of_pred b])
-  | Neg a      -> Term.not (term_of_pred a)
 
-let rec term_of_policy p =
+  (* this function is implemented using continuation passing style to avoid
+   * stack overflows on large inputs *)
+  let rec help p k =
+    match p with
+    | True ->
+        k (Term.one)
+    | False ->
+        k (Term.zero)
+    | Test h ->
+        k (uncurry Term.test (term_of_field_value (term_of_header_val h)))
+    | And (a, b) ->
+        help a @@ fun a_term ->
+        help b @@ fun b_term ->
+        k (Term.times [a_term; b_term])
+    | Or (a, b) ->
+        help a @@ fun a_term ->
+        help b @@ fun b_term ->
+        k (Term.plus (TermSet.of_list [a_term; b_term]))
+    | Neg a ->
+        help a @@ fun a_term ->
+        k (Term.not (a_term))
+  in
+  help p (fun x -> x)
+
+let term_of_policy p =
   let open Ast in
   let open Frenetic_NetKAT in
-  match p with
-  | Filter a     -> term_of_pred a
-  | Mod h        -> uncurry Term.assg (term_of_field_value (term_of_header_val h))
-  | Union (p, q) -> Term.plus (TermSet.of_list [term_of_policy p; term_of_policy q])
-  | Seq (p, q)   -> Term.times [term_of_policy p; term_of_policy q]
-  | Star p       -> Term.star (term_of_policy p)
-  | Link  (_s1, _p1, _s2, _p2) -> failwith "Link not yet implemented"
-  | VLink (_s1, _p1, _s2, _p2) -> failwith "VLink not yet implemented"
+
+  (* this function is implemented using continuation passing style to avoid
+   * stack overflows on large inputs *)
+  let rec help p k =
+    match p with
+    | Filter a ->
+        k (term_of_pred a)
+    | Mod h ->
+        k (uncurry Term.assg (term_of_field_value (term_of_header_val h)))
+    | Union (p, q) ->
+        help p @@ fun p_term ->
+        help q @@ fun q_term ->
+        k (Term.plus (TermSet.of_list [p_term; q_term]))
+    | Seq (p, q) ->
+        help p @@ fun p_term ->
+        help q @@ fun q_term ->
+        k (Term.times [p_term; q_term])
+    | Star p ->
+        help p @@ fun p_term ->
+        k (Term.star (p_term))
+    | Link  (_s1, _p1, _s2, _p2) -> failwith "Link not yet implemented"
+    | VLink (_s1, _p1, _s2, _p2) -> failwith "VLink not yet implemented"
+  in
+  help p (fun x -> x)
 
 let is_switch topo v =
   match Network.Node.device (Net.Topology.vertex_to_label topo v) with
