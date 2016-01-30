@@ -16,39 +16,39 @@ val print_debugging_info : unit -> unit
 module Field : sig
   type t with sexp
   val compare : t -> t -> int
-  val hash : t -> int 
+  val hash : t -> int
   val as_int : t -> int
-  val equal : t -> t -> bool 
+  val equal : t -> t -> bool
   val to_string : t -> string
   val of_string : string -> t
-  
+
 end
 module FieldArray : sig
   type 'a t with sexp
   val make : 'a -> 'a t
   val init : (Field.t -> 'a) -> 'a t
-  val set : 'a t -> Field.t -> 'a -> unit 
+  val set : 'a t -> Field.t -> 'a -> unit
   val get : 'a t -> Field.t -> 'a
   val fold : ( Field.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   val copy : 'a t-> 'a t
   val size : 'a t -> int
-end 
-module FieldSet : sig 
+end
+module FieldSet : sig
   include Set.S with type elt = Field.t
   val of_list : Field.t list -> t
 end
-  
+
 module Value : sig
   type t with sexp
   val compare : t -> t -> int
-  val hash : t -> int 
+  val hash : t -> int
   val as_int : t -> int
-  val equal : t -> t -> bool 
+  val equal : t -> t -> bool
   val to_string : t -> string
   val of_string : string -> t
   val extra_val : t
 end
-module ValueSet : sig 
+module ValueSet : sig
   include Set.S with type elt = Value.t
   val elt_of_sexp : Sexplib.Sexp.t -> elt
   val sexp_of_elt : elt -> Sexplib.Sexp.t
@@ -76,18 +76,18 @@ module SetMapF :
       (elt list -> string list) -> string
   end
 
-module UnivMap : sig 
+module UnivMap : sig
   type t = SetMapF(Field)(Value).t
 end
 
-val all_fields : (unit -> FieldSet.t) ref 
+val all_fields : (unit -> FieldSet.t) ref
 val all_values : (unit -> (Field.t -> ValueSet.t)) ref
 val set_univ : UnivMap.t list -> bool
 
 
-module WorkList : functor (K:Set.OrderedType) -> 
+module WorkList : functor (K:Set.OrderedType) ->
 sig
-  type t 
+  type t
   val add : K.t -> t -> t
   val singleton : K.t -> t
   val is_empty : t -> bool
@@ -98,7 +98,7 @@ end
 
 open Core.Std
 
-module UnionFind : functor(Ord : Map.Key) -> 
+module UnionFind : functor(Ord : Map.Key) ->
 sig
   type t with sexp
   module Class : sig
@@ -120,22 +120,22 @@ val thunkify : (unit -> 'a) -> (unit -> 'a)
 
 val string_fold : (char -> 'a -> 'a) -> string -> 'a -> 'a
 
-module HashCons : sig
+(* module HashCons : sig *)
 
-  type 'a hash_consed = private {
-    node : 'a;
-    tag : int
-  } with sexp, compare
+  (* type 'a hash_consed = private { *)
+    (* node : 'a; *)
+    (* tag : int *)
+  (* } with sexp, compare *)
 
-  module type HashedType = sig
-    type t with sexp, compare
-    val equal : t -> t -> bool
-    val hash : t -> int
-  end
-  
-  module Make (H : HashedType) : sig
-    type t
-    val create : int -> t
-    val hashcons : t -> H.t -> H.t hash_consed
-  end
-end
+  (* module type HashedType = sig *)
+    (* type t with sexp, compare *)
+    (* val equal : t -> t -> bool *)
+    (* val hash : t -> int *)
+  (* end *)
+
+  (* module Make (H : HashedType) : sig *)
+    (* type t *)
+    (* val create : int -> t *)
+    (* val hashcons : t -> H.t -> H.t hash_consed *)
+  (* end *)
+(* end *)

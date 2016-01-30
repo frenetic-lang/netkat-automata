@@ -34,7 +34,7 @@ module type DerivTerm = sig
     val equivalent : (TermSet.t -> TermSet.t -> bool) -> t -> t -> bool
     val points : t -> EMatrix.t
   end
-  
+
   val make_term : TermSet.t -> t
   val get_termset : t -> TermSet.t
   (* val to_term : t -> Decide_Ast.Term.t *)
@@ -58,14 +58,14 @@ module rec BDDDeriv : DerivTerm = struct
     let partialPacketCompare pkt1 pkt2 = try (FieldMap.fold pkt1 ~init:true ~f:(fun ~key:k ~data:v acc ->
         acc && FieldMap.find_exn pkt2 k = v))
       with Not_found -> false
-        
+
     let packetJoin pkt1 pkt2 = try Some (FieldMap.merge pkt1 pkt2 ~f:(fun ~key:k v ->
         match v with
         | `Right v -> Some v
         | `Left v -> Some v
         | `Both (_,v) -> raise Not_found))
       with Not_found -> None
-      
+
 
     (* let compare p1 p2 = *)
     (*   let pointwiseCompare p p' = PacketSet.for_all p (fun pkt -> PacketSet.exists p' (partialPacketCompare pkt)) in *)
@@ -95,7 +95,7 @@ module rec BDDDeriv : DerivTerm = struct
 
   module EMatrix = struct
     open Term
-    open HashCons
+    open Hashcons
 
     type t = PacketDD.t
 
@@ -112,7 +112,7 @@ module rec BDDDeriv : DerivTerm = struct
         (fun v t f -> cond v t f) t
     (* Because (h=v;h<-v) == h=v, we don't have canonical
        representation in DD's. This function canonicalizes by removing
-       shadowed modifications 
+       shadowed modifications
     *)
     let reduce t = t (* PacketDD.fold (fun r -> PacketDD.const r) *)
         (* (fun v t f -> cond v (mask t v) f) t *)
@@ -140,17 +140,17 @@ module rec BDDDeriv : DerivTerm = struct
         | `Right v -> Some v
         | `Left v -> Some v
         | `Both (_,v) -> Some v)
-    
+
     let run t (pkt1,pkt2) =
       match PacketDD.peek (PacketDD.restrict (FieldMap.to_alist pkt1) t) with
       | Some p -> PartialPacketSet.contains (PartialPacketSet.map p (seq_pkt pkt1)) pkt2
       | None -> failwith "Decide_Deriv.BDDDeriv.EMatrix.run failed to get a value from the DD on the pkt"
-                     
+
     let empty = PacketDD.const PartialPacketSet.zero
 
     let one = PacketDD.const PartialPacketSet.one
     let zero = PacketDD.const PartialPacketSet.zero
-    
+
     let times e1 e2 =
       reduce (PacketDD.fold
                 (fun par ->
@@ -214,7 +214,7 @@ module rec BDDDeriv : DerivTerm = struct
     let fold t ~init:init ~f:f =
       let pts = get_points t in
       PointSet.fold pts ~f:f ~init:init
-        
+
     (* Since PacketDD is not guaranteed to be canonical, we have to semantically compare *)
     let compare t1 t2 = let eq = PacketDD.equal t1 t2 ||
                                  (fold t1 ~init:true ~f:(fun acc pt -> acc &&
@@ -222,7 +222,7 @@ module rec BDDDeriv : DerivTerm = struct
                                   && fold t2 ~init:true ~f:(fun acc pt -> acc && run t1 pt = run t2 pt)) in
       if eq then 0 else -1
     let intersection_empty e e' = (compare (PacketDD.prod e e') empty) = 0
-    
+
     let to_string = PacketDD.to_string
 
     let packet_to_beta pkt = Term.times (FieldMap.fold pkt ~init:[] ~f:(fun ~key:k ~data:v acc ->
@@ -238,7 +238,7 @@ module rec BDDDeriv : DerivTerm = struct
 
   module DMatrix = struct
 
-    open HashCons
+    open Hashcons
 
     type compact_derivative = {
       left_hand : EMatrix.t;
@@ -258,7 +258,7 @@ module rec BDDDeriv : DerivTerm = struct
     let to_string t = Printf.sprintf "{%s}" (String.concat ~sep:"; " (List.map (CompactDerivSet.elements t) compact_derivative_to_string))
 
     let pkt_to_beta pkt = Term.times (FieldMap.fold pkt ~init:[] ~f:(fun ~key ~data acc -> Term.test key data :: acc))
-               
+
     let run t point =
       CompactDerivSet.fold t ~init:TermSet.empty
         ~f:(fun acc deriv ->
@@ -289,8 +289,8 @@ module rec BDDDeriv : DerivTerm = struct
         end in
       TermSet.fold t ~init:CompactDerivSet.empty ~f:(fun acc x -> CompactDerivSet.union acc (matrix_of_term' x))
 
-    (* 
-       a) for each (b, e) \in D(elm1), (b',e') \in D(elm2), 
+    (*
+       a) for each (b, e) \in D(elm1), (b',e') \in D(elm2),
           if b /\ b' != 0, then e bisim e'
        b) \/ b == \/ b'
     *)
@@ -301,7 +301,7 @@ module rec BDDDeriv : DerivTerm = struct
         rem @ (List.map rem (fun y -> x :: y))
 
     let d_equivalent bisim d1 d2 =
-      let compute_intersections d = 
+      let compute_intersections d =
         let dlst = CompactDerivSet.elements d in
         (* We can be smarter and filter out empty-intersections *)
         List.map (power_set dlst) (fun xs -> List.fold xs ~init:(EMatrix.one, TermSet.empty) ~f:(fun (e,ts) t ->
@@ -314,7 +314,7 @@ module rec BDDDeriv : DerivTerm = struct
           (fun ((e,d),(e',d')) -> match EMatrix.intersection_empty e e' with
              | true -> bisim d d'
              | false -> true)
-          
+
     let equivalent (bisim : TermSet.t -> TermSet.t -> bool) d1 d2 =
       d_equivalent bisim d1 d2
       && EMatrix.compare (CompactDerivSet.fold d1 ~init:EMatrix.empty ~f:(fun acc x -> EMatrix.union x.left_hand acc))
