@@ -1,8 +1,6 @@
 open Core.Std
 open Async.Std
 
-module Ast = Decide_Ast
-module Measurement = Decide_Measurement
 module Net = Frenetic_Network.Net
 
 let main prologue_file epilogue_file topo_file () : unit Deferred.t =
