@@ -47,7 +47,8 @@ Executable netkat
     sexplib.syntax,
     comparelib,
     comparelib.syntax,
-    tdk
+    tdk,
+    hashcons
 
 Executable measure
   Path: src
@@ -62,7 +63,8 @@ Executable measure
     sexplib.syntax,
     comparelib,
     comparelib.syntax,
-    tdk
+    tdk,
+    hashcons
 
 Executable compile
   Path: src
@@ -79,7 +81,8 @@ Executable compile
     comparelib,
     comparelib.syntax,
     tdk,
-    yojson
+    yojson,
+    hashcons
 
 Executable printpolicy
   Path: src
@@ -90,7 +93,8 @@ Executable printpolicy
     frenetic,
     threads,
     core,
-    async
+    async,
+    hashcons
 
 Executable printtopo
   Path: src
@@ -101,7 +105,8 @@ Executable printtopo
     frenetic,
     threads,
     core,
-    async
+    async,
+    hashcons
 
 Executable natetomark
   Path: src
@@ -112,7 +117,8 @@ Executable natetomark
     frenetic,
     threads,
     core,
-    async
+    async,
+    hashcons
 
 Executable termsize
   Path: src
@@ -124,7 +130,8 @@ Executable termsize
     tdk,
     threads,
     core,
-    async
+    async,
+    hashcons
 
 Executable topotomininet
   Path: src
