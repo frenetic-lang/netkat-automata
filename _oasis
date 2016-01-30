@@ -125,3 +125,14 @@ Executable termsize
     threads,
     core,
     async
+
+Executable topotomininet
+  Path: src
+  CompiledObject: best
+  MainIs: TopoToMininet.ml
+  Install: false
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    threads

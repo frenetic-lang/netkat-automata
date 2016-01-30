@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: db410e610b17ab463f93bdb06a385806)
+# DO NOT EDIT (digest: d62c5120b71f97149282ad9e6481aba8)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -71,10 +71,15 @@ true: annot, bin_annot
 <src/TermSize.{native,byte}>: package(frenetic)
 <src/TermSize.{native,byte}>: package(tdk)
 <src/TermSize.{native,byte}>: package(threads)
+<src/*.ml{,i,y}>: package(tdk)
+# Executable topotomininet
+<src/TopoToMininet.{native,byte}>: package(async)
+<src/TopoToMininet.{native,byte}>: package(core)
+<src/TopoToMininet.{native,byte}>: package(frenetic)
+<src/TopoToMininet.{native,byte}>: package(threads)
 <src/*.ml{,i,y}>: package(async)
 <src/*.ml{,i,y}>: package(core)
 <src/*.ml{,i,y}>: package(frenetic)
-<src/*.ml{,i,y}>: package(tdk)
 <src/*.ml{,i,y}>: package(threads)
 # OASIS_STOP
 <src/*.ml{,i}>: syntax_camlp4o
