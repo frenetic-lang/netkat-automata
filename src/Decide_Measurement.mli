@@ -28,6 +28,10 @@ end
  * library into an Ast term: our representation of NetKAT policies. *)
 val term_of_policy: Frenetic_NetKAT.policy -> Ast.Term.t
 
+(** [terms_of_policy_ipdst p] converts a NetKAT policy [p] from the core frenetic
+ * library into a list of Ast terms, each of which have a unique ipdst. *)
+val terms_of_policy_ipdst: Frenetic_NetKAT.policy -> Ast.Term.t list
+
 (** [term_of_topology t] converts a NetKAT topology [t] into an AST term. *)
 val term_of_topology: Frenetic_Network.Net.Topology.t -> Ast.Term.t
 

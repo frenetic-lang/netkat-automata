@@ -56,7 +56,13 @@ let query_of_file (filename: string) : Measurement.Query.t Deferred.t =
 let term_of_policy_file (filename: string) : Ast.Term.t Deferred.t =
   Reader.file_contents filename >>| fun policy_string ->
   Frenetic_NetKAT_Json.policy_from_json_string policy_string
-  |> Decide_Measurement.term_of_policy
+  |> fun p -> Decide_Measurement.term_of_policy p
+
+(* Returns a list of terms split on ipDst *)
+let terms_of_policy_file_ipdst (filename: string) : (Ast.Term.t list) Deferred.t =
+  Reader.file_contents filename >>| fun policy_string ->
+  Frenetic_NetKAT_Json.policy_from_json_string policy_string
+  |> Decide_Measurement.terms_of_policy_ipdst
 
 (* returns [in, out, p] *)
 let terms_of_topo_file (filename: string) : (Ast.Term.t * Ast.Term.t * Ast.Term.t) Deferred.t =
@@ -157,6 +163,19 @@ let time_files (topo_name: string) (network: Measurement.network) (q_file: strin
   printf "%s, %s, %f, %d\n" topo_name (base q_file) (Time.Span.to_ms time) num_points;
   return ()
 
+let time_files_ipdst (topo_name: string) (networks: Measurement.network list) (q_file: string) : unit Deferred.t =
+  query_of_file q_file >>= fun q ->
+  let help sum network =
+    let compiled = Measurement.compile network q in
+    let points = term_to_points compiled in
+    sum + (List.length points)
+  in
+  timed (fun () ->
+    return (List.fold networks ~init:0 ~f:help)
+  ) >>= fun (num_points, time) ->
+  printf "%s, %s, %f, %d\n" topo_name (base q_file) (Time.Span.to_ms time) num_points;
+  return ()
+
 let run_repl (network: Measurement.network) f : unit Deferred.t =
   let stdin = Lazy.force Reader.stdin in
   print_string "> ";
@@ -177,9 +196,17 @@ let inptout_main (files: network_files) (q_file: string option) : unit Deferred.
   | Some q_file -> print_files network q_file
   | None        -> print_repl network
 
-let zoo_main (policy_file: string) (topo_file: string) (q_files: string list) : unit Deferred.t =
-  term_of_policy_file policy_file >>= fun p ->
+let zoo_split (policy_file: string) (topo_file: string) (q_files: string list) : unit Deferred.t =
   terms_of_topo_file topo_file >>= fun (ingress, outgress, t) ->
+  terms_of_policy_file_ipdst policy_file >>= fun plst ->
+  let networks = List.map plst (fun p -> Measurement.({ingress; outgress; p; t})) in
+  match q_files with
+  | _::_ -> Deferred.List.iter q_files ~f:(time_files_ipdst (base policy_file) networks)
+  | []   -> failwith "temp" (*time_repl network*)
+
+let zoo_main (policy_file: string) (topo_file: string) (q_files: string list) : unit Deferred.t =
+  terms_of_topo_file topo_file >>= fun (ingress, outgress, t) ->
+  term_of_policy_file policy_file >>= fun p ->
   let network = Measurement.({ingress; outgress; p; t}) in
   match q_files with
   | _::_ -> Deferred.List.iter q_files ~f:(time_files (base policy_file) network)
@@ -203,11 +230,14 @@ let zoo =
     ~summary:"Compiles a network described by a DOT file and a JSON file."
     Command.Spec.(
       empty
+      +> flag "-s" no_arg ~doc: "Split the policy based on IP destination."
       +> anon ("policy" %: file)
       +> anon ("topology" %: file)
       +> anon (sequence ("q" %: file))
     )
-    (fun policy_file topo_file q () -> zoo_main policy_file topo_file q)
+    (fun split policy_file topo_file q () ->
+    if split then zoo_split policy_file topo_file q
+    else zoo_main policy_file topo_file q)
 
 let () =
   Command.group

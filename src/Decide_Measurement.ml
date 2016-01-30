@@ -149,6 +149,61 @@ let term_of_policy p =
   in
   help p (fun x -> x)
 
+module StrMap = Map.Make(String)
+let map_append key v m =
+  if StrMap.mem key m then
+    let lst = StrMap.find key m in
+    StrMap.add key (Frenetic_NetKAT.Union(lst, v)) m
+  else StrMap.add key v m
+
+let rec policy_to_map p m =
+  let open Ast in
+  let open Frenetic_NetKAT in
+  let open Frenetic_Packet in
+ 
+  let rec pred_to_ipdst pred =
+    match pred with
+    | Test h -> begin
+      match h with
+      | IP4Dst (n, _) -> Some (string_of_ip n)
+      | _ -> None
+    end
+    | And (p, q) -> begin
+      match pred_to_ipdst p with
+      | Some dst -> Some dst
+      | None -> pred_to_ipdst q
+    end
+    | _ -> None
+  in
+
+  let rec get_ipdst rule =
+    match rule with
+    | Filter a -> pred_to_ipdst a
+    | Mod h -> None
+    | Seq (p, q) -> begin
+      match get_ipdst p with
+      | Some dst -> Some dst
+      | None -> get_ipdst q
+    end
+    | _ -> failwith "Should not happen"
+  in
+
+  match p with
+  | Union (p, q) ->
+    policy_to_map p (policy_to_map q m)
+  | Seq _ -> begin
+    match get_ipdst p with
+    | Some dst ->
+      map_append dst p m
+    | None -> failwith "Policy rule does not have destination"
+  end
+  | _ -> failwith "Should not happen"
+
+let terms_of_policy_ipdst p =
+  let dst_map = policy_to_map p StrMap.empty in
+  StrMap.fold (fun _ _ a -> a+1) dst_map 0 |> string_of_int |> print_endline;
+  StrMap.fold (fun _ v acc -> (term_of_policy v)::acc) dst_map []
+
 let is_switch topo v =
   match Network.Node.device (Net.Topology.vertex_to_label topo v) with
   | Network.Node.Switch -> true
