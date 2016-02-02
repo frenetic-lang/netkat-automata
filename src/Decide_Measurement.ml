@@ -160,7 +160,7 @@ let rec policy_to_map p m =
   let open Ast in
   let open Frenetic_NetKAT in
   let open Frenetic_Packet in
- 
+
   let rec pred_to_ipdst pred =
     match pred with
     | Test h -> begin
@@ -201,7 +201,6 @@ let rec policy_to_map p m =
 
 let terms_of_policy_ipdst p =
   let dst_map = policy_to_map p StrMap.empty in
-  StrMap.fold (fun _ _ a -> a+1) dst_map 0 |> string_of_int |> print_endline;
   StrMap.fold (fun _ v acc -> (term_of_policy v)::acc) dst_map []
 
 let is_switch topo v =
