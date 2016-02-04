@@ -23,7 +23,8 @@ def main(filenames):
             elif "mac=" in line:
                 r = '(.*mac=")(.*)(",.*)'
                 m = re.search(r, line)
-                mac = [int(x) + 1 for x in m.group(2).split(":")]
+                mac = [int(x) for x in m.group(2).split(":")]
+                mac = mac[:-2] + [mac[-2] + 1] + [mac[-1] + 1]
                 new_mac = ":".join("%02x" % x for x in mac)
                 print re.sub(r, r"\g<1>" + new_mac + r"\g<3>", line),
             elif "ip=" in line:
