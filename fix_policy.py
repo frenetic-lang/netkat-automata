@@ -17,7 +17,8 @@ def fix_file(filename):
     fix_policy(pol)
 
   with open(filename, 'w') as f:
-    f.write(json.dumps(j))
+    print "Dumping file: %s" % filename
+    json.dump(j, f)
 
 if __name__ == "__main__":
   for arg in sys.argv[1:]:
