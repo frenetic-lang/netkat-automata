@@ -8,6 +8,11 @@ module Measurement = Decide_Measurement
 module Util = Decide_Util
 
 (*===========================================================================*)
+(* CONSTANTS                                                                 *)
+(*===========================================================================*)
+let default_output_query_file = "query.txt"
+
+(*===========================================================================*)
 (* TYPES                                                                     *)
 (*===========================================================================*)
 (* When a user invokes `Compile.native inptout in out p t`, the files in,
@@ -208,7 +213,7 @@ let inptout_f (network: Measurement.network) (q: Measurement.Query.t) : unit Def
   print_endline "==================";
   print_jsons jsons;
 
-  Writer.save "query.txt" (Yojson.to_string (`List jsons))
+  Writer.save default_output_query_file (Yojson.to_string (`List jsons))
 
 let inptout_repl (network: Measurement.network) : unit Deferred.t =
   repl (inptout_f network)
@@ -239,17 +244,21 @@ let zoo_repl (network: split_network) : unit Deferred.t =
     printf "%d terms, %d points:\n" (List.length tc.terms) (List.length tc.points);
     printf "  %f ms of compilation\n" (Time.Span.to_ms tc.compile_time);
     printf "  %f ms of generating alpha, beta pairs\n" (Time.Span.to_ms tc.points_time);
-    return ()
+
+    let jsons = points_to_jsons tc.points in
+    Writer.save default_output_query_file (Yojson.to_string (`List jsons))
   in
   repl f
 
 let zoo_file (topo_name: string) (network: split_network) (query_file: string)
              : unit Deferred.t =
   let f query =
-    timed_compile network query >>| fun tc ->
+    timed_compile network query >>= fun tc ->
     let total_time_ms = Time.Span.(to_ms tc.compile_time +. to_ms tc.points_time) in
     printf "%s, %s, %f, %d\n"
-      topo_name (base query_file) total_time_ms (List.length tc.points)
+      topo_name (base query_file) total_time_ms (List.length tc.points);
+    let jsons = points_to_jsons tc.points in
+    Writer.save default_output_query_file (Yojson.to_string (`List jsons))
   in
   query_of_file query_file >>= f
 
