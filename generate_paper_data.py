@@ -52,14 +52,14 @@ for selected_topo in selected_topos:
 
 with open('./barplot_data/combined.txt', 'w') as f:
     title_line = 'Title'
-    for selected_topo in selected_topos:
-        title_line += ' ' + selected_topo
+    for query in queries:
+        title_line += ' ' + query
     title_line += '\n'
     f.write(title_line)
 
-    for query in queries:
-        line = '"' + query + '"'
-        for selected_topo in selected_topos:
+    for selected_topo in selected_topos:
+        line = '"' + selected_topo + '"'
+        for query in queries:
             for topo in topos:
                 if topo[0] == selected_topo and topo[1] == query:
                     line = line + (' ' + str(float(topo[2]) / 1000))
