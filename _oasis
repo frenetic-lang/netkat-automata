@@ -143,3 +143,14 @@ Executable topotomininet
     core,
     frenetic,
     threads
+
+Executable jsontopolicy 
+  Path: src
+  CompiledObject: best
+  MainIs: JSONToPolicy.ml
+  Install: false
+  BuildDepends:
+    async,
+    core,
+    frenetic,
+    threads
