@@ -12,7 +12,6 @@ queries = [
     '3allstar', 
     '4allstar', 
     '5allstar',
-    'nestedstar',
     'node4or5', 
     'path_123_456_789_101112',
 ]
@@ -21,6 +20,22 @@ queries_sizes = {}
 for query in queries:
     queries_benchmarks[query] = []
     queries_sizes[query] = []
+
+query_names = {
+    'no_paths': 'DROP', 
+    '1edge': '1-HOP', 
+    '2edge': '2-HOP', 
+    '3edge': '3-HOP', 
+    '4edge': '4-HOP', 
+    '5edge': '5-HOP', 
+    '1allstar': '1-ALL', 
+    '2allstar': '2-ALL', 
+    '3allstar': '3-ALL', 
+    '4allstar': '4-ALL', 
+    '5allstar': '5-ALL',
+    'node4or5': 'SW4OR5', 
+    'path_123_456_789_101112': 'LONG-PATH',
+}
 
 topos = []
 with open('benchWithSize.txt', 'rb') as bench_file:
@@ -53,7 +68,7 @@ for selected_topo in selected_topos:
 with open('./barplot_data/combined.txt', 'w') as f:
     title_line = 'Title'
     for query in queries:
-        title_line += ' ' + query
+        title_line += ' ' + query_names[query]
     title_line += '\n'
     f.write(title_line)
 

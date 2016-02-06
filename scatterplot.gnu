@@ -4,8 +4,8 @@ set output "| ps2pdf - ./plots/".query.".pdf"
 
 set multiplot
 set key off
-set ylabel "Time to solve (s)"
-set xlabel "Total Term size"
+set ylabel "Time (s)"
+set xlabel "Term Size"
 
 set boxwidth 1
 set style fill solid
