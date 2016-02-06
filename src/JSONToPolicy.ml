@@ -1,7 +1,6 @@
 open Core.Std
 open Async.Std
 
-module Ast = Decide_Ast
 module Pretty = Frenetic_NetKAT_Pretty
 
 let main (filename: string) () : unit Deferred.t =
