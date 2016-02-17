@@ -224,10 +224,12 @@ Type `help` for a list of commands
 frenetic> load Arpanet196912.kat
 ```
 
-Then, in another window, run the mininet script.
+Then, in another window, run the mininet script. It's always a good idea to
+make sure everything has been cleaned up properly before launching mininet.
 
 ```bash
-sudo rlwrap python Arpanet196912.py
+sudo mn -c                          # cleanup mininet
+sudo rlwrap python Arpanet196912.py # launch mininet
 ```
 
 After the mininet topology loads, run the following command to configure the
@@ -241,6 +243,14 @@ Finally, run the `query_monitors.py` script to query the total packet counts.
 
 ```bash
 h1 python query_monitors -q predicates.json
+```
+
+Sometimes, mininet doesn't kill things like it ought to. You can kill stuff
+yourself:
+
+```bash
+sudo pkill -f "python ./agent.py"
+sudo pkill -f "python ./monitor.py"
 ```
 
 [mwhittaker_frenetic]: https://github.com/mwhittaker/frenetic
