@@ -1,0 +1,19 @@
+    ###### Start of static Mininet epilogue ######
+    # Set up logging etc.
+    lg.setLogLevel('info')
+    lg.setLogLevel('output')
+
+    # Start the network and prime other ARP caches
+    net.start()
+    net.staticArp()
+    
+    # Run agent and monitor on each host
+    start_agents_and_monitors(net.hosts)
+
+    # Enter CLI mode
+    output("Network ready\n")
+    output("Press Ctrl-d or type exit to quit\n")
+    CLI(net)
+    net.stop()
+
+start()
