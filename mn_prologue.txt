@@ -12,8 +12,8 @@ def start_agents_and_monitors(hosts):
     for host in hosts:
         print host.IP()
         print host.MAC()
-        host.cmd('python ./agent.py -a ' + host.IP() + ' &')
-        host.cmd('python ./monitor.py &')
+        host.cmd('python ./agent.py -a ' + host.IP() + '> agent{}.txt &'.format(host.IP()))
+        host.cmd('python ./monitor.py > monitor{}.txt &'.format(host.IP()))
 
 def start(ip="127.0.0.1",port=6633):
 

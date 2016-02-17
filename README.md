@@ -201,6 +201,48 @@ from mininet.net import Mininet
 ...
 ```
 
+Instead of running these commands by hand, we can also use the
+[`end2end.sh`](end2end.sh) script. Simply provide `end2end.sh` with a policy,
+topology, and query, and it will produce all the files you need.
+
+```bash
+$ ./end2end.sh topozoo/Arpanet196912.{json,dot} queries/1edge.txt
+Arpanet196912, 1edge, 3.819942, 8
+Created predicates.json
+Created Arpanet196912.kat
+Created Arpanet196912.py
+```
+
+Next, move the `predicates.json`, `Arpanet196912.kat`, and `Arpanet196912.py`
+over to a clone of the `measurement` repository. First, start the frenetic
+shell and load the kat file.
+
+```bash
+$ rlwrap frenetic shell
+Frenetic Shell v 4.0
+Type `help` for a list of commands
+frenetic> load Arpanet196912.kat
+```
+
+Then, in another window, run the mininet script.
+
+```bash
+sudo rlwrap python Arpanet196912.py
+```
+
+After the mininet topology loads, run the following command to configure the
+monitors to count packets:
+
+```bash
+h1 python config_monitors -q predicates.json
+```
+
+Finally, run the `query_monitors.py` script to query the total packet counts.
+
+```bash
+h1 python query_monitors -q predicates.json
+```
+
 [mwhittaker_frenetic]: https://github.com/mwhittaker/frenetic
 [netkat_json]:         https://github.com/frenetic-lang/frenetic/blob/master/lib/Frenetic_NetKAT_Json.ml
 [topo_zoo]:            http://www.topology-zoo.org/

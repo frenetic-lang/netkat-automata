@@ -150,10 +150,15 @@ let term_to_points (t: Ast.Term.t) : Ast.point list =
 let packet_to_json (pkt: Ast.packet) : Yojson.json =
   let assoc_pkt = Ast.FieldMap.to_alist pkt in
   let pkt_string_lst = List.map assoc_pkt ~f:(fun (x, y) ->
-    (Util.Field.to_string x, Util.Value.to_string y)) in
+    let xstring = Util.Field.to_string x in
+    let ystring = Util.Value.to_string y in
+    let ystring = String.substr_replace_all ystring ~pattern:"/32" ~with_:"" in
+    (xstring, ystring)
+  ) in
   let pkt_json = `Assoc (List.map pkt_string_lst ~f:(fun (x, y) ->
-    (x, (`String (y))))) in
-    pkt_json
+    (x, (`String (y))))
+  ) in
+  pkt_json
 
 let points_to_jsons (points: Ast.point list) : Yojson.json list =
   let fst_packets = List.map points ~f:fst in
