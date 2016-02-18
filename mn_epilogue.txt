@@ -14,8 +14,9 @@
     output("Network ready\n")
     output("Press Ctrl-d or type exit to quit\n")
     CLI(net)
-    call(["pkill", "python ./monitor.py"])
-    call(["pkill", "python ./agent.py"])
+    call(["pkill", "-f", "python ./monitor.py"])
+    call(["pkill", "-f", "python ./agent.py"])
+    call(["pkill", "-9", "-f", "iperf"])
     net.stop()
 
 start()
