@@ -1,6 +1,8 @@
 from subprocess import call
+import argparse
 import re
 import sys
+import util
 
 # Mininet imports
 from mininet.log import lg, info, error, debug, output
@@ -13,13 +15,12 @@ def start_agents_and_monitors(hosts):
     for host in hosts:
         print host.IP()
         print host.MAC()
-        host.cmd('python ./agent.py -a ' + host.IP() + '&> agent{}.txt &'.format(host.IP()))
+        host.cmd('python ./agent.py -a {0} &> agent{0}.txt &'.format(host.IP()))
         host.cmd('python ./monitor.py &> monitor{}.txt &'.format(host.IP()))
         host.cmd('iperf -u -s & &> iperf{}-5001.txt &'.format(host.IP()))
         host.cmd('iperf -u -s -p 8888 & &> iperf{}-8888.txt &'.format(host.IP()))
 
-def start(ip="127.0.0.1",port=6633):
-
+def start(args, ip="127.0.0.1",port=6633):
     ctrlr = lambda n: RemoteController(n, defaultIP=ip, port=port, inNamespace=False)
     net = Mininet(switch=OVSSwitch, controller=ctrlr, autoStaticArp=True, listenPort=6634)
     c1 = net.addController('c1')

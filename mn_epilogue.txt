@@ -10,13 +10,37 @@
     # Run agent and monitor on each host
     start_agents_and_monitors(net.hosts)
 
-    # Enter CLI mode
-    output("Network ready\n")
-    output("Press Ctrl-d or type exit to quit\n")
-    CLI(net)
+    if args.name == "cli":
+        # Enter CLI mode
+        output("Network ready\n")
+        output("Press Ctrl-d or type exit to quit\n")
+        CLI(net)
+    elif args.name == "series":
+        h1.cmd("python config_monitors.py")
+    else:
+        assert arg.name == "matrix"
+        h1.cmd("python config_monitors.py")
     call(["pkill", "-f", "python ./monitor.py"])
     call(["pkill", "-f", "python ./agent.py"])
     call(["pkill", "-9", "-f", "iperf"])
     net.stop()
 
-start()
+def parse_args():
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="name")
+    cliparser = subparsers.add_parser("cli", help="CLI")
+    seriesparser = subparsers.add_parser("series", help="time series")
+    matrixparser = subparsers.add_parser("matrix", help="traffic matrix")
+    util.config_parser(seriesparser)
+    util.config_time_parser(seriesparser)
+    util.config_mn_parser(seriesparser)
+    util.config_parser(matrixparser)
+    util.config_time_parser(matrixparser)
+    util.config_mn_parser(matrixparser)
+    return parser.parse_args()
+
+def main():
+    start(parse_args())
+
+if __name__ == "__main__":
+    main()
