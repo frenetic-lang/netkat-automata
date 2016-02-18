@@ -28,7 +28,7 @@ policy files (`*.json`) and topology files (`*.dot`). To download and unpack
 the files, run the following shell commands in the root of this github project:
 
 ```bash
-git clone 'git@gist.github.com:a8839c2663d3aa30dc25.git' topozoo
+git clone 'https://gist.github.com/a8839c2663d3aa30dc25.git' topozoo
 cd topozoo
 tar -xzvf topozoo.tgz
 ```
