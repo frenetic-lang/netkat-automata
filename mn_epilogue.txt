@@ -6,7 +6,7 @@
     # Start the network and prime other ARP caches
     net.start()
     net.staticArp()
-    
+
     # Run agent and monitor on each host
     start_agents_and_monitors(net.hosts)
 
@@ -14,6 +14,8 @@
     output("Network ready\n")
     output("Press Ctrl-d or type exit to quit\n")
     CLI(net)
+    call(["pkill", "python ./monitor.py"])
+    call(["pkill", "python ./agent.py"])
     net.stop()
 
 start()
