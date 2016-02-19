@@ -1,0 +1,3 @@
+Cwix, no_paths, 1004.842043, 0
+Cwix, 1edge, 1560.354948, 82CCwix, 5edge, 3700.546265, 236CCwix, 1allstar, 2869.159222, 1296Cwix, 5allstar, 23150.640011, 1296
+CCwix, node4or5, 9676.022053, 774CCwix, path_123_456_789_101112, 7139.716864, 0CCwix, port80, 4341.967106, 1296

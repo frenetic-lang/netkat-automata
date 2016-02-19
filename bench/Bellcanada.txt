@@ -1,0 +1,6 @@
+Bellcanada, no_paths, 2463.341951, 0
+Bellcanada, 1edge, 3853.397846, 128
+Bellcanada, 5edge, 8748.634815, 320
+Bellcanada, 1allstar, 10450.046062, 2304BBellcanada, 5allstar, 76127.499819, 2304BBellcanada, node4or5, 21567.604780, 488
+Bellcanada, path_123_456_789_101112, 19503.261089, 0
+Bellcanada, port80, 13958.870649, 2304

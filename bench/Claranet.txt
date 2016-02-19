@@ -1,0 +1,7 @@
+Claranet, no_paths, 82.052946, 0
+Claranet, 1edge, 165.266991, 36
+Claranet, 5edge, 408.910990, 0
+Claranet, 1allstar, 283.594131, 225
+Claranet, 5allstar, 1203.933001, 225
+Claranet, node4or5, 874.355793, 120
+CClaranet, path_123_456_789_101112, 637.695789, 0CClaranet, port80, 380.800962, 225

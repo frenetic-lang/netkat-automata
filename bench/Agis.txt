@@ -1,0 +1,7 @@
+Agis, no_paths, 309.289694, 0
+Agis, 1edge, 431.709051, 60
+Agis, 5edge, 1227.823019, 74
+Agis, 1allstar, 1100.085974, 625AAgis, 5allstar, 6394.759655, 625Agis, node4or5, 3225.772858, 200
+Agis, path_123_456_789_101112, 2319.725990, 28
+Agis, port80, 1533.699989, 625
+

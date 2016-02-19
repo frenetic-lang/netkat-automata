@@ -1,0 +1,9 @@
+Mren, no_paths, 9.565115, 0
+Mren, 1edge, 20.381212, 10
+Mren, 5edge, 56.272030, 0
+Mren, 1allstar, 18.917084, 36
+Mren, 5allstar, 78.249931, 36
+Mren, node4or5, 91.722012, 18
+Mren, path_123_456_789_101112, 58.978796, 0
+Mren, port80, 24.277210, 36
+
