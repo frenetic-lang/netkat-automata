@@ -3,6 +3,7 @@ import argparse
 import re
 import sys
 import util
+import time
 
 # Mininet imports
 from mininet.log import lg, info, error, debug, output

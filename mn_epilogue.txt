@@ -16,10 +16,24 @@
         output("Press Ctrl-d or type exit to quit\n")
         CLI(net)
     elif args.name == "series":
-        h1.cmd("python config_monitors.py")
+        output("sleeping to let agents and monitors boot...\n")
+        time.sleep(5)
+        output("sleeping done!\n")
+        h1.cmd("python config_monitors.py &> config.txt")
+        h2.cmd("python {} &".format(args.traffic_py))
+        h1.cmd("python timeseries.py -q {} {} -n {} -t {} > timeseries.csv".format(
+            args.query, "-v" if args.verbose else "", args.num_queries, args.time
+        ))
     else:
-        assert arg.name == "matrix"
-        h1.cmd("python config_monitors.py")
+        assert args.name == "matrix"
+        output("sleeping to let agents and monitors boot...\n")
+        time.sleep(5)
+        output("sleeping done!\n")
+        h1.cmd("python config_monitors.py &> config.txt")
+        h2.cmd("python {} &".format(args.traffic_py))
+        h1.cmd("python matrix.py -q {} {} -n {} -t {} > timeseries.csv".format(
+            args.query, "-v" if args.verbose else "", args.num_queries, args.time
+        ))
     call(["pkill", "-f", "python ./monitor.py"])
     call(["pkill", "-f", "python ./agent.py"])
     call(["pkill", "-9", "-f", "iperf"])
