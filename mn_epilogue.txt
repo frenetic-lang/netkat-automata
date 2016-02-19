@@ -21,8 +21,8 @@
         output("sleeping done!\n")
         h1.cmd("python config_monitors.py &> config.txt")
         for host in net.hosts:
-            h2.cmd("python {} {} &> traffic{}.txt &".format(
-            args.traffic_py, host.IP(), host.IP()))
+            host.cmd("python {} {} &> traffic{}.txt &".format(
+                args.traffic_py, host.IP(), host.IP()))
         if args.name == "series":
             h1.cmd("python timeseries.py -q {} {} -n {} -t {} > timeseries.csv".format(
                 args.query, "-v" if args.verbose else "", args.num_queries, args.time

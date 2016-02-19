@@ -1,0 +1,7 @@
+(pass, pass)*;
+(proto = "udp" and dport = 8888 or proto = "udp" and dport = 5001 and switch=8, switch=11);
+(pass, pass)* +
+
+(pass, pass)* +
+(proto = "udp" and dport = 8888 or proto = "udp" and dport = 5001 and switch=9, switch=10);
+(pass, pass)*
