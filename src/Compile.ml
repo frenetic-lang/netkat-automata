@@ -145,7 +145,18 @@ let term_to_points (t: Ast.Term.t) : Ast.point list =
   let t' = DerivTerm.make_term (Ast.TermSet.singleton t) in
   let q_E = DerivTerm.get_e t' in
   let points = DerivTerm.EMatrix.fold q_E ~init:[] ~f:(fun a p -> p :: a) in
-  points
+  List.filter points ~f:(fun (alpha, beta) ->
+    let no_snowman pkt =
+      let snowman = "☃" in
+      Ast.FieldMap.fold ~init:true ~f:(
+        fun ~key ~data b ->
+          Util.Field.to_string key <> snowman &&
+          Util.Value.to_string data <> snowman &&
+          b
+      ) pkt
+    in
+    no_snowman alpha && no_snowman beta
+  )
 
 let packet_to_json (pkt: Ast.packet) : Yojson.json =
   let assoc_pkt = Ast.FieldMap.to_alist pkt in
