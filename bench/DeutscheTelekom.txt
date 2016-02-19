@@ -1,7 +1,8 @@
-DeutscheTelekom, no_paths, 1026.787043, 0
-DeutscheTelekom, 1edge, 1338.299990, 124DDeutscheTelekom, 5edge, 2697.214842, 100
-DeutscheTelekom, 1allstar, 2038.324118, 949DeutscheTelekom, 5allstar, 14008.654833, 949
-DeutscheTelekom, node4or5, 7542.497873, 168
-DeutscheTelekom, path_123_456_789_101112, 4331.076145, 0
-DeutscheTelekom, port80, 2825.039148, 949
-
+DeutscheTelekom, no_paths, 782.901049, 0
+DeutscheTelekom, 1edge, 1053.203106, 124
+DeutscheTelekom, 5edge, 3183.308125, 100
+DeutscheTelekom, 1allstar, 2560.310841, 949
+DeutscheTelekom, 5allstar, 13695.218801, 949
+DeutscheTelekom, node4or5, 6226.977825, 168
+DeutscheTelekom, path_123_456_789_101112, 4620.018959, 0
+DeutscheTelekom, port80, 2953.266144, 949

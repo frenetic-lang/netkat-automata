@@ -1,9 +1,8 @@
-Arpanet196912, no_paths, 6.170988, 0
-Arpanet196912, 1edge, 5.050898, 8
-Arpanet196912, 5edge, 23.581982, 0
-Arpanet196912, 1allstar, 7.045031, 16
-Arpanet196912, 5allstar, 47.358036, 16
-Arpanet196912, node4or5, 32.040119, 6
-Arpanet196912, path_123_456_789_101112, 31.475782, 0
-Arpanet196912, port80, 8.863926, 16
-
+Arpanet196912, no_paths, 5.841017, 0
+Arpanet196912, 1edge, 4.873753, 8
+Arpanet196912, 5edge, 12.335062, 0
+Arpanet196912, 1allstar, 6.315947, 16
+Arpanet196912, 5allstar, 23.409128, 16
+Arpanet196912, node4or5, 24.019957, 6
+Arpanet196912, path_123_456_789_101112, 28.002262, 0
+Arpanet196912, port80, 15.017033, 16

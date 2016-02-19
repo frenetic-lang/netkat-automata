@@ -1,7 +1,8 @@
-Rediris, no_paths, 195.524931, 0
-Rediris, 1edge, 278.380156, 62
-Rediris, 5edge, 742.975950, 0
-Rediris, 1allstar, 471.459866, 361
-Rediris, 5allstar, 2403.671980, 361
-Rediris, node4or5, 1409.770966, 120
-Rediris, path_123_456_789_101112, 1013.260126, 0RRediris, port80, 641.545773, 361
+Rediris, no_paths, 145.114899, 0
+Rediris, 1edge, 206.413984, 62
+Rediris, 5edge, 555.276871, 0
+Rediris, 1allstar, 390.585661, 361
+Rediris, 5allstar, 1988.481045, 361
+Rediris, node4or5, 1445.748091, 120
+Rediris, path_123_456_789_101112, 912.277222, 0
+Rediris, port80, 698.306084, 361
