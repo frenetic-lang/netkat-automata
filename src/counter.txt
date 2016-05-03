@@ -1,1 +1,0 @@
-{"counter_key_type":"src_dst","increment":"pkts"}
