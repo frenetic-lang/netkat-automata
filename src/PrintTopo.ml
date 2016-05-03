@@ -1,8 +1,8 @@
 open Core.Std
 open Async.Std
 
-module Ast = Decide_Ast
-module Measurement = Decide_Measurement
+module Ast = Frenetic_Decide_Ast
+module Measurement = Frenetic_Decide_Measurement
 module Net = Frenetic_Network.Net
 
 let main (topo_file: string) : unit Deferred.t =

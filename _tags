@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a0120c7359a970f4624546c1f6f85052)
+# DO NOT EDIT (digest: 08733082a1fb44cc42cae3ba9bb44f6c)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -17,15 +17,15 @@ true: annot, bin_annot
 # Library netkat_decide
 "src/netkat_decide.cmxs": use_netkat_decide
 # Executable netkat
-<src/Decide_Repl.{native,byte}>: package(comparelib)
-<src/Decide_Repl.{native,byte}>: package(comparelib.syntax)
-<src/Decide_Repl.{native,byte}>: package(core)
-<src/Decide_Repl.{native,byte}>: package(frenetic)
-<src/Decide_Repl.{native,byte}>: package(hashcons)
-<src/Decide_Repl.{native,byte}>: package(sexplib)
-<src/Decide_Repl.{native,byte}>: package(sexplib.syntax)
-<src/Decide_Repl.{native,byte}>: package(tdk)
-<src/Decide_Repl.{native,byte}>: package(threads)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(comparelib)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(comparelib.syntax)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(core)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(frenetic)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(hashcons)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(sexplib)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(sexplib.syntax)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(tdk)
+<src/Frenetic_Decide_Repl.{native,byte}>: package(threads)
 # Executable compile
 <src/Compile.{native,byte}>: package(async)
 <src/Compile.{native,byte}>: package(comparelib)

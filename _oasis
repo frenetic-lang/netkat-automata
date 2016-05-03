@@ -22,22 +22,22 @@ Library netkat_decide
     threads,
     tdk
   InternalModules:
-    Decide_PCC,
-    Decide_Lexer,
-    Decide_Parser,
-    Decide_Repl,
-    Decide_Deriv
+    Frenetic_Decide_PCC,
+    Frenetic_Decide_Lexer,
+    Frenetic_Decide_Parser,
+    Frenetic_Decide_Repl,
+    Frenetic_Decide_Deriv
   Modules:
-    Decide_Util,
-    Decide_Bisimulation,
-    Decide_Ast,
-    Decide_Loopfree,
-    Decide_Measurement
+    Frenetic_Decide_Util,
+    Frenetic_Decide_Bisimulation,
+    Frenetic_Decide_Ast,
+    Frenetic_Decide_Loopfree,
+    Frenetic_Decide_Measurement
 
 Executable netkat
   Path: src
   CompiledObject: best
-  MainIs: Decide_Repl.ml
+  MainIs: Frenetic_Decide_Repl.ml
   Install: false
   BuildDepends:
     frenetic,

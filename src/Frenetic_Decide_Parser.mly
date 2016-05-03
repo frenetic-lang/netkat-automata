@@ -1,8 +1,8 @@
 %{
-open Decide_Ast
-open Decide_Ast.Term
-open Decide_Ast.Formula
-module Measurement = Decide_Measurement
+open Frenetic_Decide_Ast
+open Frenetic_Decide_Ast.Term
+open Frenetic_Decide_Ast.Formula
+module Measurement = Frenetic_Decide_Measurement
 %}
 
 %token <string> VAR
@@ -21,15 +21,15 @@ module Measurement = Decide_Measurement
 %nonassoc NOT STAR /* highest precedence */
 
 %start formula_main term_main query_main  /* entry points */
-%type <Decide_Ast.Formula.t> formula_main
-%type <Decide_Ast.Term.t> term_main
-%type <Decide_Measurement.Query.t> query_main
+%type <Frenetic_Decide_Ast.Formula.t> formula_main
+%type <Frenetic_Decide_Ast.Term.t> term_main
+%type <Frenetic_Decide_Measurement.Query.t> query_main
 
 %%
 
 formula_main:
   | formula EOL { $1 }
-  | EOL { raise Decide_Deriv.Empty }
+  | EOL { raise Frenetic_Decide_Deriv.Empty }
 ;
 
 term_main:
@@ -41,9 +41,9 @@ query_main:
 ;
 
 term:
-  | VAR ASSG STRING { assg (Decide_Util.Field.of_string $1) (Decide_Util.Value.of_string $3) }
-  | VAR EQ STRING   { test (Decide_Util.Field.of_string $1) (Decide_Util.Value.of_string $3) }
-  | VAR NEQ STRING  { not (test (Decide_Util.Field.of_string $1) (Decide_Util.Value.of_string $3)) }
+  | VAR ASSG STRING { assg (Frenetic_Decide_Util.Field.of_string $1) (Frenetic_Decide_Util.Value.of_string $3) }
+  | VAR EQ STRING   { test (Frenetic_Decide_Util.Field.of_string $1) (Frenetic_Decide_Util.Value.of_string $3) }
+  | VAR NEQ STRING  { not (test (Frenetic_Decide_Util.Field.of_string $1) (Frenetic_Decide_Util.Value.of_string $3)) }
   | ZERO            { zero }
   | ONE             { one }
   | DUP             { dup }
@@ -64,8 +64,8 @@ predicate:
   | ONE                     { Measurement.Predicate.One }
   | ZERO                    { Measurement.Predicate.Zero }
   | VAR EQ STRING           { Measurement.Predicate.Test
-                              (Decide_Util.Field.of_string $1,
-                               Decide_Util.Value.of_string $3) }
+                              (Frenetic_Decide_Util.Field.of_string $1,
+                               Frenetic_Decide_Util.Value.of_string $3) }
   | predicate OR  predicate { Measurement.Predicate.Or ($1, $3) }
   | predicate AND predicate { Measurement.Predicate.And ($1, $3) }
   | LPAREN predicate RPAREN { $2 }

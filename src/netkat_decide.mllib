@@ -1,13 +1,13 @@
 # OASIS_START
-# DO NOT EDIT (digest: f9cef5d1113d0bd0044d21c103462f7a)
-Decide_Util
-Decide_Bisimulation
-Decide_Ast
-Decide_Loopfree
-Decide_Measurement
-Decide_PCC
-Decide_Lexer
-Decide_Parser
-Decide_Repl
-Decide_Deriv
+# DO NOT EDIT (digest: 092ca944f41a40855186137f65eac0e0)
+Frenetic_Decide_Util
+Frenetic_Decide_Bisimulation
+Frenetic_Decide_Ast
+Frenetic_Decide_Loopfree
+Frenetic_Decide_Measurement
+Frenetic_Decide_PCC
+Frenetic_Decide_Lexer
+Frenetic_Decide_Parser
+Frenetic_Decide_Repl
+Frenetic_Decide_Deriv
 # OASIS_STOP

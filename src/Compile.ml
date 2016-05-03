@@ -1,11 +1,11 @@
 open Core.Std
 open Async.Std
 
-module Ast = Decide_Ast
-module Deriv = Decide_Deriv
+module Ast = Frenetic_Decide_Ast
+module Deriv = Frenetic_Decide_Deriv
 module DerivTerm = Deriv.BDDDeriv
-module Measurement = Decide_Measurement
-module Util = Decide_Util
+module Measurement = Frenetic_Decide_Measurement
+module Util = Frenetic_Decide_Util
 
 (*===========================================================================*)
 (* CONSTANTS                                                                 *)
@@ -83,7 +83,7 @@ exception ParseError of string * int * int * string
  * filename can be any descriptive string. *)
 let parse_exn parser_function lexbuf (filename: string) =
   try
-    parser_function Decide_Lexer.token lexbuf
+    parser_function Frenetic_Decide_Lexer.token lexbuf
   with
     | Parsing.Parse_error -> begin
       let curr = lexbuf.Lexing.lex_curr_p in
@@ -103,13 +103,13 @@ let parse_string_exn parser_function (s: string) =
   parse_exn parser_function (Lexing.from_string s) "string"
 
 let term_of_file (filename: string) : Ast.Term.t Deferred.t =
-  return (parse_file_exn Decide_Parser.term_main filename)
+  return (parse_file_exn Frenetic_Decide_Parser.term_main filename)
 
 let query_of_string (s: string) : Measurement.Query.t Deferred.t =
-  return (parse_string_exn Decide_Parser.query_main s)
+  return (parse_string_exn Frenetic_Decide_Parser.query_main s)
 
 let query_of_file (filename: string) : Measurement.Query.t Deferred.t =
-  return (parse_file_exn Decide_Parser.query_main filename)
+  return (parse_file_exn Frenetic_Decide_Parser.query_main filename)
 
 let policy_of_file (filename: string) : Frenetic_NetKAT.policy Deferred.t =
   In_channel.create filename
@@ -117,11 +117,11 @@ let policy_of_file (filename: string) : Frenetic_NetKAT.policy Deferred.t =
   |> return
 
 let term_of_policy_file (filename: string) : Ast.Term.t Deferred.t =
-  policy_of_file filename >>| Decide_Measurement.term_of_policy
+  policy_of_file filename >>| Frenetic_Decide_Measurement.term_of_policy
 
 (* Returns a list of terms split on ipDst *)
 let terms_of_policy_file_ipdst (filename: string) : (Ast.Term.t list) Deferred.t =
-  policy_of_file filename >>| Decide_Measurement.terms_of_policy_ipdst
+  policy_of_file filename >>| Frenetic_Decide_Measurement.terms_of_policy_ipdst
 
 (* returns [in, out, p] *)
 let terms_of_topo_file (filename: string) : (Ast.Term.t * Ast.Term.t * Ast.Term.t) Deferred.t =

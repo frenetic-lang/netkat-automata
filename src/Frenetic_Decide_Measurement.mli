@@ -1,5 +1,5 @@
-module Ast = Decide_Ast
-module Util = Decide_Util
+module Ast = Frenetic_Decide_Ast
+module Util = Frenetic_Decide_Util
 
 (** The abstract syntax of our path query language. *)
 module Predicate : sig

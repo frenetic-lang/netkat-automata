@@ -1,8 +1,8 @@
-module Ast = Decide_Ast
+module Ast = Frenetic_Decide_Ast
 module Net = Frenetic_Network.Net
 module NetKAT = Frenetic_NetKAT
 module Network = Frenetic_Network
-module Util = Decide_Util
+module Util = Frenetic_Decide_Util
 
 module Predicate = struct
   type t =

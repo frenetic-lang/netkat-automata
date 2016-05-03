@@ -1,8 +1,8 @@
 open Core.Std
 open Sexplib.Conv
-open Decide_Util
+open Frenetic_Decide_Util
 open Tdk
-open Decide_Ast
+open Frenetic_Decide_Ast
 
 exception Empty
 
@@ -37,7 +37,7 @@ module type DerivTerm = sig
 
   val make_term : TermSet.t -> t
   val get_termset : t -> TermSet.t
-  (* val to_term : t -> Decide_Ast.Term.t *)
+  (* val to_term : t -> Frenetic_Decide_Ast.Term.t *)
   val get_e : t -> EMatrix.t
   val get_d : t -> DMatrix.t
   val sexp_of_t : t -> Sexplib.Sexp.t
@@ -144,7 +144,7 @@ module rec BDDDeriv : DerivTerm = struct
     let run t (pkt1,pkt2) =
       match PacketDD.peek (PacketDD.restrict (FieldMap.to_alist pkt1) t) with
       | Some p -> PartialPacketSet.contains (PartialPacketSet.map p (seq_pkt pkt1)) pkt2
-      | None -> failwith "Decide_Deriv.BDDDeriv.EMatrix.run failed to get a value from the DD on the pkt"
+      | None -> failwith "Frenetic_Decide_Deriv.BDDDeriv.EMatrix.run failed to get a value from the DD on the pkt"
 
     let empty = PacketDD.const PartialPacketSet.zero
 
@@ -200,16 +200,16 @@ module rec BDDDeriv : DerivTerm = struct
                f)
           t
       in
-      PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Decide_Util.FieldSet.fold (fun field pts ->
+      PointSet.fold base_points ~f:(fun acc pt -> PointSet.union acc (Frenetic_Decide_Util.FieldSet.fold (fun field pts ->
           PointSet.fold pts ~f:(fun acc (a,b) -> PointSet.union acc
           begin
             match FieldMap.find a field, FieldMap.find b field with
             | Some _, Some _ -> PointSet.singleton (a,b)
             | Some x, None -> PointSet.singleton (a, FieldMap.add b ~key:field ~data:x)
-            | None, Some _ -> Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, b)) (!Decide_Util.all_values () field) PointSet.empty
-            | None, None -> Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, FieldMap.add b ~key:field ~data:v))
-                              (!Decide_Util.all_values () field) PointSet.empty
-          end) ~init:PointSet.empty) (!Decide_Util.all_fields ()) (PointSet.singleton pt))) ~init:PointSet.empty
+            | None, Some _ -> Frenetic_Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, b)) (!Frenetic_Decide_Util.all_values () field) PointSet.empty
+            | None, None -> Frenetic_Decide_Util.ValueSet.fold (fun v acc -> PointSet.add acc (FieldMap.add a ~key:field ~data:v, FieldMap.add b ~key:field ~data:v))
+                              (!Frenetic_Decide_Util.all_values () field) PointSet.empty
+          end) ~init:PointSet.empty) (!Frenetic_Decide_Util.all_fields ()) (PointSet.singleton pt))) ~init:PointSet.empty
 
     let fold t ~init:init ~f:f =
       let pts = get_points t in

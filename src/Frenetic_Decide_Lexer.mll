@@ -1,5 +1,5 @@
 {
-open Decide_Parser
+open Frenetic_Decide_Parser
 exception LexError of string
 let parse_byte str = Int64.of_string ("0x" ^ str)
 }

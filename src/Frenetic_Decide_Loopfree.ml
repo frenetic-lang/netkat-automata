@@ -1,7 +1,7 @@
 open Core.Std
-open Decide_Ast
-open Decide_Util
-open Decide_Deriv.BDDDeriv
+open Frenetic_Decide_Ast
+open Frenetic_Decide_Util
+open Frenetic_Decide_Deriv.BDDDeriv
 
 let rec one_dup_trm (trm : Term.t) = let open Term in
   match trm.Hashcons.node with

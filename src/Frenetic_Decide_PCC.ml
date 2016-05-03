@@ -1,14 +1,14 @@
 
-module D = Decide_Deriv.BDDDeriv
+module D = Frenetic_Decide_Deriv.BDDDeriv
 module S = Sexplib.Sexp
-module Ast = Decide_Ast
+module Ast = Frenetic_Decide_Ast
 module Term = Ast.Term
-                
+
 open Core.Std
 open Sexplib.Conv
 
-module PCC (D : Decide_Deriv.DerivTerm) = struct
-  module UF = Decide_Util.UnionFind(D)
+module PCC (D : Frenetic_Decide_Deriv.DerivTerm) = struct
+  module UF = Frenetic_Decide_Util.UnionFind(D)
 
   type certificate = {
     lhs : Term.t;

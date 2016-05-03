@@ -1,6 +1,6 @@
 open Core.Std
 open Sexplib.Conv
-open Decide_Util
+open Frenetic_Decide_Util
 
 module FieldMap = Map.Make(Field)
 

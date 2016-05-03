@@ -1,11 +1,11 @@
 open Core.Std
 open Async.Std
 
-module Ast = Decide_Ast
-module Deriv = Decide_Deriv
+module Ast = Frenetic_Decide_Ast
+module Deriv = Frenetic_Decide_Deriv
 module DerivTerm = Deriv.BDDDeriv
-module Measurement = Decide_Measurement
-module Util = Decide_Util
+module Measurement = Frenetic_Decide_Measurement
+module Util = Frenetic_Decide_Util
 
 (* [base f] returns the basename of [f] without any file extensions. *)
 let base (filename: string) : string =

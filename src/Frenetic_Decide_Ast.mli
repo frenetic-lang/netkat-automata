@@ -1,5 +1,5 @@
 open Core.Std
-open Decide_Util
+open Frenetic_Decide_Util
 
 module FieldMap : sig
   include Map.S with type Key.t = Field.t

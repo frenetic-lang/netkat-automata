@@ -1,11 +1,11 @@
 exception Empty
 
 open Core.Std
-open Decide_Util
-open Decide_Ast
+open Frenetic_Decide_Util
+open Frenetic_Decide_Ast
 
 module type DerivTerm = sig
-  
+
   type t with sexp
 
   module EMatrix : sig
@@ -25,7 +25,7 @@ module type DerivTerm = sig
     val equivalent : (TermSet.t -> TermSet.t -> bool) -> t -> t -> bool
     val points : t -> EMatrix.t
   end
-  
+
   val make_term : TermSet.t -> t
   val get_termset : t -> TermSet.t
   val get_e : t -> EMatrix.t
