@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e744685ddeb4ea57eaa748a3c68ec1ab)
+# DO NOT EDIT (digest: a0120c7359a970f4624546c1f6f85052)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -26,16 +26,6 @@ true: annot, bin_annot
 <src/Decide_Repl.{native,byte}>: package(sexplib.syntax)
 <src/Decide_Repl.{native,byte}>: package(tdk)
 <src/Decide_Repl.{native,byte}>: package(threads)
-# Executable measure
-<src/Measure.{native,byte}>: package(comparelib)
-<src/Measure.{native,byte}>: package(comparelib.syntax)
-<src/Measure.{native,byte}>: package(core)
-<src/Measure.{native,byte}>: package(frenetic)
-<src/Measure.{native,byte}>: package(hashcons)
-<src/Measure.{native,byte}>: package(sexplib)
-<src/Measure.{native,byte}>: package(sexplib.syntax)
-<src/Measure.{native,byte}>: package(tdk)
-<src/Measure.{native,byte}>: package(threads)
 # Executable compile
 <src/Compile.{native,byte}>: package(async)
 <src/Compile.{native,byte}>: package(comparelib)
