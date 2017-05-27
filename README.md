@@ -1,3 +1,11 @@
+# Note #
+
+This software is not being actively developed. However, tt should build against older versions of the libraries. To switch using Opam, execute the following commands:
+```
+opam switch 4.02.3
+opam install core.113.00.00
+```
+
 # Felix #
 This branch implements the Felix query language compiler. This README discusses
 how to get the compiler up and running; it doesn't describe Felix at all. For
