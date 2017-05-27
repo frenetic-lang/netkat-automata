@@ -1,6 +1,6 @@
 # Note #
 
-This software is not being actively developed. However, tt should build against older versions of the libraries. To switch using Opam, execute the following commands:
+This software is not being actively developed. However, it should build against older versions of the libraries. To switch using Opam, execute the following commands:
 ```
 opam switch 4.02.3
 opam install core.113.00.00
